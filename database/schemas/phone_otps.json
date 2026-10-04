@@ -1,0 +1,13 @@
+{
+  "$jsonSchema": {
+    "bsonType": "object",
+    "required": ["phone", "code", "expires_at", "attempts", "created_at"],
+    "properties": {
+      "phone": {"bsonType": "string", "description": "E.164, matches users.phone"},
+      "code": {"bsonType": "string", "pattern": "^[0-9]{6}$"},
+      "expires_at": {"bsonType": "date", "description": "10 min after issue; TTL deletes doc"},
+      "attempts": {"bsonType": ["int", "long"], "minimum": 0, "description": "wrong-code counter, lock at 5"},
+      "created_at": {"bsonType": "date"}
+    }
+  }
+}

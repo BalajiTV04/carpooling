@@ -1,0 +1,28 @@
+{
+  "features": [
+    "overlap01",
+    "pickup01",
+    "dropoff01",
+    "time01"
+  ],
+  "weights": [
+    8.6953,
+    4.456,
+    2.9891,
+    2.8011
+  ],
+  "bias": -10.4554,
+  "auc": {
+    "logreg": 0.9115,
+    "rf": 0.8928,
+    "xgb": 0.9044
+  },
+  "baseline_weights": {
+    "overlap": 0.45,
+    "pickup": 0.25,
+    "dropoff": 0.15,
+    "time": 0.15
+  },
+  "trained_at": "2026-09-20T18:25:58.520773Z",
+  "n_rows": 4000
+}

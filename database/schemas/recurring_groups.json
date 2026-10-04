@@ -1,0 +1,18 @@
+{
+  "$jsonSchema": {
+    "bsonType": "object",
+    "required": ["group_id", "driver_id", "base_trip_id", "rule", "starts_on", "active", "created_at"],
+    "properties": {
+      "group_id": {"bsonType": "string", "description": "uuid-style series id"},
+      "driver_id": {"bsonType": "objectId"},
+      "base_trip_id": {"bsonType": "objectId", "description": "trip the series was cloned from"},
+      "rule": {"enum": ["daily", "weekdays", "weekly"]},
+      "weekly_days": {"bsonType": ["array", "null"], "items": {"bsonType": ["int", "long"], "minimum": 0, "maximum": 6}},
+      "starts_on": {"bsonType": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$"},
+      "stops_on": {"bsonType": ["string", "null"], "pattern": "^\\d{4}-\\d{2}-\\d{2}$"},
+      "horizon_days": {"bsonType": ["int", "long"]},
+      "active": {"bsonType": "bool", "description": "false after cancel; booked instances keep running"},
+      "created_at": {"bsonType": "date"}
+    }
+  }
+}

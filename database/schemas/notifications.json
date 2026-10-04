@@ -1,0 +1,19 @@
+{
+  "$jsonSchema": {
+    "bsonType": "object",
+    "required": ["user_id", "type", "title", "body", "priority", "created_at"],
+    "properties": {
+      "user_id": {"bsonType": "objectId", "description": "the single recipient — Module 23 resolves audiences server-side, never client-side"},
+      "type": {"enum": ["booking_requested", "booking_accepted", "booking_rejected", "booking_cancelled", "trip_completed", "trip_started", "safety_alert", "sos", "alert_acknowledged", "alert_resolved", "recurring_created"]},
+      "title": {"bsonType": "string", "description": "rendered from services.notify.EVENT_CATALOG"},
+      "body": {"bsonType": "string"},
+      "priority": {"enum": ["low", "normal", "high", "critical"]},
+      "action": {"bsonType": ["string", "null"], "enum": ["rate", "live", null], "description": "deep-link hint for the bell"},
+      "trip_id": {"bsonType": ["objectId", "null"]},
+      "booking_id": {"bsonType": ["objectId", "null"]},
+      "dedupe_key": {"bsonType": "string", "description": "present ONLY for KEY events (one per user per thing); omitted for NEVER events such as SOS, so the sparse unique index never collides"},
+      "read_at": {"bsonType": ["date", "null"]},
+      "created_at": {"bsonType": "date"}
+    }
+  }
+}

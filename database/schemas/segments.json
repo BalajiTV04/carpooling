@@ -1,0 +1,18 @@
+{
+  "$jsonSchema": {
+    "bsonType": "object",
+    "required": ["trip_id", "seq", "from_label", "to_label", "from_point", "to_point", "distance_km", "occupant_booking_ids", "created_at"],
+    "properties": {
+      "trip_id": {"bsonType": "objectId"},
+      "seq": {"bsonType": ["int", "long"], "minimum": 0, "description": "leg order: 0 = source→first stop"},
+      "from_label": {"bsonType": "string"},
+      "to_label": {"bsonType": "string"},
+      "from_point": {"bsonType": "object"},
+      "to_point": {"bsonType": "object"},
+      "distance_km": {"bsonType": ["double", "int"], "minimum": 0},
+      "occupant_booking_ids": {"bsonType": "array", "items": {"bsonType": "objectId"}},
+      "cost_per_occupant": {"bsonType": ["double", "int", "null"], "description": "Module 13 fills this"},
+      "created_at": {"bsonType": "date"}
+    }
+  }
+}

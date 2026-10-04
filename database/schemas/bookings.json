@@ -1,0 +1,26 @@
+{
+  "$jsonSchema": {
+    "bsonType": "object",
+    "required": ["trip_id", "passenger_id", "seats", "pickup", "dropoff", "status", "created_at", "updated_at"],
+    "properties": {
+      "trip_id": {"bsonType": "objectId"},
+      "passenger_id": {"bsonType": "objectId"},
+      "seats": {"bsonType": ["int", "long"], "minimum": 1, "maximum": 7},
+      "pickup": {"bsonType": "object", "required": ["point"], "properties": {"name": {"bsonType": ["string", "null"]}, "point": {"bsonType": "object"}}},
+      "dropoff": {"bsonType": "object", "required": ["point"], "properties": {"name": {"bsonType": ["string", "null"]}, "point": {"bsonType": "object"}}},
+      "pickup_distance_m": {"bsonType": ["double", "int", "null"]},
+      "detour_km": {"bsonType": ["double", "int", "null"]},
+      "overlap_pct": {"bsonType": ["double", "int", "null"], "minimum": 0, "maximum": 100},
+      "match_score": {"bsonType": ["double", "int", "null"], "minimum": 0, "maximum": 100},
+      "match_explain": {"bsonType": ["object", "null"], "description": "Module 9/10/16: why-factors"},
+      "ai_score": {"bsonType": ["double", "int", "null"], "minimum": 0, "maximum": 100},
+      "ai_model": {"bsonType": ["string", "null"], "description": "Module 16: logreg | rule-fallback"},
+      "cost_share": {"bsonType": ["double", "int", "null"], "minimum": 0},
+      "closed_at": {"bsonType": ["date", "null"], "description": "Module 19: when the trip completed (frozen thereafter)"},
+      "closure_note": {"bsonType": ["string", "null"], "description": "Module 19: e.g. auto-reject reason 'trip completed'"},
+      "status": {"enum": ["requested", "accepted", "rejected", "confirmed", "cancelled", "completed"]},
+      "created_at": {"bsonType": "date"},
+      "updated_at": {"bsonType": "date"}
+    }
+  }
+}

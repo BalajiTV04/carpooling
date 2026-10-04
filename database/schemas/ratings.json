@@ -1,0 +1,16 @@
+{
+  "$jsonSchema": {
+    "bsonType": "object",
+    "required": ["booking_id", "trip_id", "rater_id", "target_id", "stars", "created_at", "updated_at"],
+    "properties": {
+      "booking_id": {"bsonType": "objectId", "description": "Module 22: the completed ride being rated"},
+      "trip_id": {"bsonType": "objectId"},
+      "rater_id": {"bsonType": "objectId", "description": "author of the rating (passenger or driver)"},
+      "target_id": {"bsonType": "objectId", "description": "the rated party — always the OTHER side of the booking"},
+      "stars": {"bsonType": ["int", "long", "double"], "minimum": 1, "maximum": 5},
+      "comment": {"bsonType": ["string", "null"], "maxLength": 500},
+      "created_at": {"bsonType": "date"},
+      "updated_at": {"bsonType": "date", "description": "set again when the same rater edits their score"}
+    }
+  }
+}

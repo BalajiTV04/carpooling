@@ -1,0 +1,23 @@
+{
+  "$jsonSchema": {
+    "bsonType": "object",
+    "required": ["owner_id", "make", "model", "plate_no", "seats_total", "fuel_type", "verification_status", "is_active", "created_at", "updated_at"],
+    "properties": {
+      "owner_id": {"bsonType": "objectId", "description": "users._id of driver-owner"},
+      "make": {"bsonType": "string"},
+      "model": {"bsonType": "string"},
+      "year": {"bsonType": ["int", "long", "null"]},
+      "color": {"bsonType": ["string", "null"]},
+      "plate_no": {"bsonType": "string", "description": "unique, stored UPPER, no spaces"},
+      "seats_total": {"bsonType": ["int", "long"], "minimum": 1, "maximum": 7, "description": "PASSENGER seats (excludes driver)"},
+      "fuel_type": {"enum": ["petrol", "diesel", "cng", "ev", "hybrid"]},
+      "mileage_kmpl": {"bsonType": ["double", "int", "null"], "description": "used by cost engine (Module 12)"},
+      "image_url": {"bsonType": ["string", "null"], "description": "hot-linked https photo only — no file upload (Module 4 doctrine); null/absent falls back to the emoji tile"},
+      "verification_status": {"enum": ["pending", "verified", "rejected"]},
+      "verification_note": {"bsonType": ["string", "null"]},
+      "is_active": {"bsonType": "bool"},
+      "created_at": {"bsonType": "date"},
+      "updated_at": {"bsonType": "date"}
+    }
+  }
+}

@@ -1,0 +1,70 @@
+# Module 25 — PRODUCTION compose. docker-compose.yml stays the DEV one
+# (live reload, open Mongo port, dev secrets).
+#
+#   cp .env.example .env.prod      # then edit: real JWT secret, https origins
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+#
+# Hardening over the dev file:
+#   - Mongo requires credentials and publishes NO port to the host
+#   - real healthchecks; dependents wait for `service_healthy`
+#   - backend runs APP_ENV=production, so it refuses to boot on a dev secret
+#   - no source bind-mounted over the built images
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:?set MONGO_ROOT_USER in .env.prod}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?set MONGO_ROOT_PASSWORD in .env.prod}
+      MONGO_INITDB_DATABASE: ${MONGO_DB:-vehicle_sharing_prod}
+    volumes:
+      - mongo-prod-data:/data/db
+    # deliberately NOT published: only the backend network needs Mongo
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+
+  backend:
+    build:
+      context: ./backend
+      args:
+        GIT_SHA: ${GIT_SHA:-dev}
+    restart: unless-stopped
+    environment:
+      APP_ENV: production
+      GIT_SHA: ${GIT_SHA:-dev}
+      MONGO_URI: mongodb://${MONGO_ROOT_USER}:${MONGO_ROOT_PASSWORD}@mongo:27017/?authSource=admin
+      MONGO_DB: ${MONGO_DB:-vehicle_sharing_prod}
+      JWT_SECRET: ${JWT_SECRET:?set a unique JWT_SECRET (32+ chars) in .env.prod}
+      CORS_ORIGINS: ${CORS_ORIGINS:?set the https frontend origin in .env.prod}
+      ROUTING_PROVIDER: ${ROUTING_PROVIDER:-osrm}
+      OSRM_URL: ${OSRM_URL:-https://router.project-osrm.org}
+      NOMINATIM_URL: ${NOMINATIM_URL:-https://nominatim.openstreetmap.org}
+      FUEL_PRICE_PETROL: ${FUEL_PRICE_PETROL:-104.5}
+      FUEL_PRICE_DIESEL: ${FUEL_PRICE_DIESEL:-95.0}
+      DEFAULT_MILEAGE_KMPL: ${DEFAULT_MILEAGE_KMPL:-15.0}
+    depends_on:
+      mongo:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # NEXT_PUBLIC_* is inlined at BUILD time — this is the only place it can
+        # be set. Changing it afterwards requires a rebuild, not a restart.
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?set NEXT_PUBLIC_API_URL in .env.prod}
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+
+volumes:
+  mongo-prod-data:

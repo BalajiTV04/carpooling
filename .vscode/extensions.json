@@ -1,0 +1,8 @@
+{
+  "recommendations": ["ms-python.python", "ms-python.vscode-pylance", "bradlc.vscode-tailwindcss", "esbenp.prettier-vscode", "mongodb.mongodb-vscode"],
+  "settings": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "[python]": { "defaultFormatter": "ms-python.python" }
+  }
+}

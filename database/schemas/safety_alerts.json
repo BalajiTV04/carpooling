@@ -1,0 +1,17 @@
+{
+  "$jsonSchema": {
+    "bsonType": "object",
+    "required": ["trip_id", "type", "severity", "status", "created_at"],
+    "properties": {
+      "trip_id": {"bsonType": "objectId"},
+      "booking_id": {"bsonType": ["objectId", "null"]},
+      "type": {"enum": ["sos", "speed", "deviation"]},
+      "severity": {"enum": ["low", "medium", "high", "critical"]},
+      "point": {"bsonType": ["object", "null"]},
+      "details": {"bsonType": ["object", "null"], "description": "{speed_kmph, limit_kmph} | {deviation_m} | {message}"},
+      "status": {"enum": ["open", "acknowledged", "resolved"]},
+      "created_at": {"bsonType": "date"},
+      "resolved_at": {"bsonType": ["date", "null"]}
+    }
+  }
+}

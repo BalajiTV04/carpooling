@@ -1,0 +1,8 @@
+pandas==2.0.3
+numpy==1.24.3
+scikit-learn==1.1.1
+xgboost==2.1.4
+# Module 16 training stack (Python 3.8 pinned):
+# `pip install -r ml/requirements.txt` then `python ml/train_ranker.py`.
+# The backend runtime NEVER imports these — it reads ml/artifacts/ranker.json
+# (plain JSON weights) via a stdlib-only ranker service.

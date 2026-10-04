@@ -1,0 +1,12 @@
+# Module 25 — keep the build context small and local env out of the image.
+.git
+node_modules
+.next
+npm-debug.log*
+# real environment files are secrets; .env.example is documentation
+.env
+.env.*
+!.env.example
+# local editor/OS noise
+.DS_Store
+*.tsbuildinfo

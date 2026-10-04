@@ -1,0 +1,39 @@
+{
+  "$jsonSchema": {
+    "bsonType": "object",
+    "required": ["driver_id", "vehicle_id", "source", "destination", "depart_at", "seats_offered", "seats_booked", "status", "created_at", "updated_at"],
+    "properties": {
+      "driver_id": {"bsonType": "objectId"},
+      "vehicle_id": {"bsonType": "objectId"},
+      "source": {
+        "bsonType": "object", "required": ["name", "point"],
+        "properties": {
+          "name": {"bsonType": "string"},
+          "address": {"bsonType": ["string", "null"]},
+          "point": {"bsonType": "object", "required": ["type", "coordinates"], "properties": {"type": {"enum": ["Point"]}, "coordinates": {"bsonType": "array", "minItems": 2, "maxItems": 2, "items": {"bsonType": "double"}}}}
+        }
+      },
+      "destination": {
+        "bsonType": "object", "required": ["name", "point"],
+        "properties": {
+          "name": {"bsonType": "string"},
+          "address": {"bsonType": ["string", "null"]},
+          "point": {"bsonType": "object", "required": ["type", "coordinates"], "properties": {"type": {"enum": ["Point"]}, "coordinates": {"bsonType": "array", "minItems": 2, "maxItems": 2, "items": {"bsonType": "double"}}}}
+        }
+      },
+      "route_geometry": {"bsonType": ["object", "null"], "description": "GeoJSON LineString from OSRM (Module 7); null until routed"},
+      "distance_km": {"bsonType": ["double", "int", "null"], "minimum": 0},
+      "duration_min": {"bsonType": ["double", "int", "null"], "minimum": 0},
+      "depart_at": {"bsonType": "date", "description": "UTC departure"},
+      "seats_offered": {"bsonType": ["int", "long"], "minimum": 1, "maximum": 7},
+      "seats_booked": {"bsonType": ["int", "long"], "minimum": 0},
+      "price_policy": {"bsonType": ["object", "null"], "description": "Module 12: {mode, fuel_price, mileage_kmpl}"},
+      "recurring": {"bsonType": ["object", "null"], "description": "Module 15 placeholder"},
+      "status": {"enum": ["draft", "published", "ongoing", "completed", "cancelled"]},
+      "started_at": {"bsonType": ["date", "null"], "description": "Module 19: set on published -> ongoing (start or first ping)"},
+      "completed_at": {"bsonType": ["date", "null"], "description": "Module 19: receipt timestamp; after this seats+money are frozen"},
+      "created_at": {"bsonType": "date"},
+      "updated_at": {"bsonType": "date"}
+    }
+  }
+}

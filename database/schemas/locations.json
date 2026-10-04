@@ -1,0 +1,13 @@
+{
+  "$jsonSchema": {
+    "bsonType": "object",
+    "required": ["trip_id", "actor_id", "point", "recorded_at"],
+    "properties": {
+      "trip_id": {"bsonType": "objectId"},
+      "actor_id": {"bsonType": "objectId", "description": "driver user id; passengers never write here"},
+      "point": {"bsonType": "object", "required": ["type", "coordinates"], "properties": {"type": {"enum": ["Point"]}, "coordinates": {"bsonType": "array", "minItems": 2, "maxItems": 2}}},
+      "speed_kmph": {"bsonType": ["double", "int", "null"], "minimum": 0, "maximum": 300},
+      "recorded_at": {"bsonType": "date", "description": "TTL 30 days for privacy (Module 17)"}
+    }
+  }
+}

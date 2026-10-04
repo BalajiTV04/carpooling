@@ -1,0 +1,20 @@
+{
+  "$jsonSchema": {
+    "bsonType": "object",
+    "required": ["phone", "full_name", "roles", "phone_verified", "status", "created_at", "updated_at"],
+    "properties": {
+      "phone": {"bsonType": "string", "pattern": "^\\+[1-9][0-9]{7,14}$", "description": "E.164, e.g. +919876543210"},
+      "email": {"bsonType": "string"},
+      "password_hash": {"bsonType": "string"},
+      "full_name": {"bsonType": "string", "minLength": 2},
+      "roles": {"bsonType": "array", "minItems": 1, "items": {"enum": ["driver", "passenger", "admin"]}},
+      "avatar_url": {"bsonType": ["string", "null"]},
+      "phone_verified": {"bsonType": "bool"},
+      "rating_avg": {"bsonType": ["double", "int", "null"], "minimum": 0, "maximum": 5},
+      "rating_count": {"bsonType": ["int", "long"]},
+      "status": {"enum": ["active", "suspended", "deleted"]},
+      "created_at": {"bsonType": "date"},
+      "updated_at": {"bsonType": "date"}
+    }
+  }
+}
