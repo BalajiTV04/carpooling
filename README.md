@@ -1,7 +1,7 @@
 # Intelligent Private Vehicle Sharing
 ### AI-Based Route-Aware Matching and Minimum-Detour Pickup Optimization
 
-**MCA Major Project — 1MV25MC008 · Balaji T V · MVIT**
+
 Status: **25 / 25 modules complete · 121 tests passing · 92 API routes · 11 collections**
 
 A private-vehicle sharing platform that matches riders to drivers travelling the
