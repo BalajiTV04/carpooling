@@ -110,7 +110,7 @@ export function PlacePicker({
 
   return (
     <div className="relative">
-      <span className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#A5ABD6]">
+      <span className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted">
         {label}
       </span>
       <PlaceRow
@@ -137,7 +137,7 @@ export function PlacePicker({
             label={value?.name ?? "Selected point"}
             onPick={dropPin}
           />
-          <p className="mt-1 text-center text-[11px] text-[#5b6194]">
+          <p className="mt-1 text-center text-[11px] text-muted">
             {geoBusy
               ? "Looking up that spot…"
               : pin
@@ -190,7 +190,7 @@ function PlaceRow({
           aria-expanded={open}
         />
         {open && hits.length > 0 && (
-          <div className="absolute z-30 mt-1 max-h-64 w-full overflow-auto rounded-2xl border border-[rgba(154,151,255,.3)] bg-night-950 shadow-card">
+          <div className="absolute z-30 mt-1 max-h-64 w-full overflow-auto rounded-2xl border border-iris-400/30 bg-night-950 shadow-card">
             {hits.map((h, i) => (
               <button
                 key={`${h.lat},${h.lng},${i}`}
@@ -205,13 +205,13 @@ function PlaceRow({
                 }`}
               >
                 <span className="flex items-center gap-2">
-                  <span className="font-semibold text-[#EEF0FF]">{h.name}</span>
+                  <span className="font-semibold text-ink">{h.name}</span>
                   <span className="rounded-full bg-night-900 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-volt-300">
                     {h.source === "catalog" ? "known stop" : "map"}
                   </span>
                 </span>
                 <span className="flex items-center justify-between gap-2">
-                  <span className="block truncate text-xs text-[#A5ABD6]">{h.address}</span>
+                  <span className="block truncate text-xs text-muted">{h.address}</span>
                   <span className="shrink-0 text-[10px] text-iris-300">{h.reason}</span>
                 </span>
               </button>
@@ -228,7 +228,7 @@ function PlaceRow({
         className={`shrink-0 rounded-2xl border px-3 text-sm transition ${
           showMap
             ? "border-volt-400 bg-volt-400/15 text-volt-300"
-            : "border-[rgba(154,151,255,.3)] text-[#A5ABD6] hover:border-volt-400/60 hover:text-volt-300"
+            : "border-iris-400/30 text-muted hover:border-volt-400/60 hover:text-volt-300"
         }`}
       >
         {showMap ? "✕" : "📍"}

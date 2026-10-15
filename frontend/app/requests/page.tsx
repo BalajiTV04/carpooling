@@ -11,6 +11,7 @@ import {
 } from "@/lib/bookings";
 import { RateRideCard } from "@/components/RateRideCard";
 import { ratingApi, type PendingRating } from "@/lib/ratings";
+import { PageShell } from "@/components/PageShell";
 
 /** Module 22 prompt for one completed booking, fed by the pending list. */
 function RateBookingRow({ bookingId }: { bookingId: string }) {
@@ -76,16 +77,20 @@ function RequestsInner() {
   };
 
   const Card = ({ b, incomingView }: { b: Booking; incomingView: boolean }) => (
-    <div className="rounded-xl3 border border-[rgba(154,151,255,.22)] bg-night-900/80 p-4">
+    <div className="panel panel-hover p-4">
       <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="truncate font-display font-bold">
-            {b.trip?.source_name ?? "?"} → {b.trip?.destination_name ?? "?"}
-          </p>
-          <p className="text-xs text-[#A5ABD6]">
+        <div className="min-w-0 flex-1">
+          <div className="route-strip">
+            <span className="dot dot-from" aria-hidden />
+            <span className="truncate font-display text-sm font-bold">{b.trip?.source_name ?? "?"}</span>
+            <span className="line" aria-hidden />
+            <span className="dot dot-to" aria-hidden />
+            <span className="truncate font-display text-sm font-bold">{b.trip?.destination_name ?? "?"}</span>
+          </div>
+          <p className="mt-1.5 text-xs text-muted">
             {b.trip ? `${fmt(b.trip.depart_at)} · ${b.trip.vehicle ?? "car"}` : ""}
           </p>
-          <p className="mt-0.5 text-xs text-[#A5ABD6]">
+          <p className="mt-0.5 text-xs text-muted">
             {incomingView
               ? `${b.passenger_name ?? "Passenger"} · ${b.seats} seat${b.seats > 1 ? "s" : ""}`
               : `driver ${b.driver_name ?? "—"} · ${b.seats} seat${b.seats > 1 ? "s" : ""}`}
@@ -97,17 +102,17 @@ function RequestsInner() {
           {b.status}
         </span>
       </div>
-      <div className="mt-3 flex gap-1.5 text-xs">
+      <div className="mt-3 flex flex-wrap gap-1.5">
         {incomingView && b.status === "requested" && (
           <>
             <button onClick={() => act(() => bookingApi.accept(b.id), "Accepted ✓")}
               disabled={busy}
-              className="rounded-full bg-volt-400 px-3 py-1.5 font-bold text-night-950">
+              className="btn btn-primary btn-sm">
               Accept
             </button>
             <button onClick={() => act(() => bookingApi.reject(b.id), "Rejected — seats released.")}
               disabled={busy}
-              className="rounded-full border border-rose-400/50 px-3 py-1.5 text-rose-300">
+              className="btn btn-danger btn-sm">
               Reject
             </button>
           </>
@@ -115,7 +120,7 @@ function RequestsInner() {
         {!incomingView && b.status === "accepted" && (
           <button onClick={() => act(() => bookingApi.confirm(b.id), "Booked ✓")}
             disabled={busy}
-            className="rounded-full bg-volt-400 px-3 py-1.5 font-bold text-night-950">
+            className="btn btn-primary btn-sm">
             Confirm ✓
           </button>
         )}
@@ -131,7 +136,7 @@ function RequestsInner() {
         {["requested", "accepted", "confirmed"].includes(b.status) && (
           <button onClick={() => act(() => bookingApi.cancel(b.id), "Cancelled — seats released.")}
             disabled={busy}
-            className="rounded-full border border-rose-400/50 px-3 py-1.5 text-rose-300">
+            className="btn btn-danger btn-sm">
             Cancel
           </button>
         )}
@@ -142,36 +147,38 @@ function RequestsInner() {
   const list = tab === "mine" ? mine : incoming;
 
   return (
-    <main className="mx-auto max-w-3xl px-5 pb-20 pt-10">
-      <Link href="/" className="text-sm text-volt-300">← VoltRide</Link>
-      <h1 className="font-display mt-2 text-3xl font-bold">Requests</h1>
-      <div className="mt-4 flex gap-2">
+    <PageShell
+      title="Requests"
+      eyebrow={isDriver ? "Driver · Passenger" : "Passenger"}
+      subtitle="Accept, confirm or cancel — seats release the moment a booking ends."
+    >
+      <div className="tabbar mt-5">
         <button
           onClick={() => setTab("mine")}
-          className={`rounded-full px-4 py-2 text-sm font-bold ${tab === "mine" ? "bg-volt-400 text-night-950" : "border border-[rgba(154,151,255,.35)] text-[#A5ABD6]"}`}
+          className={`tab ${tab === "mine" ? "tab-active" : ""}`}
         >
           My requests ({mine.length})
         </button>
         {isDriver && (
           <button
             onClick={() => setTab("incoming")}
-            className={`rounded-full px-4 py-2 text-sm font-bold ${tab === "incoming" ? "bg-iris-500 text-white" : "border border-[rgba(154,151,255,.35)] text-[#A5ABD6]"}`}
+            className={`tab ${tab === "incoming" ? "tab-active" : ""}`}
           >
             Incoming ({incoming.length})
           </button>
         )}
       </div>
-      {err && <p className="mt-3 rounded-2xl border border-rose-400/40 bg-rose-500/10 p-3 text-sm text-rose-300">{err}</p>}
+      {err && <p className="alert alert-err mt-4">{err}</p>}
       <div className="mt-4 grid gap-3">
         {list.length === 0 && (
-          <div className="rounded-xl3 border border-dashed border-[rgba(154,151,255,.35)] p-8 text-center text-sm text-[#A5ABD6]">
+          <div className="empty">
             {tab === "mine"
-              ? <>No requests yet — find a ride in <Link href="/search" className="text-volt-300">/search</Link> and tap Request booking.</>
+              ? <>No requests yet — find a ride in <Link href="/search" className="link-volt">/search</Link> and tap Request booking.</>
               : "No incoming requests yet. Publish trips and they will appear here."}
           </div>
         )}
         {list.map((b) => <Card key={b.id} b={b} incomingView={tab === "incoming"} />)}
       </div>
-    </main>
+    </PageShell>
   );
 }

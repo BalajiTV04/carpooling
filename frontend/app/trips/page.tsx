@@ -74,7 +74,15 @@ function TripsInner() {
     try {
       if (!src || !dst) throw new Error("Search and pick both places");
       if (!vehicleId) throw new Error("Choose a verified car");
-      const depart_at = new Date(`${date}T${time}:00`).toISOString();
+      // Client-side guard: the server rejects a past depart_at with a 422, so
+      // catch the common mistakes here first with a message the user can read.
+      if (!date || !time) throw new Error("Pick a departure date AND time");
+      const depart = new Date(`${date}T${time}:00`);
+      if (Number.isNaN(depart.getTime())) throw new Error("That date/time is not valid");
+      if (depart.getTime() < Date.now() + 5 * 60_000) {
+        throw new Error("Departure must be at least 5 minutes in the future — the server refuses past trips");
+      }
+      const depart_at = depart.toISOString();
       const t = await tripApi.create({
         vehicle_id: vehicleId,
         source: { name: src.name, coordinates: [src.lng, src.lat] },
@@ -108,17 +116,18 @@ function TripsInner() {
   return (
     <PageShell
       title="Driver console"
+      eyebrow="Driver"
       accent="· trips"
       subtitle={
         <>
-          No verified car? <Link href="/garage" className="text-volt-300">Add one in the garage →</Link>
+          No verified car? <Link href="/garage" className="link-volt">Add one in the garage →</Link>
         </>
       }
     >
-      {msg && <p className="mt-3 rounded-2xl border border-volt-400/40 bg-volt-400/10 p-3 text-sm text-volt-300">{msg}</p>}
-      {err && <p className="mt-3 rounded-2xl border border-rose-400/40 bg-rose-500/10 p-3 text-sm text-rose-300">{err}</p>}
+      {msg && <p className="alert alert-ok mt-4">{msg}</p>}
+      {err && <p className="alert alert-err mt-4">{err}</p>}
       <form onSubmit={submit} className="mt-4 grid gap-4 lg:grid-cols-[.95fr_1.05fr]">
-        <div className="grid content-start gap-3 rounded-xl3 border border-[rgba(154,151,255,.22)] bg-night-900/80 p-5">
+        <div className="panel grid content-start gap-3 p-5">
           <h2 className="font-display font-bold">Publish a trip</h2>
           <Field label="Car (verified only)">
             <select className={inputCls} value={vehicleId} onChange={(e) => setVehicleId(e.target.value)} required>
@@ -143,18 +152,18 @@ function TripsInner() {
               </select>
             </Field>
           </div>
-          <button disabled={busy || !src || !dst} className="rounded-2xl bg-volt-400 py-2.5 text-sm font-bold text-night-950 shadow-glow disabled:opacity-50">
+          <button disabled={busy || !src || !dst} className="btn btn-primary w-full py-3">
             {busy ? "Staging…" : "Stage as draft →"}
           </button>
         </div>
-        <div>
+        <div className="panel p-4">
           <RouteMap
             src={src ? [src.lng, src.lat] : null}
             dst={dst ? [dst.lng, dst.lat] : null}
             geometry={preview?.geometry ?? null}
             height={380}
           />
-          <p className="mt-2 text-center text-xs text-[#A5ABD6]">
+          <p className="mt-2 text-center text-xs text-muted">
             {!src || !dst
               ? "Search both places — the route draws itself here."
               : routing
@@ -165,10 +174,10 @@ function TripsInner() {
           </p>
         </div>
       </form>
-      <h2 className="font-display mt-6 font-bold">My trips ({trips.length})</h2>
+      <h2 className="font-display mt-6 text-lg font-bold">My trips ({trips.length})</h2>
       <div className="mt-3 grid gap-3">
         {trips.length === 0 && (
-          <div className="rounded-xl3 border border-dashed border-[rgba(154,151,255,.35)] p-8 text-center text-sm text-[#A5ABD6]">
+          <div className="empty">
             No trips yet — stage your first draft above.
           </div>
         )}

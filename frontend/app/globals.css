@@ -2,45 +2,147 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Direction B — Night Mobility theme tokens (dark-first, map glow) */
+/* ══════════════════════════════════════════════════════════════════════════
+   DESIGN TOKENS — Direction B "Indigo + Lime Night Mobility" (dark-first)
+   Values are SPACE-SEPARATED RGB CHANNELS so Tailwind can compose alpha:
+     color: rgb(var(--color-accent) / 0.5)   ->  "bg-accent/50"
+   Dark is the default. Light theme = [data-theme="light"] on <html>, which
+   the header theme toggle sets (persisted in localStorage, applied before
+   hydration via an inline script to avoid a flash).
+   ══════════════════════════════════════════════════════════════════════════ */
 :root {
-  --bg: #070a1a;
-  --panel: #0b1030;
-  --line: rgba(154, 151, 255, 0.22);
-  --ink: #eef0ff;
-  --muted: #a5abd6;
-  --volt: #c6ff4a;
-  --iris: #7b77ff;
-  --rose: #f2545b;
+  /* Semantic palette (Step-1 spec) */
+  --color-bg: 10 15 30;         /* #0A0F1E page background           */
+  --color-surface: 17 24 51;    /* #111833 raised surface            */
+  --color-line: 31 42 77;       /* #1F2A4D hairline border           */
+  --color-ink: 242 244 255;     /* #F2F4FF primary text              */
+  --color-muted: 142 152 192;   /* #8E98C0 secondary text            */
+  --color-accent: 198 255 61;   /* #C6FF3D volt lime (THE accent)    */
+  --color-on-accent: 10 15 30;  /* text/icon colour on accent fills  */
+  --color-info: 124 131 255;    /* #7C83FF indigo                    */
+  --color-danger: 242 84 91;    /* SOS / critical                    */
+  --color-warn: 245 165 36;     /* off-route / stale                 */
+  --color-success: 61 220 151;  /* completed / healthy               */
+
+  /* Named families (still used across the app) — var-backed so BOTH the
+     semantic tokens and the legacy night/volt/iris utilities flip with the
+     theme. Channels only; alpha via Tailwind's /opacity. */
+  --night-950: 7 10 26;
+  --night-900: 11 16 48;
+  --night-850: 17 23 66;
+  --night-800: 26 33 84;
+  --night-700: 42 50 114;
+  --volt-300: 216 255 122;
+  --volt-400: 198 255 61;   /* = accent */
+  --volt-500: 174 235 46;
+  --volt-600: 139 200 26;
+  --iris-300: 185 184 255;
+  --iris-400: 154 151 255;
+  --iris-500: 124 131 255;  /* = info */
+  --iris-600: 91 87 232;
+
+  /* Signature motion: one easing curve everywhere — "smooth acceleration". */
+  --ease-velocity: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Primary CTA gradient + its text colour (per theme so contrast holds). */
+  --btn-a: 216 255 122;
+  --btn-b: 174 235 46;
+  --btn-ink: 7 10 26;
+  /* Text/icon colour on indigo (.btn-iris) fills. */
+  --iris-ink: 242 244 255;
+
+  /* Dark-theme chrome (body aurora / glass). */
+  --glow-iris-a: 124 131 255;
+  --glow-volt-a: 198 255 61;
+  --body-a: 0.28;
+  --body-b: 0.10;
+  --glass-a: 0.72;
+  --glass-b: 0.86;
 }
 
-html.dark body,
+[data-theme="light"] {
+  --color-bg: 247 248 252;       /* #F7F8FC */
+  --color-surface: 255 255 255;  /* #FFFFFF */
+  --color-line: 227 230 240;     /* #E3E6F0 */
+  --color-ink: 10 15 30;         /* #0A0F1E */
+  --color-muted: 91 100 133;     /* #5B6485 */
+  --color-accent: 127 184 0;     /* #7FB800 — fills/borders           */
+  --color-on-accent: 10 15 30;
+  --color-info: 79 70 229;       /* #4F46E5 */
+  --color-danger: 214 48 49;
+  --color-warn: 181 71 8;
+  --color-success: 6 118 71;
+
+  --night-950: 247 248 252;
+  --night-900: 255 255 255;
+  --night-850: 255 255 255;
+  --night-800: 241 243 249;
+  --night-700: 227 230 240;
+  /* Lime text on white needs a darkened accent (AA >= 4.5:1); fills keep
+     --color-accent / volt-400. */
+  --volt-300: 76 115 0;          /* #4C7300 text-safe lime */
+  --volt-400: 127 184 0;         /* #7FB800 */
+  --volt-500: 105 154 0;
+  --volt-600: 85 126 0;
+  --iris-300: 79 70 229;
+  --iris-400: 65 56 214;
+  --iris-500: 79 70 229;
+  --iris-600: 67 56 196;
+
+  /* CTA gradient flips to the accessible green accent on white. */
+  --btn-a: 127 184 0;
+  --btn-b: 105 154 0;
+  --btn-ink: 10 15 30;
+  --iris-ink: 255 255 255;
+
+  /* Daylight: drop the heavy aurora, lift the glass. */
+  --body-a: 0.10;
+  --body-b: 0.06;
+  --glass-a: 0.6;
+  --glass-b: 0.8;
+}
+
 body {
   background:
-    radial-gradient(1100px 500px at 80% -10%, rgba(123, 119, 255, 0.28), transparent 60%),
-    radial-gradient(900px 480px at 10% 0%, rgba(198, 255, 74, 0.1), transparent 55%),
-    var(--bg);
-  color: var(--ink);
-  font-family: Inter, system-ui, sans-serif;
+    radial-gradient(1100px 500px at 80% -10%,
+      rgb(var(--glow-iris-a) / var(--body-a)), transparent 60%),
+    radial-gradient(900px 480px at 10% 0%,
+      rgb(var(--glow-volt-a) / var(--body-b)), transparent 55%),
+    rgb(var(--color-bg));
+  color: rgb(var(--color-ink));
+  font-family: var(--font-body), Inter, system-ui, sans-serif;
 }
 
 .font-display {
-  font-family: Sora, Inter, system-ui, sans-serif;
+  font-family: var(--font-body), Inter, system-ui, sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+/* Instrument-cluster numerals: fares, distances, overlap %, seat counts. */
+.nums {
+  font-family: var(--font-num), ui-monospace, SFMono-Regular, monospace;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
 }
 
 .map-glow {
-  box-shadow: 0 0 0 1px var(--line), 0 0 42px rgba(123, 119, 255, 0.35), 0 18px 60px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 0 1px rgb(var(--color-line) / 0.9),
+    0 0 42px rgb(var(--iris-500) / 0.35), 0 18px 60px rgba(0, 0, 0, 0.5);
 }
+
 
 /* ── Landing page surfaces ─────────────────────────────────────────────── */
 
 /* Frosted panel: the index page layers these over the aurora so cards read
    as glass rather than flat blocks. */
 .glass {
-  background: linear-gradient(180deg, rgba(17, 23, 66, 0.72), rgba(11, 16, 48, 0.86));
+  background: linear-gradient(180deg,
+    rgb(var(--night-850) / var(--glass-a)),
+    rgb(var(--night-900) / var(--glass-b)));
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(154, 151, 255, 0.2);
+  border: 1px solid rgb(var(--iris-400) / 0.2);
 }
 
 /* Aurora blobs behind the hero. Slow, large, GPU-friendly (transform only). */
@@ -70,8 +172,8 @@ body {
 }
 .grid-drift {
   background-image:
-    linear-gradient(rgba(123, 119, 255, 0.12) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(123, 119, 255, 0.12) 1px, transparent 1px);
+    linear-gradient(rgb(var(--iris-500) / 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(var(--iris-500) / 0.12) 1px, transparent 1px);
   background-size: 48px 48px;
   animation: grid-drift 9s linear infinite;
 }
@@ -98,7 +200,7 @@ body {
   to   { background-position: 40px 0; }
 }
 .dash-walk {
-  background-image: linear-gradient(90deg, rgba(198,255,74,.9) 40%, rgba(123,119,255,.25) 40%);
+  background-image: linear-gradient(90deg, rgb(var(--volt-400) / 0.9) 40%, rgb(var(--iris-500) / 0.25) 40%);
   background-size: 40px 100%;
   animation: dash-walk 1.6s linear infinite;
 }
@@ -136,41 +238,41 @@ body {
   filter: saturate(0.7) brightness(0.85) hue-rotate(-15deg);
 }
 .leaflet-night .leaflet-container {
-  background: #0b1030;
-  font-family: Inter, system-ui, sans-serif;
+  background: rgb(var(--night-900));
+  font-family: var(--font-body), Inter, system-ui, sans-serif;
 }
 .leaflet-night .leaflet-popup-content-wrapper,
 .leaflet-night .leaflet-popup-tip {
-  background: #0b1030;
-  color: #eef0ff;
-  border: 1px solid rgba(154, 151, 255, 0.35);
+  background: rgb(var(--night-900));
+  color: rgb(var(--color-ink));
+  border: 1px solid rgb(var(--iris-400) / 0.35);
 }
 .leaflet-night .leaflet-popup-content { margin: 10px 12px; font-size: 12px; }
 .leaflet-night .leaflet-control-attribution {
-  background: rgba(7, 10, 26, 0.75);
-  color: #5b6194;
+  background: rgb(var(--night-950) / 0.75);
+  color: rgb(var(--color-muted) / 0.8);
   font-size: 10px;
 }
-.leaflet-night .leaflet-control-attribution a { color: #9a97ff; }
+.leaflet-night .leaflet-control-attribution a { color: rgb(var(--iris-400)); }
 .leaflet-night .leaflet-bar a {
-  background: #0b1030;
-  color: #eef0ff;
-  border-color: rgba(154, 151, 255, 0.3);
+  background: rgb(var(--night-900));
+  color: rgb(var(--color-ink));
+  border-color: rgb(var(--iris-400) / 0.3);
 }
-.leaflet-night .leaflet-bar a:hover { background: #1a2154; color: #d8ff7a; }
+.leaflet-night .leaflet-bar a:hover { background: rgb(var(--night-800)); color: rgb(var(--volt-300)); }
 
 /* Crosshair pin drawn inside the picker map. */
 .pin-pulse {
   width: 16px;
   height: 16px;
   border-radius: 9999px;
-  background: var(--volt);
-  border: 3px solid #070a1a;
+  background: var(--volt-400);
+  border: 3px solid rgb(var(--night-950));
   animation: pin-ring 1.8s ease-out infinite;
 }
 @keyframes pin-ring {
-  0%   { box-shadow: 0 0 0 0 rgba(198, 255, 74, 0.55); }
-  100% { box-shadow: 0 0 0 16px rgba(198, 255, 74, 0); }
+  0%   { box-shadow: 0 0 0 0 rgb(var(--volt-400) / 0.55); }
+  100% { box-shadow: 0 0 0 16px rgb(var(--volt-400) / 0); }
 }
 .pulse-dot {
   position: relative;
@@ -180,12 +282,15 @@ body {
   position: absolute;
   inset: -6px;
   border-radius: 9999px;
-  border: 1px solid var(--volt);
+  border: 1px solid var(--volt-400);
   opacity: 0.6;
   animation: ping-soft 2.2s ease-out infinite;
 }
 @keyframes ping-soft {
-  0% { transform: scale(0.6); opacity: 0.8; }
+  0%   { transform: scale(0.6); opacity: 0.8; }
+  100% { transform: scale(1.4); opacity: 0; }
+}
+
 /* ── Vehicle art (index hero) ───────────────────────────────────────────── */
 
 /* Body bob: two different periods so the car never looks like it loops
@@ -206,7 +311,7 @@ body {
   to { background-position: 60px 0; }
 }
 .road-dash {
-  background-image: linear-gradient(90deg, rgba(198,255,74,.75) 30px, transparent 30px);
+  background-image: linear-gradient(90deg, rgb(var(--volt-400) / 0.75) 30px, transparent 30px);
   background-size: 60px 100%;
   animation: road-dash 1.1s linear infinite;
 }
@@ -259,12 +364,341 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .aurora-a, .aurora-b, .grid-drift, .route-dash,
   .float-y, .dash-walk, .sheen:hover::after, .pulse-dot::after,
-  .car-bob, .wheel-spin, .road-dash, .streak, .pin-drop, .passenger-pop {
+  .car-bob, .wheel-spin, .road-dash, .streak, .pin-drop, .passenger-pop,
+  .roadline, .roadline-fast, .soft-pulse, .pin-pulse {
     animation: none;
   }
+  .route-draw { animation: none; stroke-dashoffset: 0; }
   .js-reveal .reveal { opacity: 1; transform: none; transition: none; }
   /* Keep the two ends of the scene visible even when motion is off. */
   .pin-drop, .passenger-pop { opacity: 1; transform: none; }
 }
-  100% { transform: scale(1.4); opacity: 0; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   DESIGN SYSTEM — "VoltRide: Night Mobility"
+   One source of truth for every surface, button, field and badge in the app.
+   Before this layer the same card recipe (rounded-xl3 + inline rgba border +
+   bg-night-900/80) was copy-pasted 25+ times across pages, so nothing shared
+   an elevation scale, hover behaviour or hierarchy. Pages compose these
+   classes instead of re-deriving the look each time.
+   ══════════════════════════════════════════════════════════════════════════ */
+@layer components {
+
+  /* ── Surfaces ─────────────────────────────────────────────────────────── */
+
+  /* The standard product card. Gradient + hairline + inner highlight so it
+     reads as a raised surface on the aurora background, not a flat block. */
+  .panel {
+    position: relative;
+    border-radius: 1.25rem;
+    border: 1px solid rgb(var(--iris-400) / 0.22);
+    background: linear-gradient(180deg,
+      rgb(var(--night-850) / 0.72), rgb(var(--night-900) / 0.86));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 10px 30px rgba(3, 6, 20, 0.45);
+  }
+
+  /* Same surface, but interactive: lifts and warms toward volt on hover. */
+  .panel-hover {
+    transition: transform 0.22s var(--ease-velocity),
+                border-color 0.22s, box-shadow 0.22s;
+  }
+  .panel-hover:hover {
+    transform: translateY(-3px);
+    border-color: rgb(var(--volt-400) / 0.42);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06),
+                0 16px 44px rgba(3, 6, 20, 0.6),
+                0 0 32px rgb(var(--volt-400) / 0.14);
+  }
+
+  /* Inset surface: nested areas inside a panel (sub-rows, drawers, receipts). */
+  .panel-inset {
+    border-radius: 1rem;
+    border: 1px solid rgb(var(--iris-400) / 0.16);
+    background: rgb(var(--night-950) / 0.66);
+  }
+
+  /* Header band that caps a panel — used for page headers and section heads. */
+  .panel-head {
+    border-radius: 1.5rem;
+    border: 1px solid rgb(var(--iris-400) / 0.22);
+    background:
+      radial-gradient(700px 220px at 12% 0%, rgb(var(--iris-500) / 0.28), transparent 62%),
+      radial-gradient(500px 200px at 92% 10%, rgb(var(--volt-400) / 0.1), transparent 60%),
+      linear-gradient(180deg, rgb(var(--night-850) / 0.8), rgb(var(--night-900) / 0.9));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 14px 40px rgba(3, 6, 20, 0.5);
+  }
+
+  /* ── Route motif (the carpool signature) ──────────────────────────────── */
+
+  /* Dashed road strand. Used as the thin rule under headers and as the
+     connector between pipeline steps. Travelling dashes = wheels rolling. */
+  .roadline {
+    height: 2px;
+    background-image: linear-gradient(90deg, rgb(var(--volt-400) / 0.85) 14px, transparent 14px);
+    background-size: 28px 100%;
+    animation: route-travel 1.4s linear infinite;
+  }
+  @keyframes route-travel {
+    from { background-position: 0 0; }
+    to   { background-position: 28px 0; }
+  }
+  .roadline-fast {
+    height: 2px;
+    background-image: linear-gradient(90deg, rgb(var(--iris-400) / 0.7) 10px, transparent 10px);
+    background-size: 22px 100%;
+    animation: route-travel 0.9s linear infinite;
+  }
+
+  /* Static endpoint-to-endpoint route strip for card headers:
+     ●───────●   origin dot, dashed road, destination dot. */
+  .route-strip { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+  .route-strip .dot { height: 0.5rem; width: 0.5rem; flex: none; border-radius: 9999px; }
+  .route-strip .dot-from { background: rgb(var(--volt-400)); box-shadow: 0 0 10px rgb(var(--volt-400) / 0.7); }
+  .route-strip .dot-to { background: rgb(var(--iris-500)); box-shadow: 0 0 10px rgb(var(--iris-500) / 0.7); }
+  .route-strip .line {
+    height: 2px;
+    flex: 1 1 auto;
+    min-width: 1.5rem;
+    background-image: linear-gradient(90deg, rgb(var(--volt-400) / 0.7) 8px, transparent 8px);
+    background-size: 16px 100%;
+  }
+
+  /* ── Typography helpers ───────────────────────────────────────────────── */
+
+  .eyebrow {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: rgb(var(--volt-300));
+  }
+  .muted { color: rgb(var(--color-muted)); }
+  .faint { color: rgb(var(--color-muted) / 0.75); }
+
+  /* Road-marker kicker: "01 / 02 / 03" section numbers (signature layer). */
+  .kicker-num {
+    font-family: var(--font-num), ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    color: rgb(var(--volt-300));
+  }
+
+  /* ── Buttons ──────────────────────────────────────────────────────────── */
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 1rem;
+    padding: 0.625rem 1.1rem;
+    font-size: 0.875rem;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: transform 0.16s ease, filter 0.16s ease,
+                background-color 0.16s ease, border-color 0.16s ease, opacity 0.16s;
+  }
+  .btn:active { transform: translateY(1px); }
+  .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+  /* Visible keyboard focus everywhere (WCAG 2.4.7). */
+  .btn:focus-visible,
+  .tab:focus-visible,
+  .link-volt:focus-visible {
+    outline: 2px solid rgb(var(--volt-400));
+    outline-offset: 2px;
+  }
+
+  .btn-primary {
+    color: rgb(var(--btn-ink));
+    background-image: linear-gradient(100deg, rgb(var(--btn-a)), rgb(var(--btn-b)));
+    box-shadow: 0 0 24px rgb(var(--volt-400) / 0.32);
+  }
+  .btn-primary:hover { filter: brightness(1.08); }
+
+  .btn-iris {
+    color: rgb(var(--iris-ink));
+    background-image: linear-gradient(100deg, rgb(var(--iris-500)), rgb(var(--iris-600)));
+    box-shadow: 0 0 22px rgb(var(--iris-500) / 0.3);
+  }
+  .btn-iris:hover { filter: brightness(1.1); }
+
+  .btn-ghost {
+    color: rgb(var(--color-muted));
+    border: 1px solid rgb(var(--iris-400) / 0.28);
+    background: rgb(var(--night-850) / 0.5);
+  }
+  .btn-ghost:hover { color: rgb(var(--volt-300)); border-color: rgb(var(--volt-400) / 0.45); }
+  .btn-ghost:focus-visible { outline-color: rgb(var(--info-contrast, var(--color-info))); }
+
+  .btn-danger {
+    color: rgb(var(--color-danger));
+    border: 1px solid rgb(var(--color-danger) / 0.45);
+    background: rgb(var(--color-danger) / 0.1);
+  }
+  .btn-danger:hover { background: rgb(var(--color-danger) / 0.18); }
+
+  .btn-sm { padding: 0.4rem 0.8rem; font-size: 0.75rem; border-radius: 9999px; }
+
+  /* ── Form controls ────────────────────────────────────────────────────── */
+
+  .label {
+    display: block;
+    margin-bottom: 0.35rem;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgb(var(--color-muted));
+  }
+  .input {
+    width: 100%;
+    border-radius: 1rem;
+    border: 1px solid rgb(var(--iris-400) / 0.3);
+    background: rgb(var(--night-950) / 0.9);
+    padding: 0.65rem 1rem;
+    font-size: 0.875rem;
+    color: rgb(var(--color-ink));
+    outline: none;
+    transition: border-color 0.16s ease, box-shadow 0.16s ease;
+  }
+  .input::placeholder { color: rgb(var(--color-muted) / 0.7); }
+  .input:focus {
+    border-color: rgb(var(--volt-400) / 0.75);
+    box-shadow: 0 0 0 3px rgb(var(--volt-400) / 0.12);
+  }
+  /* Native date/time/select widgets need coaxing to match the dark field. */
+  .input::-webkit-calendar-picker-indicator { filter: invert(0.85) hue-rotate(180deg); }
+  [data-theme="light"] .input::-webkit-calendar-picker-indicator { filter: none; }
+  .input option { background: rgb(var(--night-900)); color: rgb(var(--color-ink)); }
+
+  /* ── Badges / pills ───────────────────────────────────────────────────── */
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    border-radius: 9999px;
+    padding: 0.25rem 0.7rem;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+  .pill-volt { background: rgb(var(--volt-400) / 0.16); color: rgb(var(--volt-300)); border: 1px solid rgb(var(--volt-400) / 0.4); }
+  .pill-iris { background: rgb(var(--iris-500) / 0.18); color: rgb(var(--iris-300)); border: 1px solid rgb(var(--iris-500) / 0.42); }
+  .pill-rose { background: rgb(var(--color-danger) / 0.14); color: rgb(var(--color-danger)); border: 1px solid rgb(var(--color-danger) / 0.45); }
+  .pill-solid { background: rgb(var(--volt-400)); color: rgb(var(--color-on-accent)); }
+  .pill-quiet { background: rgb(var(--night-800) / 0.8); color: rgb(var(--color-muted)); border: 1px solid rgb(var(--iris-400) / 0.2); }
+
+  /* ── Alerts (semantic colour + icon/text, never colour alone) ─────────── */
+
+  .alert { border-radius: 1rem; padding: 0.75rem 1rem; font-size: 0.875rem; }
+  .alert-ok { border: 1px solid rgb(var(--color-success) / 0.4); background: rgb(var(--color-success) / 0.1); color: rgb(var(--color-success)); }
+  .alert-err { border: 1px solid rgb(var(--color-danger) / 0.45); background: rgb(var(--color-danger) / 0.1); color: rgb(var(--color-danger)); }
+  .alert-info { border: 1px solid rgb(var(--iris-400) / 0.32); background: rgb(var(--iris-400) / 0.08); color: rgb(var(--iris-300)); }
+
+  /* ── Empty states ─────────────────────────────────────────────────────── */
+
+  .empty {
+    border-radius: 1.25rem;
+    border: 1px dashed rgb(var(--iris-400) / 0.32);
+    padding: 2rem 1.25rem;
+    text-align: center;
+    font-size: 0.875rem;
+    color: rgb(var(--color-muted));
+  }
+
+  /* ── Stats ────────────────────────────────────────────────────────────── */
+
+  .stat-num {
+    font-family: var(--font-num), ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: 1.625rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: rgb(var(--color-ink));
+  }
+
+  /* ── Links / tabs / glow ──────────────────────────────────────────────── */
+
+  .link-volt { color: rgb(var(--volt-300)); transition: color 0.16s ease; }
+  .link-volt:hover { color: rgb(var(--volt-400)); text-decoration: underline; text-underline-offset: 3px; }
+
+  .tabbar { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  .tab {
+    border-radius: 9999px;
+    padding: 0.5rem 1rem;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    text-transform: capitalize;
+    border: 1px solid rgb(var(--iris-400) / 0.32);
+    color: rgb(var(--color-muted));
+    transition: all 0.16s ease;
+  }
+  .tab:hover { color: rgb(var(--volt-300)); border-color: rgb(var(--volt-400) / 0.4); }
+  .tab-active { background: rgb(var(--volt-400)); color: rgb(var(--color-on-accent)); border-color: transparent; }
+
+  /* Decorative background glow (blurred orb) for page/section headers. */
+  .glow-iris {
+    position: absolute;
+    border-radius: 9999px;
+    filter: blur(90px);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ════════════════════════════════════════════════════════════════════════
+     SIGNATURE LAYER — "Night Motorway HUD" (Step 1 additions)
+     The three motifs that make VoltRide unmistakable: HUD corner brackets,
+     self-drawing route lines, and mono road-marker kickers.
+     ════════════════════════════════════════════════════════════════════════ */
+
+  /* HUD corner brackets — diagonal pair (top-left, bottom-right). Fade in
+     on hover/focus-within so cards read as navigation instruments. */
+  .hud-corners::before,
+  .hud-corners::after {
+    content: "";
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgb(var(--volt-400));
+    opacity: 0;
+    transition: opacity 0.25s var(--ease-velocity);
+    pointer-events: none;
+  }
+  .hud-corners::before {
+    top: 8px; left: 8px;
+    border-right: none; border-bottom: none;
+    border-top-left-radius: 6px;
+  }
+  .hud-corners::after {
+    bottom: 8px; right: 8px;
+    border-left: none; border-top: none;
+    border-bottom-right-radius: 6px;
+  }
+  .hud-corners:hover::before,
+  .hud-corners:hover::after,
+  .hud-corners:focus-within::before,
+  .hud-corners:focus-within::after { opacity: 0.9; }
+
+  /* Self-drawing route line: pair with `pathLength="1"` on the <path>.
+     Transform/opacity-free — animates stroke-dashoffset only. */
+  .route-draw {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation: route-draw 1.6s var(--ease-velocity) 0.2s forwards;
+  }
+  @keyframes route-draw {
+    to { stroke-dashoffset: 0; }
+  }
+
+  /* Soft engine-idle pulse on the pickup pin / status dots. */
+  @keyframes soft-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: 0.65; transform: scale(1.18); }
+  }
+  .soft-pulse { animation: soft-pulse 2s ease-in-out infinite; }
 }

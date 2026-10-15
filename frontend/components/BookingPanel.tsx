@@ -43,9 +43,9 @@ function CostStrip({ bookingId, bookingCost, tripId }: {
   if (share === null || share === undefined) return null;
   return (
     <>
-      <p className="mt-1.5 rounded-2xl border border-[rgba(198,255,74,.3)] bg-night-900 px-3 py-2 text-[11px]">
+      <p className="mt-1.5 rounded-2xl border border-volt-400/30 bg-night-900 px-3 py-2 text-[11px]">
         <span className="font-display text-sm font-bold text-volt-300">₹{share}</span>
-        <span className="text-[#A5ABD6]">
+        <span className="text-muted">
           {" "}your share{detail ? ` · ${detail.formula}` : ""}
         </span>
         <button onClick={() => setOpen(!open)} className="ml-2 text-volt-300 underline">
@@ -56,25 +56,25 @@ function CostStrip({ bookingId, bookingCost, tripId }: {
           which car, what mileage, what fuel price produced total_cost. */}
       {open && detail && (
         <div className="mt-1.5 rounded-2xl bg-night-900 p-2.5 text-[11px]">
-          <p className="truncate text-[#EEF0FF]">
+          <p className="truncate text-ink">
             <span className="font-semibold">
               {detail.vehicle?.make ?? "Car"} {detail.vehicle?.model ?? ""}
             </span>
-            {detail.vehicle?.year ? <span className="text-[#A5ABD6]"> · {detail.vehicle.year}</span> : null}
+            {detail.vehicle?.year ? <span className="text-muted"> · {detail.vehicle.year}</span> : null}
             {detail.vehicle?.plate_no ? <span className="font-mono text-volt-300"> · {detail.vehicle.plate_no}</span> : null}
           </p>
-          <p className="mt-0.5 text-[#A5ABD6]">
+          <p className="mt-0.5 text-muted">
             {detail.vehicle?.fuel_type ?? "fuel"} ·{" "}
             <span className="font-semibold text-volt-300">{detail.fuel?.mileage_kmpl} kmpl</span>
             {" · "}₹{detail.fuel?.fuel_price}/L
           </p>
-          <p className="mt-1.5 font-mono text-[10px] leading-relaxed text-[#5b6194]">
+          <p className="mt-1.5 font-mono text-[10px] leading-relaxed text-muted">
             {detail.fuel?.distance_km} km ÷ {detail.fuel?.mileage_kmpl} kmpl = {detail.fuel?.litres} L
             {" × "}₹{detail.fuel?.fuel_price} ={" "}
             <span className="text-volt-300">₹{detail.fuel?.total_cost}</span>
           </p>
-          <p className="mt-1 text-[10px] text-[#5b6194]">
-            split · <span className="text-[#A5ABD6]">{detail.formula}</span> →{" "}
+          <p className="mt-1 text-[10px] text-muted">
+            split · <span className="text-muted">{detail.formula}</span> →{" "}
             <span className="font-semibold text-volt-300">₹{detail.your_share}</span>
           </p>
         </div>
@@ -95,9 +95,9 @@ function CostPreview({ tripId }: { tripId: string }) {
   }, [tripId]);
   if (projected === null || projected === 0) return null;
   return (
-    <p className="mt-1.5 text-[11px] text-[#A5ABD6]">
+    <p className="mt-1.5 text-[11px] text-muted">
       Est. share if you book now: <span className="font-bold text-volt-300">₹{projected}</span>
-      <span className="text-[#5b6194]"> ({mode.replace("_", " ")})</span>
+      <span className="text-muted"> ({mode.replace("_", " ")})</span>
     </p>
   );
 }
@@ -167,9 +167,9 @@ export function BookingPanel({
   const canRequest = checked && booking === null;
 
   return (
-    <div className="mt-3 rounded-2xl border border-[rgba(154,151,255,.3)] bg-night-950 p-3">
+    <div className="mt-3 rounded-2xl border border-iris-400/30 bg-night-950 p-3">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-bold text-[#EEF0FF]">Booking</p>
+        <p className="text-xs font-bold text-ink">Booking</p>
         {s && (
           <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold capitalize ${statusPillCls(s)}`}>
             {s}
@@ -184,7 +184,7 @@ export function BookingPanel({
         <div className="mt-2 flex items-center gap-2">
           <select
             value={seats} onChange={(e) => setSeats(Number(e.target.value))}
-            className="rounded-2xl border border-[rgba(154,151,255,.3)] bg-night-950 px-3 py-2 text-sm"
+            className="rounded-2xl border border-iris-400/30 bg-night-950 px-3 py-2 text-sm"
             disabled={seatsLeft < 1}
           >
             {Array.from({ length: Math.max(1, Math.min(7, seatsLeft)) }, (_, i) => i + 1)
@@ -200,7 +200,7 @@ export function BookingPanel({
       )}
 
       {s === "requested" && booking && (
-        <p className="mt-2 text-[11px] text-[#A5ABD6]">
+        <p className="mt-2 text-[11px] text-muted">
           Waiting for the driver. Seats are held for you.
           <button onClick={() => act(() => bookingApi.cancel(booking.id), "Request cancelled.")}
             className="ml-2 text-rose-300 underline" disabled={busy}>cancel</button>
@@ -210,7 +210,7 @@ export function BookingPanel({
         <div className="mt-2 flex items-center gap-2">
           <p className="flex-1 text-[11px] text-iris-300">Driver accepted — confirm to lock it in.</p>
           <button onClick={() => act(() => bookingApi.confirm(booking.id), "Booked! See you at the pickup point.")}
-            className="rounded-full bg-volt-400 px-3 py-1 text-[11px] font-bold text-night-950" disabled={busy}>
+            className="btn btn-primary btn-sm" disabled={busy}>
             Confirm ✓
           </button>
           <button onClick={() => act(() => bookingApi.cancel(booking.id), "Cancelled.")}
@@ -237,7 +237,7 @@ export function BookingPanel({
             Rode ✓ · {booking.seats} seat{booking.seats > 1 ? "s" : ""}
             {booking.cost_share !== null ? ` · settled ₹${booking.cost_share}` : ""}
             {booking.closure_note ? " · trip completed" : ""}
-            <span className="text-[#5b6194]"> · money frozen at completion</span>
+            <span className="text-muted"> · money frozen at completion</span>
           </p>
           {/* Module 22: the trust prompt rides on the completed state. */}
           <RateRideRow bookingId={booking.id} />
@@ -247,7 +247,7 @@ export function BookingPanel({
         <CostPreview tripId={tripId} />
       )}
       {(s === "rejected" || s === "cancelled") && (
-        <p className="mt-2 text-[11px] text-[#A5ABD6]">
+        <p className="mt-2 text-[11px] text-muted">
           This booking was {s}. Seats were released — you can request again.
           <button onClick={request} className="ml-2 text-volt-300 underline" disabled={busy}>request again</button>
         </p>

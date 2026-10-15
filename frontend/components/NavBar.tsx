@@ -15,6 +15,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "@/components/SessionProvider";
 import { NotificationBell } from "@/components/NotificationBell";
+import { BrandMark } from "@/components/BrandMark";
 
 type Role = "driver" | "passenger" | "admin";
 type NavItem = { href: string; label: string; roles?: Role[] };
@@ -32,9 +33,9 @@ const LINKS: NavItem[] = [
   { href: "/database",  label: "Data map", roles: ["admin"] },
 ];
 
-const IDLE = "rounded-full px-3 py-1.5 text-[#A5ABD6] transition hover:bg-night-800 hover:text-volt-300";
+const IDLE = "rounded-full px-3 py-1.5 text-muted transition hover:bg-night-800 hover:text-volt-300";
 /** "You are here" cue — the bar previously gave none. */
-const ACTIVE = "rounded-full border border-volt-400/40 bg-volt-400/15 px-3 py-1.5 font-semibold text-volt-300";
+const ACTIVE = "rounded-full border border-volt-400/40 bg-volt-400/15 px-3 py-1.5 font-semibold text-volt-300 shadow-glow";
 
 export function NavBar() {
   const { user, ready, logout } = useSession();
@@ -49,19 +50,19 @@ export function NavBar() {
   );
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-[rgba(154,151,255,.18)] bg-night-950/70 backdrop-blur-xl">
+    <nav className="sticky top-0 z-50 border-b border-iris-400/18 bg-night-950/70 backdrop-blur-xl">
       {/* Volt line: a 2px gradient rule that ties the bar to the hero route. */}
       <div className="absolute inset-x-0 -bottom-px h-px bg-gradient-to-r from-transparent via-volt-400/50 to-transparent" />
       <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-3">
         <Link href="/" className="group flex items-center gap-2.5">
-          <span className="pulse-dot grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-volt-400 to-volt-600 font-display text-base font-extrabold text-night-950 shadow-glow">
-            V
+          <span className="transition-transform duration-200 group-hover:-translate-y-0.5">
+            <BrandMark size={36} />
           </span>
           <span className="leading-none">
             <span className="font-display block text-[15px] font-bold tracking-tight">
               VoltRide
             </span>
-            <span className="block text-[10px] uppercase tracking-[.18em] text-[#5b6194] transition-colors group-hover:text-volt-300">
+            <span className="block text-[10px] uppercase tracking-[.18em] text-muted transition-colors group-hover:text-volt-300">
               route-aware sharing
             </span>
           </span>
@@ -80,26 +81,26 @@ export function NavBar() {
           {/* Module 23: unread bell, only for a live session. */}
           {user && <NotificationBell enabled={!!user} />}
           {!ready ? (
-            <span className="px-2 text-xs text-[#5b6194]">…</span>
+            <span className="px-2 text-xs text-muted">…</span>
           ) : user ? (
             <>
               {!user.phone_verified && (
                 <Link href="/verify" className="rounded-full border border-volt-400/60 px-3 py-1.5 text-volt-300 transition hover:bg-volt-400/10">Verify</Link>
               )}
-              <Link href="/me" className="rounded-full bg-night-800 px-3 py-1.5 text-[#EEF0FF] transition hover:bg-night-700">
+              <Link href="/me" className="rounded-full bg-night-800 px-3 py-1.5 text-ink transition hover:bg-night-700">
                 {user.full_name || user.phone}
               </Link>
               <button
                 onClick={() => { logout(); window.location.href = "/"; }}
-                className="rounded-full px-3 py-1.5 text-[#A5ABD6] transition hover:text-rose-300"
+                className="rounded-full px-3 py-1.5 text-muted transition hover:text-rose-300"
               >
                 Out
               </button>
             </>
           ) : (
             <>
-              <Link href="/login" className="rounded-full px-3 py-1.5 text-[#A5ABD6] transition hover:bg-night-800 hover:text-volt-300">Log in</Link>
-              <Link href="/register" className="rounded-full bg-gradient-to-r from-volt-400 to-volt-500 px-4 py-1.5 font-bold text-night-950 shadow-glow transition hover:brightness-110">
+              <Link href="/login" className="rounded-full px-3 py-1.5 text-muted transition hover:bg-night-800 hover:text-volt-300">Log in</Link>
+               <Link href="/register" className="btn btn-primary btn-sm">
                 Join
               </Link>
             </>

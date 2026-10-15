@@ -19,23 +19,31 @@ export function RideCard({ t, pickupHint = null, dropHint = null }: {
     day: "numeric", month: "short", hour: "2-digit", minute: "2-digit"
   });
   return (
-    <div className="rounded-xl3 border border-[rgba(154,151,255,.22)] bg-night-900/80 p-4">
+    <div className="panel panel-hover p-4">
       <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="truncate font-display font-bold">{t.source_name} → {t.destination_name}</p>
-          <p className="text-xs text-[#A5ABD6]">
-            {when} · {t.seats_left}/{t.seats_offered} seats left
-            {t.distance_km ? ` · ~${t.distance_km} km` : ""}
-          </p>
-          <p className="mt-1 text-xs">
+        <div className="min-w-0 flex-1">
+          {/* Route strip: origin dot → dashed road → destination dot. */}
+          <div className="route-strip">
+            <span className="dot dot-from" aria-hidden />
+            <span className="truncate font-display text-sm font-bold">{t.source_name}</span>
+            <span className="line" aria-hidden />
+            <span className="dot dot-to" aria-hidden />
+            <span className="truncate font-display text-sm font-bold">{t.destination_name}</span>
+          </div>
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            <span className="pill pill-quiet">{when}</span>
+            <span className="pill pill-volt">{t.seats_left}/{t.seats_offered} seats left</span>
+            {t.distance_km ? <span className="pill pill-quiet">~{t.distance_km} km</span> : null}
+          </div>
+          <p className="mt-2 text-xs">
             <span className="text-volt-300">▲ {t.src_km} km from your start</span>
-            <span className="text-[#5b6194]"> · </span>
+            <span className="text-muted"> · </span>
             <span className="text-iris-300">▼ {t.dst_km} km to your end</span>
           </p>
         </div>
         <button
           onClick={() => setOpen(!open)}
-          className="shrink-0 rounded-full border border-volt-400/50 px-3 py-1.5 text-xs font-bold text-volt-300"
+          className="btn btn-ghost btn-sm shrink-0"
         >
           {open ? "Hide" : "View"}
         </button>
@@ -51,7 +59,7 @@ export function RideCard({ t, pickupHint = null, dropHint = null }: {
           />
           <PickupChooser tripId={t.id} pickupHint={pickupHint} dropHint={dropHint} />
           <BookingPanel tripId={t.id} seatsLeft={t.seats_left} pickupHint={pickupHint} dropHint={dropHint} />
-          <p className="mt-2 text-center text-[10px] text-[#5b6194]">
+          <p className="mt-2 text-center text-[10px] text-muted">
             trip id <span className="font-mono">{t.id.slice(-6)}</span>
           </p>
         </div>

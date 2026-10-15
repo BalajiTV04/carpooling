@@ -71,7 +71,7 @@ export function MatchPipeline() {
             )}
           </div>
           <p className="font-display mt-2 text-[15px] font-bold">{s.name}</p>
-          <p className="mt-1 text-[11px] leading-relaxed text-[#A5ABD6]">{s.desc}</p>
+          <p className="mt-1 text-[11px] leading-relaxed text-muted">{s.desc}</p>
           <div
             className={`mt-3 h-0.5 rounded-full ${
               s.hard
@@ -84,7 +84,7 @@ export function MatchPipeline() {
 
       <div className="glass rounded-2xl p-4 md:col-span-2 lg:col-span-1">
         <p className="font-display text-[15px] font-bold text-volt-300">Why it matters</p>
-        <p className="mt-1 text-[11px] leading-relaxed text-[#A5ABD6]">
+        <p className="mt-1 text-[11px] leading-relaxed text-muted">
           The final step only reorders trips that already passed every check. It
           can never lift an unsafe, impractical or fully booked trip into your
           results.

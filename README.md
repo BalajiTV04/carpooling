@@ -136,6 +136,20 @@ console can never quote a different number than a receipt.
 | MongoDB | 7 | local `mongod` or `docker compose up -d mongo` |
 | Docker | optional | only for the container workflow |
 
+### Quick start (Windows)
+
+```powershell
+.\start-dev.ps1            # opens backend (:8000) + frontend (:3000) windows
+# or double-click start-dev.bat
+```
+
+**Always-on:** two Task Scheduler tasks — `Carpooling Backend` and
+`Carpooling Frontend` — start the servers automatically at every logon
+(hidden; logs go to `backend\run.log` and `frontend\dev.log`). MongoDB runs
+as a Windows service, so it is already always-on. Manage the tasks with
+`Get-ScheduledTask -TaskName 'Carpooling*'` / `Stop-ScheduledTask` /
+`Start-ScheduledTask`.
+
 > **First time only:** the `frontend/node_modules` folder currently committed in
 > this repo is **incomplete** (`node_modules/next/package.json` is missing).
 > You must run `npm install` in `frontend/` once, or the dev server and the

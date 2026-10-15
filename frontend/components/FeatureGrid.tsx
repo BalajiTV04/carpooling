@@ -78,7 +78,7 @@ export function FeatureGrid() {
               {f.icon}
             </span>
             <p className="font-display mt-3 text-base font-bold">{f.title}</p>
-            <p className="mt-1.5 text-[13px] leading-relaxed text-[#A5ABD6]">{f.desc}</p>
+            <p className="mt-1.5 text-[13px] leading-relaxed text-muted">{f.desc}</p>
             <div
               className={`mt-4 h-0.5 w-10 rounded-full transition-all duration-300 group-hover:w-20 ${
                 f.accent === "rose"

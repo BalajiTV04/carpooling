@@ -27,10 +27,10 @@ export function RoleCard({
   return (
     <a
       href={href}
-      className={`block rounded-xl3 border border-[rgba(154,151,255,.22)] bg-night-900/80 p-5 transition ${ring}`}
+      className={`panel panel-hover block p-5 ${ring}`}
     >
       <span className={`inline-block rounded-full px-3 py-1 text-xs font-bold ${chip}`}>{title}</span>
-      <p className="mt-3 text-sm leading-relaxed text-[#A5ABD6]">{desc}</p>
+      <p className="mt-3 text-sm leading-relaxed text-muted">{desc}</p>
       <p className="font-display mt-4 text-sm font-semibold text-volt-300">{cta}</p>
     </a>
   );

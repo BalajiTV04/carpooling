@@ -11,7 +11,7 @@ function Metric({ label, value, tone }: { label: string; value: string; tone: "v
   return (
     <div className="rounded-2xl bg-night-900 px-3 py-2 text-center">
       <p className={`font-display text-base font-bold ${tone === "volt" ? "text-volt-300" : "text-iris-300"}`}>{value}</p>
-      <p className="text-[10px] uppercase tracking-wider text-[#A5ABD6]">{label}</p>
+      <p className="text-[10px] uppercase tracking-wider text-muted">{label}</p>
     </div>
   );
 }
@@ -21,16 +21,16 @@ function PointRow({ p, active, onPick }: { p: PickupPoint; active: boolean; onPi
     <button
       onClick={onPick}
       className={`w-full rounded-2xl border px-3 py-2 text-left text-xs ${
-        active ? "border-volt-400 bg-volt-400/10" : "border-[rgba(154,151,255,.25)] hover:border-volt-400/50"
+        active ? "border-volt-400 bg-volt-400/10" : "border-iris-400/26 hover:border-volt-400/50"
       }`}
     >
-      <span className="font-semibold text-[#EEF0FF]">
+      <span className="font-semibold text-ink">
         {p.strategy === "walk" ? "🚶 Walk to route" : "🚗 Door pickup"}
       </span>
-      <span className="text-[#A5ABD6]">
+      <span className="text-muted">
         {" "}· walk {Math.round(p.walk_km * 1000)} m ({p.walk_min} min) · detour {p.detour_km} km
       </span>
-      {p.label && <span className="block truncate text-[11px] text-[#5b6194]">{p.label}</span>}
+      {p.label && <span className="block truncate text-[11px] text-muted">{p.label}</span>}
     </button>
   );
 }
@@ -89,13 +89,13 @@ export function PickupChooser({ tripId, pickupHint, dropHint }: {
   const last = coords && coords.length > 0 ? coords[coords.length - 1] : null;
 
   return (
-    <div className="mt-3 rounded-2xl border border-[rgba(154,151,255,.3)] bg-night-950 p-3">
+    <div className="mt-3 rounded-2xl border border-iris-400/30 bg-night-950 p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs font-bold text-[#EEF0FF]">Minimum-detour pickup</p>
+        <p className="text-xs font-bold text-ink">Minimum-detour pickup</p>
         <div className="flex gap-1.5">
           <button
             onClick={() => run("auto")} disabled={busy}
-            className="rounded-full bg-volt-400 px-3 py-1 text-[11px] font-bold text-night-950 disabled:opacity-60"
+            className="btn btn-primary btn-sm"
           >
             {busy ? "Optimising…" : opts ? "Re-run" : "Optimise point →"}
           </button>
@@ -121,10 +121,10 @@ export function PickupChooser({ tripId, pickupHint, dropHint }: {
 
       {opts?.chosen && selected && (
         <>
-          <p className="mt-2 rounded-2xl border border-[rgba(198,255,74,.35)] bg-night-900 p-2 text-[11px] text-volt-300">
+          <p className="mt-2 rounded-2xl border border-volt-400/36 bg-night-900 p-2 text-[11px] text-volt-300">
             {selected.why}
             {opts.saved_detour_km > 0 && (
-              <span className="text-[#A5ABD6]"> · saves {opts.saved_detour_km} km vs your exact door</span>
+              <span className="text-muted"> · saves {opts.saved_detour_km} km vs your exact door</span>
             )}
           </p>
           <div className="mt-2 grid grid-cols-3 gap-2">
@@ -134,7 +134,7 @@ export function PickupChooser({ tripId, pickupHint, dropHint }: {
           </div>
           {opts.alternates.length > 0 && (
             <div className="mt-2 grid gap-1.5">
-              <p className="text-[10px] uppercase tracking-wider text-[#5b6194]">Alternatives</p>
+              <p className="text-[10px] uppercase tracking-wider text-muted">Alternatives</p>
               {opts.alternates.map((a, i) => (
                 <PointRow
                   key={`${a.coordinates[0]},${a.coordinates[1]},${i}`}
@@ -154,7 +154,7 @@ export function PickupChooser({ tripId, pickupHint, dropHint }: {
               dashes={dashes}
               height={240}
             />
-            <p className="mt-1 text-center text-[10px] text-[#5b6194]">
+            <p className="mt-1 text-center text-[10px] text-muted">
               {opts.considered} candidates scanned every {opts.step_km} km · route {opts.route_km} km
               {route?.routed ? "" : " · route not detailed for this trip"}
             </p>

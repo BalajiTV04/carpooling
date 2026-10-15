@@ -41,7 +41,7 @@ export function TrustSignals() {
             {s.icon}
           </span>
           <p className="font-display mt-3 text-sm font-bold">{s.title}</p>
-          <p className="mt-1.5 text-[12px] leading-relaxed text-[#A5ABD6]">{s.desc}</p>
+          <p className="mt-1.5 text-[12px] leading-relaxed text-muted">{s.desc}</p>
         </div>
       ))}
     </div>

@@ -81,7 +81,7 @@ export default function Home() {
               <span className="text-iris-300">Keep the route.</span>
             </h1>
 
-            <p className="mt-5 max-w-lg text-[15px] leading-relaxed text-[#A5ABD6]">
+            <p className="mt-5 max-w-lg text-[15px] leading-relaxed text-muted">
               Drivers publish trips, passengers match on real route overlap — not
               just city names. Every recommendation shows its working, from the
               safety gate all the way to your share of the fare.
@@ -90,19 +90,22 @@ export default function Home() {
             <div className="mt-7 flex flex-wrap items-center gap-3">
               <Link
                 href="/search"
-                className="rounded-2xl bg-gradient-to-r from-volt-400 to-volt-500 px-6 py-3 font-display text-sm font-bold text-night-950 shadow-glow transition hover:brightness-110"
+                className="btn btn-primary px-6 py-3 text-sm"
               >
                 Find a ride →
               </Link>
               <Link
                 href="/register"
-                className="rounded-2xl border border-[rgba(154,151,255,.4)] px-6 py-3 font-display text-sm font-bold text-[#EEF0FF] transition hover:border-volt-400 hover:text-volt-300"
+                className="btn btn-ghost px-6 py-3 text-sm"
               >
                 Become a driver
               </Link>
             </div>
 
-            <div className="mt-7">
+            {/* Travelling road rule: the hero's one piece of motion in text. */}
+            <div className="roadline mt-7 w-64 rounded-full opacity-70" aria-hidden />
+
+            <div className="mt-4">
               <StatusPill health={health} error={error} />
             </div>
           </div>
@@ -122,13 +125,13 @@ export default function Home() {
       <section id="how-it-works" className="reveal px-5 py-14">
         <div className="mx-auto max-w-7xl">
           <div className="max-w-2xl">
-            <p className="text-xs font-bold uppercase tracking-[.2em] text-volt-400">
+            <p className="eyebrow">
               How a match is made
             </p>
             <h2 className="font-display mt-2 text-3xl font-extrabold tracking-tight md:text-4xl">
               Seven checks before you see a ride
             </h2>
-            <p className="mt-3 text-[15px] leading-relaxed text-[#A5ABD6]">
+            <p className="mt-3 text-[15px] leading-relaxed text-muted">
               Safety always wins. Every candidate is put through the same checks
               in the same order, and only trips that clear all the hard ones are
               ever shown — smarter ranking can reorder them, never sneak an
@@ -145,19 +148,19 @@ export default function Home() {
       <section className="reveal px-5 py-14">
         <div className="mx-auto grid max-w-7xl items-center gap-8 lg:grid-cols-[.85fr_1.15fr]">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[.2em] text-volt-400">
+            <p className="eyebrow">
               The demo corridor
             </p>
             <h2 className="font-display mt-2 text-3xl font-extrabold tracking-tight md:text-4xl">
               Real roads, not straight lines
             </h2>
-            <p className="mt-3 text-[15px] leading-relaxed text-[#A5ABD6]">
+            <p className="mt-3 text-[15px] leading-relaxed text-muted">
               Every trip follows the actual driving route, not a straight line on
               a map. We compare your journey against that real path, so a trip
               that genuinely crosses yours is a match - and one that merely
               starts in the same city is not.
             </p>
-            <ul className="mt-5 grid gap-2 text-sm text-[#A5ABD6]">
+            <ul className="mt-5 grid gap-2 text-sm text-muted">
               <li className="flex items-center gap-2">
                 <span className="h-1.5 w-1.5 rounded-full bg-volt-400" />
                 Match strength comes from the road you actually share
@@ -180,7 +183,7 @@ export default function Home() {
       <section className="reveal px-5 py-14">
         <div className="mx-auto max-w-7xl">
           <div className="max-w-2xl">
-            <p className="text-xs font-bold uppercase tracking-[.2em] text-volt-400">
+            <p className="eyebrow">
               What you get
             </p>
             <h2 className="font-display mt-2 text-3xl font-extrabold tracking-tight md:text-4xl">
@@ -197,7 +200,7 @@ export default function Home() {
       <section className="reveal px-5 py-14">
         <div className="mx-auto max-w-7xl">
           <div className="max-w-2xl">
-            <p className="text-xs font-bold uppercase tracking-[.2em] text-volt-400">
+            <p className="eyebrow">
               Three ways in
             </p>
             <h2 className="font-display mt-2 text-3xl font-extrabold tracking-tight md:text-4xl">

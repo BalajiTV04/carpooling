@@ -44,24 +44,7 @@ export type PendingVehicle = {
   verification_status: string; is_active: boolean;
 };
 
-function base() {
-  return process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
-}
-
-async function req(path: string, opts: RequestInit = {}) {
-  const tok = typeof window !== "undefined" ? localStorage.getItem("voltride_token") : null;
-  const res = await fetch(`${base()}${path}`, {
-    ...opts,
-    headers: {
-      "Content-Type": "application/json",
-      ...(tok ? { Authorization: `Bearer ${tok}` } : {}),
-      ...(opts.headers ?? {})
-    }
-  });
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(body?.detail ?? `Request failed (${res.status})`);
-  return body;
-}
+import { req } from "@/lib/http";
 
 export const adminApi = {
   stats: (): Promise<AdminStats> => req("/admin/stats"),

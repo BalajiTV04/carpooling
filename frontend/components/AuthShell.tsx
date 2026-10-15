@@ -1,12 +1,35 @@
-// Shared auth form shell: night card + error slot.
+// Shared auth form shell: branded night card + error slot.
+//
+// The old shell was a bare heading over a plain box. Auth pages are the first
+// thing a new rider sees, so this now carries the same route motif used on the
+// landing page: a brand mark, a road rule under the heading, and the raised
+// panel surface from the design system.
+import Link from "next/link";
+import { BrandMark } from "@/components/BrandMark";
+
 export function AuthShell({ title, sub, children }: { title: string; sub: string; children: React.ReactNode }) {
   return (
-    <main className="mx-auto max-w-md px-5 pb-20 pt-14">
-      <a href="/" className="text-sm text-volt-300">← VoltRide</a>
-      <h1 className="font-display mt-3 text-3xl font-bold">{title}</h1>
-      <p className="mt-1 text-sm text-[#A5ABD6]">{sub}</p>
-      <div className="mt-6 rounded-xl3 border border-[rgba(154,151,255,.22)] bg-night-900/80 p-6 shadow-card">
-        {children}
+    <main className="relative mx-auto max-w-md px-5 pb-20 pt-12">
+      {/* Soft glow so the auth card sits in the same lit world as the landing page. */}
+      <div className="glow-iris -left-10 top-6 h-56 w-56 bg-iris-500/25" aria-hidden />
+
+      <div className="relative">
+        <Link href="/" className="inline-flex items-center gap-2 text-sm font-semibold text-volt-300 transition hover:text-volt-400">
+          <span className="text-base leading-none">←</span> VoltRide
+        </Link>
+
+        <div className="mt-4 flex items-center gap-3">
+          <BrandMark size={42} />
+          <div>
+            <h1 className="font-display text-3xl font-extrabold tracking-tight">{title}</h1>
+            <p className="mt-0.5 text-sm text-muted">{sub}</p>
+          </div>
+        </div>
+
+        {/* Route rule: ties the form to the product's road motif. */}
+        <div className="roadline mt-4 rounded-full opacity-70" aria-hidden />
+
+        <div className="panel mt-5 p-6">{children}</div>
       </div>
     </main>
   );
@@ -15,11 +38,13 @@ export function AuthShell({ title, sub, children }: { title: string; sub: string
 export function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#A5ABD6]">{label}</span>
+      <span className="label">{label}</span>
       {children}
     </label>
   );
 }
 
-export const inputCls =
-  "w-full rounded-2xl border border-[rgba(154,151,255,.3)] bg-night-950 px-4 py-2.5 text-sm text-[#EEF0FF] outline-none placeholder:text-[#5b6194] focus:border-volt-400";
+// Single source for the field look. Points at the design-system `.input` class
+// so every form in the app picks up the same focus ring, border and padding;
+// pages that need extra modifiers simply append to this string.
+export const inputCls = "input";

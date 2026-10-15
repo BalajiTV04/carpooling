@@ -1,7 +1,23 @@
 import type { Metadata } from "next";
+import { Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { SessionProvider } from "@/components/SessionProvider";
 import { NavBar } from "@/components/NavBar";
+
+// One sans + one mono, loaded through next/font (self-hosted, no render-block
+// request to fonts.googleapis.com). CSS variables are mapped onto Tailwind's
+// fontFamily in tailwind.config.ts: --font-body -> font-sans,
+// --font-num -> font-mono (numbers: overlap %, km, rupee fares, distances).
+const body = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-body"
+});
+const num = JetBrains_Mono({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-num"
+});
 
 export const metadata: Metadata = {
   title: "VoltRide — Route-Aware Private Vehicle Sharing",
@@ -23,15 +39,7 @@ export const metadata: Metadata = {
 // SessionProvider (Module 3) makes login state available on every page.
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="dark">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@500;600;700;800&family=JetBrains+Mono:wght@500&display=swap"
-          rel="stylesheet"
-        />
-      </head>
+    <html lang="en" className={`dark ${body.variable} ${num.variable}`}>
       <body className="min-h-screen antialiased">
         <SessionProvider>
           <NavBar />

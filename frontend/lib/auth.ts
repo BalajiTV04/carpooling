@@ -10,24 +10,7 @@ export type SessionUser = {
 const KEY = "voltride_token";
 const USER_KEY = "voltride_user";
 
-function base() {
-  return process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
-}
-
-async function req(path: string, opts: RequestInit = {}) {
-  const token = typeof window !== "undefined" ? localStorage.getItem(KEY) : null;
-  const res = await fetch(`${base()}${path}`, {
-    ...opts,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(opts.headers ?? {})
-    }
-  });
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(body?.detail ?? `Request failed (${res.status})`);
-  return body;
-}
+import { req } from "@/lib/http";
 
 export function saveSession(token: string, user: SessionUser) {
   localStorage.setItem(KEY, token);

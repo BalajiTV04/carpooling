@@ -28,7 +28,7 @@ export function StarPicker({
           ★
         </button>
       ))}
-      <span className="ml-1 text-[11px] text-[#A5ABD6]">
+      <span className="ml-1 text-[11px] text-muted">
         {value > 0 ? STAR_LABELS[value] : "tap to rate"}
       </span>
     </span>

@@ -48,14 +48,14 @@ export function RateRideCard({
   };
 
   return (
-    <div className="mt-2 rounded-2xl border border-[rgba(198,255,74,.3)] bg-night-950 p-3 text-[11px]">
+    <div className="mt-2 rounded-2xl border border-volt-400/30 bg-night-950 p-3 text-[11px]">
       <p className="font-bold text-volt-300">
         {editing ? "Update your review" : "Rate this ride"}
-        <span className="ml-1 font-normal text-[#A5ABD6]">
+        <span className="ml-1 font-normal text-muted">
           {row.target_name ? `for ${row.target_name}` : ""} · {route}
         </span>
       </p>
-      <p className="text-[#5b6194]">
+      <p className="text-muted">
         Only the other party is rated, and one person gets one vote per ride.
       </p>
       <div className="mt-1.5">
@@ -67,17 +67,17 @@ export function RateRideCard({
         rows={2}
         maxLength={500}
         placeholder="Optional note (max 500 chars)"
-        className="mt-1.5 w-full resize-none rounded-xl border border-[rgba(154,151,255,.3)] bg-night-950 px-2 py-1.5 text-[11px]"
+        className="mt-1.5 w-full resize-none rounded-xl border border-iris-400/30 bg-night-950 px-2 py-1.5 text-[11px]"
       />
       <div className="mt-1.5 flex items-center gap-2">
         <button
           onClick={submit} disabled={busy}
-          className="rounded-full bg-volt-400 px-3 py-1 font-bold text-night-950 disabled:opacity-50"
+          className="btn btn-primary btn-sm"
         >
           {busy ? "Saving…" : editing ? "Update review" : "Submit rating"}
         </button>
         {editing && (
-          <span className="text-[#5b6194]">you rated ★{row.my_stars}</span>
+          <span className="text-muted">you rated ★{row.my_stars}</span>
         )}
       </div>
       {msg && <p className="mt-1 text-volt-300">{msg}</p>}

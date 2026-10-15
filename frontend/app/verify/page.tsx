@@ -53,12 +53,12 @@ function VerifyForm() {
         <Field label="Phone">
           <input className={inputCls} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+919876543210" />
         </Field>
-        <button onClick={request} className="rounded-2xl border border-volt-400/60 py-2.5 text-sm font-bold text-volt-300">
+        <button onClick={request} className="btn btn-ghost w-full py-2.5">
           Send code
         </button>
         {devCode && (
-          <p className="rounded-2xl border border-dashed border-volt-400/60 bg-night-950 p-3 text-center">
-            <span className="text-xs text-[#A5ABD6]">DEV CODE (no SMS in project): </span>
+          <p className="panel-inset border-dashed border-volt-400/50 p-3 text-center">
+            <span className="text-xs text-muted">DEV CODE (no SMS in project): </span>
             <span className="font-display text-xl font-bold tracking-[.3em] text-volt-300">{devCode}</span>
           </p>
         )}
@@ -70,12 +70,12 @@ function VerifyForm() {
               inputMode="numeric" placeholder="••••••" required
             />
           </Field>
-          <button disabled={busy} className="rounded-2xl bg-volt-400 py-2.5 text-sm font-bold text-night-950 shadow-glow disabled:opacity-60">
+          <button disabled={busy} className="btn btn-primary w-full py-3">
             {busy ? "Verifying…" : "Verify →"}
           </button>
         </form>
-        <p className="text-sm text-[#A5ABD6]">{msg}</p>
-        {err && <p className="rounded-2xl border border-rose-400/40 bg-rose-500/10 p-3 text-sm text-rose-300">{err}</p>}
+        <p className="text-sm text-muted">{msg}</p>
+        {err && <p className="alert alert-err">{err}</p>}
       </div>
     </AuthShell>
   );
@@ -83,7 +83,7 @@ function VerifyForm() {
 
 export default function VerifyPage() {
   return (
-    <Suspense fallback={<p className="p-10 text-sm text-[#A5ABD6]">Loading…</p>}>
+    <Suspense fallback={<p className="p-10 text-sm text-muted">Loading…</p>}>
       <VerifyForm />
     </Suspense>
   );

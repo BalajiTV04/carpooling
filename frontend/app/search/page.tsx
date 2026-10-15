@@ -61,10 +61,11 @@ function SearchInner() {
   return (
     <PageShell
       title="Find a ride"
+      eyebrow="Passenger"
       subtitle="Published trips only · same-day · seats checked."
     >
-      <form onSubmit={submit} className="mt-4 grid gap-3 rounded-xl3 border border-[rgba(154,151,255,.22)] bg-night-900/80 p-5">
-        <p className="text-[11px] text-[#A5ABD6]">
+      <form onSubmit={submit} className="panel mt-5 grid gap-3 p-5">
+        <p className="text-[11px] text-muted">
           Type a place — typos are fine — or tap{" "}
           <span className="text-volt-300">📍</span> to drop a pin on the map.
         </p>
@@ -85,8 +86,8 @@ function SearchInner() {
             </select>
           </Field>
         </div>
-        <details className="rounded-2xl bg-night-950 px-4 py-2 text-sm">
-          <summary className="cursor-pointer text-xs text-[#A5ABD6]">Match tuning (defaults fit the city)</summary>
+        <details className="panel-inset px-4 py-2 text-sm">
+          <summary className="cursor-pointer text-xs text-muted">Match tuning (defaults fit the city)</summary>
           <div className="grid grid-cols-2 gap-3 py-2">
             <Field label="Max pickup km">
               <input className={inputCls} value={maxPickup} onChange={(e) => setMaxPickup(e.target.value)} inputMode="decimal" />
@@ -96,35 +97,37 @@ function SearchInner() {
             </Field>
           </div>
         </details>
-        <button disabled={busy} className="rounded-2xl bg-volt-400 py-2.5 text-sm font-bold text-night-950 shadow-glow disabled:opacity-60">
+        <button disabled={busy} className="btn btn-primary w-full py-3">
           {busy ? "Searching…" : "Search rides →"}
         </button>
-        {err && <p className="rounded-2xl border border-rose-400/40 bg-rose-500/10 p-3 text-sm text-rose-300">{err}</p>}
+        {err && <p className="alert alert-err">{err}</p>}
       </form>
       {hits !== null && (
         <section className="mt-6">
-          <h2 className="font-display font-bold">
-            {hits.length === 0 ? "No rides that day" : `${hits.length} ride${hits.length > 1 ? "s" : ""} found`}
-          </h2>
-          {aiBadge && <p className="mt-1 text-[11px] text-volt-300">{aiBadge} · blended = ½ rule + ½ AI</p>}
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="font-display text-lg font-bold">
+              {hits.length === 0 ? "No rides that day" : `${hits.length} ride${hits.length > 1 ? "s" : ""} found`}
+            </h2>
+            {aiBadge && <span className="pill pill-iris">{aiBadge} · blended = ½ rule + ½ AI</span>}
+          </div>
           <div className="mt-3 grid gap-3">
             {hits.length === 0 && (
-              <div className="rounded-xl3 border border-dashed border-[rgba(154,151,255,.35)] p-8 text-center text-sm text-[#A5ABD6]">
+              <div className="empty">
                 Try a nearby date or fewer seats. Drivers publish in{" "}
-                <Link href="/trips" className="text-volt-300">/trips</Link>.
+                <Link href="/trips" className="link-volt">/trips</Link>.
               </div>
             )}
             {hits.map((t) => <RideCard key={t.id} t={t} pickupHint={src} dropHint={dst} />)}
           </div>
           {excluded.length > 0 && (
-            <details className="mt-4 rounded-xl3 border border-[rgba(154,151,255,.22)] bg-night-900/60 p-4 text-xs">
-              <summary className="cursor-pointer text-[#A5ABD6]">
+            <details className="panel mt-4 p-4 text-xs">
+              <summary className="cursor-pointer text-muted">
                 {excluded.length} ride{excluded.length > 1 ? "s" : ""} skipped — why?
               </summary>
-              <ul className="mt-2 grid gap-1 text-[#A5ABD6]">
+              <ul className="mt-2 grid gap-1 text-muted">
                 {excluded.map((x) => (
                   <li key={x.id}>
-                    <span className="text-[#EEF0FF]">{x.source_name} → {x.destination_name}</span>
+                    <span className="text-ink">{x.source_name} → {x.destination_name}</span>
                     {" — "}{x.reason}
                   </li>
                 ))}

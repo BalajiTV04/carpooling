@@ -55,9 +55,9 @@ export function SafetyBanner({ tripId, driverId, isDriverForce }: { tripId: stri
   };
 
   return (
-    <div className="mt-2 rounded-2xl border border-[rgba(154,151,255,.25)] bg-night-950 p-3">
+    <div className="mt-2 rounded-2xl border border-iris-400/26 bg-night-950 p-3">
       <div className="flex items-center gap-2">
-        <p className="text-xs font-bold text-[#EEF0FF]">
+        <p className="text-xs font-bold text-ink">
           Safety {open > 0 && <span className="ml-1 rounded-full bg-rose-500/20 px-2 py-0.5 text-[10px] text-rose-200">{open} open</span>}
         </p>
         <div className="ml-auto flex gap-1.5">
@@ -65,7 +65,7 @@ export function SafetyBanner({ tripId, driverId, isDriverForce }: { tripId: stri
             value={sosMsg}
             onChange={(e) => setSosMsg(e.target.value)}
             placeholder="SOS note (optional)"
-            className="w-32 rounded-full border border-[rgba(154,151,255,.3)] bg-night-900 px-2.5 py-1 text-[11px] text-[#EEF0FF]"
+            className="w-32 rounded-full border border-iris-400/30 bg-night-900 px-2.5 py-1 text-[11px] text-ink"
           />
           <button
             onClick={sos} disabled={busy}
@@ -75,7 +75,7 @@ export function SafetyBanner({ tripId, driverId, isDriverForce }: { tripId: stri
           </button>
         </div>
       </div>
-      {note && <p className="mt-1.5 text-[11px] text-[#A5ABD6]">{note}</p>}
+      {note && <p className="mt-1.5 text-[11px] text-muted">{note}</p>}
       {alerts.length > 0 && (
         <ul className="mt-2 grid gap-1.5">
           {alerts.slice(0, 5).map((a) => (

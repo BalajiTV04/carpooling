@@ -30,12 +30,12 @@ function LoginForm() {
         <Field label="Password">
           <input className={inputCls} type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required />
         </Field>
-        {error && <p className="rounded-2xl border border-rose-400/40 bg-rose-500/10 p-3 text-sm text-rose-300">{error}</p>}
-        <button disabled={busy} className="rounded-2xl bg-volt-400 py-2.5 text-sm font-bold text-night-950 shadow-glow disabled:opacity-60">
+        {error && <p className="alert alert-err">{error}</p>}
+        <button disabled={busy} className="btn btn-primary w-full py-3">
           {busy ? "Checking…" : "Log in →"}
         </button>
-        <p className="text-center text-sm text-[#A5ABD6]">
-          New here? <a href="/register" className="text-volt-300">Create account</a>
+        <p className="text-center text-sm text-muted">
+          New here? <a href="/register" className="link-volt">Create account</a>
         </p>
       </form>
     </AuthShell>
@@ -44,7 +44,7 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<p className="p-10 text-sm text-[#A5ABD6]">Loading…</p>}>
+    <Suspense fallback={<p className="p-10 text-sm text-muted">Loading…</p>}>
       <LoginForm />
     </Suspense>
   );

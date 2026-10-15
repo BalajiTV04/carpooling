@@ -17,7 +17,7 @@ export function LiveCorridorMap() {
   const ref = useRef<HTMLDivElement>(null);
 
   return (
-    <div className="map-glow relative overflow-hidden rounded-xl3 border border-[rgba(154,151,255,.25)]">
+    <div className="map-glow relative overflow-hidden rounded-xl3 border border-iris-400/26">
       {/* Real tiles + the corridor line, drawn by the shared RouteMap. */}
       <RouteMap
         src={CORRIDOR[0]}
@@ -29,7 +29,7 @@ export function LiveCorridorMap() {
       {/* Caption strip */}
       <div className="pointer-events-none absolute inset-x-3 bottom-3 rounded-2xl border border-volt-400/25 bg-night-950/85 px-3 py-2 text-[11px] backdrop-blur">
         <span className="font-bold text-volt-300">Live corridor</span>
-        <span className="text-[#A5ABD6]">
+        <span className="text-muted">
           {" "}
           Hebbal → MG Road → Indiranagar → Whitefield → Electronic City
         </span>

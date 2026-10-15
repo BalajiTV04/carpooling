@@ -30,7 +30,20 @@ export default function RegisterPage() {
     <AuthShell title="Create account" sub="Phone is your login key. Verify it with a 6-digit code next.">
       <form onSubmit={submit} className="grid gap-4">
         <Field label="Phone (E.164)">
-          <input className={inputCls} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+919876543210" required />
+          <input
+            className={inputCls}
+            type="tel"
+            pattern="\+[0-9]{7,15}"
+            title="Must start with +, e.g. +919876543210"
+            value={form.phone}
+            onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            placeholder="+919876543210"
+            required
+          />
+          <span className="mt-1 block text-[11px] text-muted">
+            Starts with <b className="text-volt-300">+</b> — e.g.{" "}
+            <span className="text-volt-300">+919876543210</span>
+          </span>
         </Field>
         <Field label="Full name">
           <input className={inputCls} value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} placeholder="Asha Kumar" minLength={2} required />
@@ -39,26 +52,24 @@ export default function RegisterPage() {
           <input className={inputCls} type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} minLength={6} required />
         </Field>
         <div>
-          <span className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#A5ABD6]">I will use VoltRide as</span>
+          <span className="label">I will use VoltRide as</span>
           <div className="flex gap-2">
             {(["passenger", "driver"] as const).map((r) => (
               <button
                 key={r} type="button" onClick={() => toggle(r)}
-                className={`flex-1 rounded-2xl border px-4 py-2.5 text-sm font-semibold capitalize ${
-                  roles.includes(r) ? "border-volt-400 bg-volt-400 text-night-950" : "border-[rgba(154,151,255,.3)] text-[#A5ABD6]"
-                }`}
+                className={`btn flex-1 ${roles.includes(r) ? "btn-primary" : "btn-ghost"}`}
               >
                 {r}
               </button>
             ))}
           </div>
         </div>
-        {error && <p className="rounded-2xl border border-rose-400/40 bg-rose-500/10 p-3 text-sm text-rose-300">{error}</p>}
-        <button disabled={busy} className="rounded-2xl bg-volt-400 py-2.5 text-sm font-bold text-night-950 shadow-glow disabled:opacity-60">
+        {error && <p className="alert alert-err">{error}</p>}
+        <button disabled={busy} className="btn btn-primary w-full py-3">
           {busy ? "Creating…" : "Create & verify phone →"}
         </button>
-        <p className="text-center text-sm text-[#A5ABD6]">
-          Have an account? <a href="/login" className="text-volt-300">Log in</a>
+        <p className="text-center text-sm text-muted">
+          Have an account? <a href="/login" className="link-volt">Log in</a>
         </p>
       </form>
     </AuthShell>

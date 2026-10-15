@@ -3,16 +3,16 @@
 // moderation, trip board, and the alert queue. Admins only (RequireAuth +
 // require_roles server-side); without the admin role this page is a locked card.
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
 import { RequireAuth } from "@/components/RequireAuth";
+import { PageShell } from "@/components/PageShell";
 import { adminApi, severityCls, type AdminAlert, type AdminStats, type AdminTrip, type AdminUser, type PendingVehicle } from "@/lib/admin";
 
 function Card({ label, value, note }: { label: string; value: string | number; note?: string }) {
   return (
-    <div className="rounded-xl3 border border-[rgba(154,151,255,.22)] bg-night-900/80 p-4">
-      <p className="text-[11px] uppercase tracking-[.15em] text-[#A5ABD6]">{label}</p>
-      <p className="font-display mt-1 text-2xl font-bold text-[#EEF0FF]">{value}</p>
-      {note && <p className="mt-0.5 text-[11px] text-[#5b6194]">{note}</p>}
+    <div className="panel panel-hover p-4">
+      <p className="text-[11px] uppercase tracking-[.15em] text-muted">{label}</p>
+      <p className="stat-num mt-1">{value}</p>
+      {note && <p className="mt-0.5 text-[11px] text-muted">{note}</p>}
     </div>
   );
 }
@@ -83,14 +83,14 @@ function AdminInner() {
   };
 
   return (
-    <main className="mx-auto max-w-6xl px-5 pb-20 pt-10">
-      <Link href="/" className="text-sm text-volt-300">← VoltRide</Link>
-      <h1 className="font-display mt-2 text-3xl font-bold">Operations console</h1>
-      <p className="mt-1 text-sm text-[#A5ABD6]">
-        Who is on the road, who needs attention, who breaks the rules.
-      </p>
-      {err && <p className="mt-3 rounded-2xl border border-rose-400/40 bg-rose-500/10 p-3 text-sm text-rose-300">{err}</p>}
-      {msg && <p className="mt-3 rounded-2xl border border-volt-400/40 bg-volt-400/10 p-3 text-sm text-volt-300">{msg}</p>}
+    <PageShell
+      title="Operations console"
+      eyebrow="Admin · Module 21"
+      subtitle="Who is on the road, who needs attention, who breaks the rules."
+      wide
+    >
+      {err && <p className="alert alert-err mt-4">{err}</p>}
+      {msg && <p className="alert alert-ok mt-4">{msg}</p>}
 
       {stats && (
         <section className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -105,12 +105,12 @@ function AdminInner() {
         </section>
       )}
 
-      <div className="mt-6 flex gap-2">
+      <div className="tabbar mt-6">
         {(["alerts", "trips", "cars", "users"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`rounded-full px-4 py-2 text-sm font-bold capitalize ${tab === t ? "bg-volt-400 text-night-950" : "border border-[rgba(154,151,255,.35)] text-[#A5ABD6]"}`}
+            className={`tab ${tab === t ? "tab-active" : ""}`}
           >
             {t}
             {t === "alerts" && alerts.length > 0 ? ` (${alerts.length})` : ""}
@@ -121,12 +121,12 @@ function AdminInner() {
       {tab === "alerts" && (
         <div className="mt-4 grid gap-2">
           {alerts.length === 0 && (
-            <p className="rounded-xl3 border border-dashed border-[rgba(154,151,255,.35)] p-6 text-center text-sm text-[#A5ABD6]">
+            <p className="empty">
               No open alerts. The road is quiet.
             </p>
           )}
           {alerts.map((a) => (
-            <div key={a.id} className={`flex flex-wrap items-center gap-2 rounded-xl3 px-3 py-2.5 text-xs ${severityCls(a.severity)}`}>
+            <div key={a.id} className={`flex flex-wrap items-center gap-2 rounded-2xl px-3 py-2.5 text-xs ${severityCls(a.severity)}`}>
               <div className="min-w-0 flex-1">
                 <p className="font-bold">
                   {a.type.toUpperCase()} · {a.severity}{" "}
@@ -141,7 +141,7 @@ function AdminInner() {
               <button
                 disabled={busy}
                 onClick={() => act(() => adminApi.resolve(a.id), "Alert resolved — off the queue.")}
-                className="shrink-0 rounded-full border border-current px-3 py-1 text-[11px] font-bold disabled:opacity-50"
+                className="btn btn-ghost btn-sm shrink-0 border-current"
               >
                 Resolve
               </button>
@@ -152,14 +152,14 @@ function AdminInner() {
 
       {tab === "trips" && (
         <div className="mt-4 grid gap-2">
-          <label className="flex items-center gap-2 text-xs text-[#A5ABD6]">
+          <label className="flex items-center gap-2 text-xs text-muted">
             <input type="checkbox" checked={liveOnly} onChange={(e) => setLiveOnly(e.target.checked)} />
             Ongoing only
           </label>
           {trips.map((t) => (
-            <div key={t.id} className="rounded-xl3 border border-[rgba(154,151,255,.22)] bg-night-900/80 p-3 text-xs">
+            <div key={t.id} className="panel panel-hover p-3 text-xs">
               <p className="font-display font-bold">{t.source_name} → {t.destination_name}</p>
-              <p className="mt-0.5 text-[#A5ABD6]">
+              <p className="mt-0.5 text-muted">
                 {t.status} · {t.seats_booked}/{t.seats_offered} seats · driver {t.driver_name ?? t.driver_id.slice(-6)}
                 {t.tracked ? " · tracked" : " · no GPS yet"}
                 {t.open_alerts > 0 && <span className="text-rose-300"> · {t.open_alerts} open alert{t.open_alerts > 1 ? "s" : ""}</span>}
@@ -173,31 +173,31 @@ function AdminInner() {
       {tab === "cars" && (
         <div className="mt-4 grid gap-2">
           {pendingCars.length === 0 && (
-            <p className="rounded-xl3 border border-dashed border-[rgba(154,151,255,.35)] p-6 text-center text-sm text-[#A5ABD6]">
+            <p className="empty">
               No cars waiting for verification.
             </p>
           )}
           {pendingCars.map((v) => (
-            <div key={v.id} className="flex flex-wrap items-center gap-2 rounded-xl3 border border-[rgba(154,151,255,.22)] bg-night-900/80 p-3 text-xs">
+            <div key={v.id} className="panel panel-hover flex flex-wrap items-center gap-2 p-3 text-xs">
               <div className="min-w-0 flex-1">
                 <p className="truncate font-bold">
-                  {v.make} {v.model} <span className="font-normal text-[#A5ABD6]">{v.plate_no}</span>
+                  {v.make} {v.model} <span className="font-normal text-muted">{v.plate_no}</span>
                 </p>
-                <p className="text-[#A5ABD6]">
+                <p className="text-muted">
                   {v.seats_total} seats · {v.fuel_type} · {v.verification_status}
                 </p>
               </div>
               <button
                 disabled={busy}
                 onClick={() => act(() => adminApi.verifyVehicle(v.id, "verified"), "Car verified — the driver can publish now.")}
-                className="rounded-full bg-volt-400 px-3 py-1 font-bold text-night-950 disabled:opacity-50"
+                className="btn btn-primary btn-sm"
               >
                 Verify
               </button>
               <button
                 disabled={busy}
                 onClick={() => act(() => adminApi.verifyVehicle(v.id, "rejected", "documents unclear"), "Car rejected with a note.")}
-                className="rounded-full border border-rose-400/50 px-3 py-1 text-rose-300 disabled:opacity-50"
+                className="btn btn-danger btn-sm"
               >
                 Reject
               </button>
@@ -212,30 +212,30 @@ function AdminInner() {
             <input
               value={q} onChange={(e) => setQ(e.target.value)}
               placeholder="name or phone fragment…"
-              className="min-w-0 flex-1 rounded-full border border-[rgba(154,151,255,.3)] bg-night-900 px-4 py-2 text-sm text-[#EEF0FF]"
+              className="input min-w-0 flex-1 rounded-full"
             />
-            <button onClick={loadUsers} className="rounded-full bg-volt-400 px-4 py-2 text-sm font-bold text-night-950">Search</button>
+            <button onClick={loadUsers} className="btn btn-primary">Search</button>
           </div>
           <div className="mt-3 grid gap-2">
             {users.map((u) => (
-              <div key={u.id} className="flex flex-wrap items-center gap-2 rounded-xl3 border border-[rgba(154,151,255,.22)] bg-night-900/80 p-3 text-xs">
+              <div key={u.id} className="panel panel-hover flex flex-wrap items-center gap-2 p-3 text-xs">
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-bold">{u.full_name ?? "—"} <span className="font-normal text-[#A5ABD6]">{u.phone}</span></p>
-                  <p className="text-[#A5ABD6]">{u.roles.join(" · ") || "no roles"} · {u.status}</p>
+                  <p className="truncate font-bold">{u.full_name ?? "—"} <span className="font-normal text-muted">{u.phone}</span></p>
+                  <p className="text-muted">{u.roles.join(" · ") || "no roles"} · {u.status}</p>
                 </div>
                 {u.status === "active" ? (
                   <button disabled={busy} onClick={() => act(() => adminApi.suspend(u.id), "Account suspended — tokens revoked.")}
-                    className="rounded-full border border-rose-400/50 px-3 py-1 text-rose-300 disabled:opacity-50">Suspend</button>
+                    className="btn btn-danger btn-sm">Suspend</button>
                 ) : (
                   <button disabled={busy} onClick={() => act(() => adminApi.reactivate(u.id), "Account reactivated.")}
-                    className="rounded-full border border-volt-400/50 px-3 py-1 text-volt-300 disabled:opacity-50">Reactivate</button>
+                    className="btn btn-ghost btn-sm text-volt-300">Reactivate</button>
                 )}
               </div>
             ))}
           </div>
         </div>
       )}
-    </main>
+    </PageShell>
   );
 }
 

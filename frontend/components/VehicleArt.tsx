@@ -18,7 +18,7 @@ export function VehicleArt() {
   ];
 
   return (
-    <div className="map-glow relative min-h-[430px] overflow-hidden rounded-xl3 border border-[rgba(154,151,255,.25)] bg-night-900/70">
+    <div className="map-glow relative min-h-[430px] overflow-hidden rounded-xl3 border border-iris-400/26 bg-night-900/70">
       {/* Scenery */}
       <div className="grid-drift absolute inset-0 opacity-40" />
       <div className="aurora aurora-a -left-14 top-4 h-52 w-52 bg-iris-500/35" />
@@ -43,7 +43,7 @@ export function VehicleArt() {
       {/* Road */}
       <div className="absolute inset-x-0 bottom-0 h-[26%]">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-night-900 to-night-950" />
-        <div className="absolute inset-x-0 bottom-0 h-1/2 border-t border-[rgba(154,151,255,.18)] bg-night-950/70" />
+        <div className="absolute inset-x-0 bottom-0 h-1/2 border-t border-iris-400/18 bg-night-950/70" />
         {/* Centre line: dashes scroll right to sell forward motion */}
         <div className="road-dash absolute bottom-3 left-0 h-0.5 w-full" />
       </div>
@@ -162,9 +162,9 @@ export function VehicleArt() {
         Live corridor
       </div>
 
-      <div className="absolute bottom-4 left-4 right-4 rounded-2xl border border-[rgba(198,255,74,.3)] bg-night-950/85 p-3 text-[11px] backdrop-blur">
+      <div className="absolute bottom-4 left-4 right-4 rounded-2xl border border-volt-400/30 bg-night-950/85 p-3 text-[11px] backdrop-blur">
         <span className="font-bold text-volt-300">Matched on route</span>
-        <span className="text-[#A5ABD6]">
+        <span className="text-muted">
           {" "}
           86% overlap · pickup 320 m away · driver detours only 1.2 km
         </span>

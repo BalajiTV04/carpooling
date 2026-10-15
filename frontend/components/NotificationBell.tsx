@@ -92,7 +92,7 @@ export function NotificationBell({ enabled }: { enabled: boolean }) {
       <button
         onClick={openFeed}
         aria-label={`Notifications${unread ? ` (${unread} unread)` : ""}`}
-        className="relative rounded-full border border-[rgba(154,151,255,.35)] px-3 py-1.5 text-[#A5ABD6] hover:text-volt-300"
+        className="relative rounded-full border border-iris-400/36 px-3 py-1.5 text-muted hover:text-volt-300"
       >
         <span aria-hidden>🔔</span>
         {unread > 0 && (
@@ -105,7 +105,7 @@ export function NotificationBell({ enabled }: { enabled: boolean }) {
       </button>
 
       {open && (
-        <div className="absolute right-0 z-50 mt-2 w-80 rounded-2xl border border-[rgba(154,151,255,.3)] bg-night-950 p-2 shadow-card">
+        <div className="absolute right-0 z-50 mt-2 w-80 rounded-2xl border border-iris-400/30 bg-night-950 p-2 shadow-card">
           <div className="flex items-center justify-between px-2 py-1">
             <p className="font-display text-sm font-bold">Notifications</p>
             {unread > 0 && (
@@ -115,9 +115,9 @@ export function NotificationBell({ enabled }: { enabled: boolean }) {
             )}
           </div>
           <div className="max-h-80 overflow-y-auto">
-            {!loaded && <p className="px-2 py-3 text-[11px] text-[#5b6194]">Loading…</p>}
+            {!loaded && <p className="px-2 py-3 text-[11px] text-muted">Loading…</p>}
             {loaded && items.length === 0 && (
-              <p className="px-2 py-3 text-[11px] text-[#5b6194]">
+              <p className="px-2 py-3 text-[11px] text-muted">
                 Nothing yet. Booking activity and safety alerts land here.
               </p>
             )}
@@ -134,9 +134,9 @@ export function NotificationBell({ enabled }: { enabled: boolean }) {
                   <div className="flex items-start gap-2">
                     <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${priorityDotCls(n.priority)}`} />
                     <div className="min-w-0 flex-1">
-                      <p className="font-bold text-[#EEF0FF]">{n.title}</p>
-                      <p className="text-[#A5ABD6]">{n.body}</p>
-                      <p className="mt-0.5 text-[10px] text-[#5b6194]">
+                      <p className="font-bold text-ink">{n.title}</p>
+                      <p className="text-muted">{n.body}</p>
+                      <p className="mt-0.5 text-[10px] text-muted">
                         {ago(n.created_at)}
                         {label && <> · <span className="text-volt-300">{label}</span></>}
                       </p>
@@ -161,7 +161,7 @@ export function NotificationBell({ enabled }: { enabled: boolean }) {
               );
             })}
           </div>
-          <p className="px-2 py-1 text-[10px] text-[#5b6194]">
+          <p className="px-2 py-1 text-[10px] text-muted">
             In-app only — no email or SMS is configured.
           </p>
         </div>

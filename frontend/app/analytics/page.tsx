@@ -6,21 +6,21 @@
 // its own assumptions, because these are estimates under stated assumptions
 // rather than measured facts.
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
 import { RequireAuth } from "@/components/RequireAuth";
+import { PageShell } from "@/components/PageShell";
 import { useSession } from "@/components/SessionProvider";
 import {
   analyticsApi, type Demand, type Evaluation, type Impact, type MyImpact
 } from "@/lib/analytics";
 
-const card = "rounded-xl3 border border-[rgba(154,151,255,.22)] bg-night-900/80 p-5";
+const card = "panel p-5";
 
 function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="rounded-2xl bg-night-950 p-4">
-      <p className="text-[11px] uppercase tracking-wide text-[#5b6194]">{label}</p>
+    <div className="panel-inset p-4">
+      <p className="text-[11px] uppercase tracking-wide text-muted">{label}</p>
       <p className="font-display text-2xl font-bold text-volt-300">{value}</p>
-      {sub && <p className="text-[11px] text-[#A5ABD6]">{sub}</p>}
+      {sub && <p className="text-[11px] text-muted">{sub}</p>}
     </div>
   );
 }
@@ -30,7 +30,7 @@ function ImpactPanel({ title, imp }: { title: string; imp: Impact }) {
     <section className={card}>
       <h2 className="font-display font-bold">{title}</h2>
       {imp.trips === 0 ? (
-        <p className="mt-2 text-sm text-[#A5ABD6]">No completed rides to measure yet.</p>
+        <p className="mt-2 text-sm text-muted">No completed rides to measure yet.</p>
       ) : (
         <>
           <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
@@ -45,17 +45,17 @@ function ImpactPanel({ title, imp }: { title: string; imp: Impact }) {
           </div>
           {Object.keys(imp.by_fuel).length > 0 && (
             <table className="mt-4 w-full text-[11px]">
-              <thead className="text-[#5b6194]">
+              <thead className="text-muted">
                 <tr className="text-left">
                   <th className="py-1">fuel</th><th className="py-1">trips</th>
                   <th className="py-1">km</th><th className="py-1">CO2 kg</th>
                   <th className="py-1">cars</th>
                 </tr>
               </thead>
-              <tbody className="text-[#A5ABD6]">
+              <tbody className="text-muted">
                 {Object.entries(imp.by_fuel).map(([f, v]) => (
-                  <tr key={f} className="border-t border-[rgba(154,151,255,.12)]">
-                    <td className="py-1 text-[#EEF0FF]">{f}</td>
+                  <tr key={f} className="border-t border-iris-400/12">
+                    <td className="py-1 text-ink">{f}</td>
                     <td className="py-1">{v.trips}</td>
                     <td className="py-1">{v.km_avoided}</td>
                     <td className="py-1">{v.co2_avoided_kg}</td>
@@ -65,7 +65,7 @@ function ImpactPanel({ title, imp }: { title: string; imp: Impact }) {
               </tbody>
             </table>
           )}
-          <p className="mt-3 text-[10px] text-[#5b6194]">
+          <p className="mt-3 text-[10px] text-muted">
             {imp.emission_basis} · {imp.note}
           </p>
         </>
@@ -76,8 +76,8 @@ function ImpactPanel({ title, imp }: { title: string; imp: Impact }) {
 
 function DemandPanel({ d }: { d: Demand }) {
   const rows = (list: Demand["busiest"]) => list.map((b) => (
-    <tr key={b.bucket} className="border-t border-[rgba(154,151,255,.12)] text-[#A5ABD6]">
-      <td className="py-1 text-[#EEF0FF]">{b.weekday} {String(b.hour).padStart(2, "0")}:00</td>
+    <tr key={b.bucket} className="border-t border-iris-400/12 text-muted">
+      <td className="py-1 text-ink">{b.weekday} {String(b.hour).padStart(2, "0")}:00</td>
       <td className="py-1">{b.observed}</td>
       <td className="py-1">{b.horizon_total}</td>
     </tr>
@@ -85,39 +85,39 @@ function DemandPanel({ d }: { d: Demand }) {
   return (
     <section className={card}>
       <h2 className="font-display font-bold">Demand forecast</h2>
-      <p className="mt-1 text-[11px] text-[#A5ABD6]">
+      <p className="mt-1 text-[11px] text-muted">
         {d.samples} departures over {d.history.window_days} days · horizon {d.horizon_days} days
         {d.backtest.mae !== null && (
           <> · backtest MAE <b className="text-volt-300">{d.backtest.mae}</b>, RMSE{" "}
             <b className="text-volt-300">{d.backtest.rmse}</b></>
         )}
       </p>
-      <p className="text-[10px] text-[#5b6194]">{d.method}</p>
+      <p className="text-[10px] text-muted">{d.method}</p>
       <div className="mt-3 grid gap-4 sm:grid-cols-2">
         <div>
-          <p className="text-xs font-bold text-[#EEF0FF]">Busiest slots</p>
+          <p className="text-xs font-bold text-ink">Busiest slots</p>
           <table className="mt-1 w-full text-[11px]">
-            <thead className="text-[#5b6194]"><tr className="text-left"><th className="py-1">slot</th><th className="py-1">seen</th><th className="py-1">forecast</th></tr></thead>
+            <thead className="text-muted"><tr className="text-left"><th className="py-1">slot</th><th className="py-1">seen</th><th className="py-1">forecast</th></tr></thead>
             <tbody>{rows(d.busiest)}</tbody>
           </table>
         </div>
         <div>
-          <p className="text-xs font-bold text-[#EEF0FF]">Thinnest slots</p>
+          <p className="text-xs font-bold text-ink">Thinnest slots</p>
           <table className="mt-1 w-full text-[11px]">
-            <thead className="text-[#5b6194]"><tr className="text-left"><th className="py-1">slot</th><th className="py-1">seen</th><th className="py-1">forecast</th></tr></thead>
+            <thead className="text-muted"><tr className="text-left"><th className="py-1">slot</th><th className="py-1">seen</th><th className="py-1">forecast</th></tr></thead>
             <tbody>{rows(d.quietest)}</tbody>
           </table>
         </div>
       </div>
-      {d.backtest.note && <p className="mt-2 text-[10px] text-[#5b6194]">{d.backtest.note}</p>}
+      {d.backtest.note && <p className="mt-2 text-[10px] text-muted">{d.backtest.note}</p>}
     </section>
   );
 }
 
 function ScoreRow({ name, m }: { name: string; m: Evaluation["rule_score"] }) {
   return (
-    <tr className="border-t border-[rgba(154,151,255,.12)] text-[#A5ABD6]">
-      <td className="py-1 text-[#EEF0FF]">{name}</td>
+    <tr className="border-t border-iris-400/12 text-muted">
+      <td className="py-1 text-ink">{name}</td>
       <td className="py-1">{m.n}</td>
       <td className="py-1">{m.auc ?? "—"}</td>
       <td className="py-1">{m.precision ?? "—"}</td>
@@ -131,17 +131,17 @@ function EvalPanel({ e }: { e: Evaluation }) {
   return (
     <section className={card}>
       <h2 className="font-display font-bold">Did ranking predict rides?</h2>
-      <p className="mt-1 text-[11px] text-[#A5ABD6]">
+      <p className="mt-1 text-[11px] text-muted">
         {e.label_definition} · {e.labelled} labelled bookings
         {e.comparison && <> · <b className="text-volt-300">{e.comparison.winner}</b> by AUC ({e.comparison.delta_auc > 0 ? "+" : ""}{e.comparison.delta_auc})</>}
       </p>
       {e.labelled === 0 ? (
-        <p className="mt-3 text-sm text-[#A5ABD6]">
+        <p className="mt-3 text-sm text-muted">
           No scored bookings have reached an outcome yet — finish or cancel a few rides first.
         </p>
       ) : (
         <table className="mt-3 w-full text-[11px]">
-          <thead className="text-[#5b6194]">
+          <thead className="text-muted">
             <tr className="text-left">
               <th className="py-1">score</th><th className="py-1">n</th><th className="py-1">AUC</th>
               <th className="py-1">prec</th><th className="py-1">recall</th><th className="py-1">F1</th>
@@ -154,13 +154,13 @@ function EvalPanel({ e }: { e: Evaluation }) {
         </table>
       )}
       {e.offline_ranker_auc && (
-        <p className="mt-3 text-[11px] text-[#A5ABD6]">
+        <p className="mt-3 text-[11px] text-muted">
           Offline AUC on the labelled training set ({e.deployed_model} deployed):
           {" "}
           {Object.entries(e.offline_ranker_auc).map(([k, v]) => `${k} ${v}`).join(" · ")}
         </p>
       )}
-      <p className="mt-2 text-[10px] text-[#5b6194]">{e.caveat}</p>
+      <p className="mt-2 text-[10px] text-muted">{e.caveat}</p>
     </section>
   );
 }
@@ -195,13 +195,12 @@ function AnalyticsInner() {
   useEffect(() => { load(); }, [load]);
 
   return (
-    <main className="mx-auto max-w-4xl px-5 pb-20 pt-10">
-      <Link href="/" className="text-sm text-volt-300">← VoltRide</Link>
-      <h1 className="font-display mt-2 text-3xl font-bold">Impact &amp; analytics</h1>
-      <p className="mt-1 text-sm text-[#A5ABD6]">
-        Module 24 — sustainability, demand forecasting and model evaluation.
-      </p>
-      {err && <p className="mt-3 rounded-2xl border border-rose-400/40 bg-rose-500/10 p-3 text-sm text-rose-300">{err}</p>}
+    <PageShell
+      title="Impact & analytics"
+      eyebrow={isAdmin ? "Admin · Module 24" : "Module 24"}
+      subtitle="Sustainability, demand forecasting and model evaluation."
+    >
+      {err && <p className="alert alert-err mt-5">{err}</p>}
       <div className="mt-4 grid gap-4">
         {mine && (
           <>
@@ -209,7 +208,7 @@ function AnalyticsInner() {
             {mine.trips_as_driver > 0 && (
               <>
                 <ImpactPanel title="Rides you offered" imp={mine.as_driver} />
-                <p className="text-[11px] text-[#A5ABD6]">
+                <p className="text-[11px] text-muted">
                   You paid ₹{mine.paid_total} and collected ₹{mine.collected_total} across your
                   rides (net ₹{mine.net}). {mine.note}
                 </p>
@@ -221,10 +220,10 @@ function AnalyticsInner() {
         {isAdmin && demand && <DemandPanel d={demand} />}
         {isAdmin && evaluation && <EvalPanel e={evaluation} />}
         {isAdmin && (!impact || !demand || !evaluation) && (
-          <p className="text-xs text-[#5b6194]">Loading the admin panels…</p>
+          <p className="text-xs text-muted">Loading the admin panels…</p>
         )}
       </div>
-    </main>
+    </PageShell>
   );
 }
 

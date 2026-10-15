@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BrandMark } from "@/components/BrandMark";
 
 /** Site footer for the landing page.
  *  Deliberately free of internal/developer detail (no module counts, test
@@ -44,7 +45,7 @@ const TRUST = [
 
 export function SiteFooter() {
   return (
-    <footer id="safety" className="relative overflow-hidden border-t border-[rgba(154,151,255,.15)] px-5 pt-14">
+    <footer id="safety" className="relative overflow-hidden border-t border-iris-400/16 px-5 pt-14">
       {/* Faint glow so the footer still belongs to the same world. */}
       <div className="aurora aurora-b -left-20 -top-10 h-64 w-64 bg-iris-500/20" />
 
@@ -61,7 +62,7 @@ export function SiteFooter() {
               </span>
               <div className="min-w-0">
                 <p className="font-display text-sm font-bold">{t.title}</p>
-                <p className="mt-0.5 text-[11px] leading-relaxed text-[#A5ABD6]">{t.desc}</p>
+                <p className="mt-0.5 text-[11px] leading-relaxed text-muted">{t.desc}</p>
               </div>
             </div>
           </div>
@@ -72,17 +73,16 @@ export function SiteFooter() {
       <div className="relative mx-auto mt-12 grid max-w-7xl gap-10 md:grid-cols-[1.3fr_2fr]">
         <div>
           <div className="flex items-center gap-2.5">
-            <span className="pulse-dot grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-volt-400 to-volt-600 font-display text-base font-extrabold text-night-950 shadow-glow">
-              V
-            </span>
+            <BrandMark size={38} />
             <span className="leading-none">
               <span className="font-display block text-[15px] font-bold">VoltRide</span>
-              <span className="block text-[10px] uppercase tracking-[.18em] text-[#5b6194]">
+              <span className="block text-[10px] uppercase tracking-[.18em] text-muted">
                 route-aware sharing
               </span>
             </span>
           </div>
-          <p className="mt-4 max-w-xs text-[13px] leading-relaxed text-[#A5ABD6]">
+          <div className="roadline mt-4 w-40 rounded-full opacity-60" aria-hidden />
+          <p className="mt-4 max-w-xs text-[13px] leading-relaxed text-muted">
             Share the ride, keep the route. We match you with drivers already
             heading your way, then meet at the point that costs them least.
           </p>
@@ -99,7 +99,7 @@ export function SiteFooter() {
                   <li key={l.label}>
                     <Link
                       href={l.href}
-                      className="text-[13px] text-[#A5ABD6] transition hover:text-volt-300"
+                      className="text-[13px] text-muted transition hover:text-volt-300"
                     >
                       {l.label}
                     </Link>
@@ -112,8 +112,8 @@ export function SiteFooter() {
       </div>
 
       {/* Bottom bar */}
-      <div className="relative mx-auto mt-12 max-w-7xl border-t border-[rgba(154,151,255,.12)] py-6">
-        <div className="flex flex-col items-center justify-between gap-3 text-xs text-[#5b6194] sm:flex-row">
+      <div className="relative mx-auto mt-12 max-w-7xl border-t border-iris-400/12 py-6">
+        <div className="flex flex-col items-center justify-between gap-3 text-xs text-muted sm:flex-row">
           <p>&copy; {new Date().getFullYear()} VoltRide. All rights reserved.</p>
           <div className="flex items-center gap-5">
             <span className="cursor-default transition hover:text-volt-300">Privacy</span>

@@ -7,8 +7,8 @@ function Bar({ label, value, display }: { label: string; value: number; display:
   return (
     <div>
       <div className="flex justify-between text-[11px]">
-        <span className="text-[#A5ABD6]">{label}</span>
-        <span className="font-semibold text-[#EEF0FF]">{display}</span>
+        <span className="text-muted">{label}</span>
+        <span className="font-semibold text-ink">{display}</span>
       </div>
       <div className="mt-0.5 h-1.5 overflow-hidden rounded-full bg-night-950">
         <div
@@ -24,7 +24,7 @@ export function MatchCard({ m }: { m: MatchInfo }) {
   const shown = m.blended ?? m.score;
   const ring = `conic-gradient(#C6FF4A ${shown}%, #1A2154 ${shown}% 100%)`;
   return (
-    <div className="mt-2 rounded-2xl border border-[rgba(198,255,74,.3)] bg-night-950 p-3">
+    <div className="mt-2 rounded-2xl border border-volt-400/30 bg-night-950 p-3">
       <div className="flex items-center gap-3">
         <div
           className="grid h-14 w-14 shrink-0 place-items-center rounded-full"
@@ -43,11 +43,11 @@ export function MatchCard({ m }: { m: MatchInfo }) {
               </span>
             )}
           </p>
-          <p className="truncate text-[11px] text-[#A5ABD6]">
+          <p className="truncate text-[11px] text-muted">
             overlap {m.overlap_pct}% · pickup {m.pickup_km} km · drop {m.dropoff_km} km
           </p>
           {m.ai_score != null && m.blended != null && (
-            <p className="truncate text-[10px] text-[#5b6194]">
+            <p className="truncate text-[10px] text-muted">
               rule {Math.round(m.score)} + AI {Math.round(m.ai_score)} → {Math.round(m.blended)}
             </p>
           )}
@@ -59,8 +59,8 @@ export function MatchCard({ m }: { m: MatchInfo }) {
         <Bar label="Drop-off closeness" value={Math.max(0, 100 - (m.dropoff_km / 5) * 100)} display={`${m.dropoff_km} km`} />
       </div>
       {m.ai_contributions && (
-        <details className="mt-2 text-[10px] text-[#5b6194]">
-          <summary className="cursor-pointer text-[#A5ABD6]">What the AI weighed</summary>
+        <details className="mt-2 text-[10px] text-muted">
+          <summary className="cursor-pointer text-muted">What the AI weighed</summary>
           <ul className="mt-1 grid gap-0.5">
             {(Object.entries(m.ai_contributions) as [string, number][]).map(([k, v]) => (
               <li key={k} className="flex justify-between">

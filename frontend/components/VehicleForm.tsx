@@ -23,7 +23,7 @@ export function VehicleForm({
   onCancel: () => void;
 }) {
   return (
-    <form onSubmit={onSubmit} className="mt-4 grid gap-3 rounded-xl3 border border-[rgba(154,151,255,.22)] bg-night-900/80 p-5">
+    <form onSubmit={onSubmit} className="panel mt-5 grid gap-3 p-5">
       <h2 className="font-display font-bold">{editing ? "Edit car" : "Add a car"}</h2>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Make"><input className={inputCls} value={form.make} onChange={(e) => setForm({ ...form, make: e.target.value })} required /></Field>
@@ -51,11 +51,11 @@ export function VehicleForm({
         <input className={inputCls} value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} placeholder="https://…/my-car.jpg" />
       </Field>
       <div className="flex gap-2">
-        <button className="flex-1 rounded-2xl bg-volt-400 py-2.5 text-sm font-bold text-night-950 shadow-glow">
+        <button className="btn btn-primary flex-1 py-3">
           {editing ? "Save (resets verification)" : "Add car →"}
         </button>
         {editing && (
-          <button type="button" onClick={onCancel} className="rounded-2xl border border-[rgba(154,151,255,.35)] px-4 text-sm">
+          <button type="button" onClick={onCancel} className="btn btn-ghost px-4">
             Cancel
           </button>
         )}

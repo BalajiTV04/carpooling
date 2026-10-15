@@ -109,20 +109,20 @@ export function LiveTrack({ tripId, geometry, canPing = false, pingAt = null }: 
   };
 
   if (err) return <p className="mt-2 text-xs text-rose-300">{err}</p>;
-  if (!live) return <p className="mt-2 text-xs text-[#A5ABD6]">Loading live view…</p>;
+  if (!live) return <p className="mt-2 text-xs text-muted">Loading live view…</p>;
   if (!live.fix) {
-    return <p className="mt-2 rounded-2xl border border-dashed border-[rgba(154,151,255,.35)] p-3 text-xs text-[#A5ABD6]">Driver has not shared location yet — check back after departure.</p>;
+    return <p className="mt-2 rounded-2xl border border-dashed border-iris-400/36 p-3 text-xs text-muted">Driver has not shared location yet — check back after departure.</p>;
   }
   const frac = live.progress?.frac ?? null;
   const trailLine = trail && trail.fixes.length >= 2
     ? { type: "LineString", coordinates: [...trail.fixes].reverse().map((f) => [f.lng, f.lat] as [number, number]) }
     : null;
   return (
-    <div className="mt-2 rounded-2xl border border-[rgba(198,255,74,.3)] bg-night-950 p-3">
+    <div className="mt-2 rounded-2xl border border-volt-400/30 bg-night-950 p-3">
       <div className="flex flex-wrap items-center gap-2 text-[11px]">
         <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-volt-400" />
         <span className="font-bold text-volt-300">LIVE · {live.trip_status}</span>
-        <span className={`rounded-full border px-1.5 py-0.5 ${transport === "live" ? "border-volt-400/50 text-volt-300" : "border-[rgba(154,151,255,.4)] text-[#A5ABD6]"}`}>
+        <span className={`rounded-full border px-1.5 py-0.5 ${transport === "live" ? "border-volt-400/50 text-volt-300" : "border-iris-400/40 text-muted"}`}>
           {transport === "live" ? "push" : transport === "connecting" ? "connecting…" : "polling"}
         </span>
         {openAlerts > 0 && (
@@ -132,7 +132,7 @@ export function LiveTrack({ tripId, geometry, canPing = false, pingAt = null }: 
         )}
         {live.stale && <span className="rounded-full border border-amber-400/50 px-1.5 py-0.5 text-amber-300">stale (&gt;5 min)</span>}
         {live.progress?.off_route && <span className="rounded-full border border-rose-400/50 px-1.5 py-0.5 text-rose-300">off-route</span>}
-        <span className="ml-auto text-[#A5ABD6]">
+        <span className="ml-auto text-muted">
           {frac !== null ? `${Math.round(frac * 100)}% · ${live.progress?.remaining_km} km left` : ""}
           {live.fix.speed_kmph !== null && live.fix.speed_kmph !== undefined ? ` · ${live.fix.speed_kmph} km/h` : ""}
         </span>
@@ -157,9 +157,9 @@ export function LiveTrack({ tripId, geometry, canPing = false, pingAt = null }: 
           >
             {busy ? "Sharing…" : "📍 Share live location"}
           </button>
-          {note && <span className="text-[11px] text-[#A5ABD6]">{note}</span>}
+          {note && <span className="text-[11px] text-muted">{note}</span>}
           {transport !== "live" && detail && (
-            <span className="text-[11px] text-[#5b6194]">{detail}</span>
+            <span className="text-[11px] text-muted">{detail}</span>
           )}
         </div>
       )}
