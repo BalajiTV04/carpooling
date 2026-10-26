@@ -45,19 +45,19 @@ const TRUST = [
 
 export function SiteFooter() {
   return (
-    <footer id="safety" className="relative overflow-hidden border-t border-iris-400/16 px-5 pt-14">
+    <footer id="safety" className="relative overflow-hidden border-t border-brand-teal/16 px-5 pt-14">
       {/* Faint glow so the footer still belongs to the same world. */}
-      <div className="aurora aurora-b -left-20 -top-10 h-64 w-64 bg-iris-500/20" />
+      <div className="aurora aurora-b -left-20 -top-10 h-64 w-64 bg-accent/20" />
 
       {/* Trust row */}
       <div className="relative mx-auto grid max-w-7xl gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {TRUST.map((t) => (
           <div
             key={t.title}
-            className="glass sheen rounded-2xl p-4 transition hover:border-volt-400/40"
+            className="glass sheen rounded-2xl p-4 transition hover:border-brand-teal/40"
           >
             <div className="flex items-center gap-2.5">
-              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-volt-400/25 bg-volt-400/10 text-base text-volt-300">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-brand-teal/25 bg-brand-teal/10 text-base text-brand-teal">
                 {t.icon}
               </span>
               <div className="min-w-0">
@@ -91,7 +91,7 @@ export function SiteFooter() {
         <div className="grid grid-cols-2 gap-8 sm:grid-cols-3">
           {COLUMNS.map((col) => (
             <div key={col.heading}>
-              <p className="font-display text-[11px] font-bold uppercase tracking-[.18em] text-volt-300">
+              <p className="font-display text-[11px] font-bold uppercase tracking-[.18em] text-brand-teal">
                 {col.heading}
               </p>
               <ul className="mt-3 grid gap-2">
@@ -99,7 +99,7 @@ export function SiteFooter() {
                   <li key={l.label}>
                     <Link
                       href={l.href}
-                      className="text-[13px] text-muted transition hover:text-volt-300"
+                      className="text-[13px] text-muted transition hover:text-brand-teal"
                     >
                       {l.label}
                     </Link>
@@ -112,13 +112,13 @@ export function SiteFooter() {
       </div>
 
       {/* Bottom bar */}
-      <div className="relative mx-auto mt-12 max-w-7xl border-t border-iris-400/12 py-6">
+      <div className="relative mx-auto mt-12 max-w-7xl border-t border-brand-teal/12 py-6">
         <div className="flex flex-col items-center justify-between gap-3 text-xs text-muted sm:flex-row">
           <p>&copy; {new Date().getFullYear()} VoltRide. All rights reserved.</p>
           <div className="flex items-center gap-5">
-            <span className="cursor-default transition hover:text-volt-300">Privacy</span>
-            <span className="cursor-default transition hover:text-volt-300">Terms</span>
-            <span className="cursor-default transition hover:text-volt-300">Support</span>
+            <span className="cursor-default transition hover:text-brand-teal">Privacy</span>
+            <span className="cursor-default transition hover:text-brand-teal">Terms</span>
+            <span className="cursor-default transition hover:text-brand-teal">Support</span>
           </div>
         </div>
       </div>

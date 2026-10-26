@@ -19,7 +19,7 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
   return (
     <div className="panel-inset p-4">
       <p className="text-[11px] uppercase tracking-wide text-muted">{label}</p>
-      <p className="font-display text-2xl font-bold text-volt-300">{value}</p>
+      <p className="font-display text-2xl font-bold text-brand-teal">{value}</p>
       {sub && <p className="text-[11px] text-muted">{sub}</p>}
     </div>
   );
@@ -88,8 +88,8 @@ function DemandPanel({ d }: { d: Demand }) {
       <p className="mt-1 text-[11px] text-muted">
         {d.samples} departures over {d.history.window_days} days · horizon {d.horizon_days} days
         {d.backtest.mae !== null && (
-          <> · backtest MAE <b className="text-volt-300">{d.backtest.mae}</b>, RMSE{" "}
-            <b className="text-volt-300">{d.backtest.rmse}</b></>
+          <> · backtest MAE <b className="text-brand-teal">{d.backtest.mae}</b>, RMSE{" "}
+            <b className="text-brand-teal">{d.backtest.rmse}</b></>
         )}
       </p>
       <p className="text-[10px] text-muted">{d.method}</p>
@@ -133,7 +133,7 @@ function EvalPanel({ e }: { e: Evaluation }) {
       <h2 className="font-display font-bold">Did ranking predict rides?</h2>
       <p className="mt-1 text-[11px] text-muted">
         {e.label_definition} · {e.labelled} labelled bookings
-        {e.comparison && <> · <b className="text-volt-300">{e.comparison.winner}</b> by AUC ({e.comparison.delta_auc > 0 ? "+" : ""}{e.comparison.delta_auc})</>}
+        {e.comparison && <> · <b className="text-brand-teal">{e.comparison.winner}</b> by AUC ({e.comparison.delta_auc > 0 ? "+" : ""}{e.comparison.delta_auc})</>}
       </p>
       {e.labelled === 0 ? (
         <p className="mt-3 text-sm text-muted">

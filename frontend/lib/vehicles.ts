@@ -22,8 +22,8 @@ export const vehicleApi = {
 
 export function badge(status: Vehicle["verification_status"]) {
   return status === "verified"
-    ? "bg-volt-400 text-night-950"
+    ? "bg-brand-teal text-brand-teal"
     : status === "rejected"
       ? "bg-rose-500/20 text-rose-300 border border-rose-400/50"
-      : "bg-night-800 text-volt-300 border border-volt-400/40";
+      : "bg-surface text-brand-teal border border-brand-teal/40";
 }

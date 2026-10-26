@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+  <meta charset='UTF-8'>
+  <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+  <meta name='description' content='Find a ride: search published trips by route overlap, pickup point and seats.'>
+  <title>Find a ride - VoltRide</title>
+  <link rel='stylesheet' href='css/styles.css'>
+  <link rel='icon' href='assets/vehicle.svg' type='image/svg+xml'>
+</head>
+<body>
+  <header class='site-header'>
+    <div class='header-inner'>
+      <a href='index.html' class='brand'>
+        <svg class='logo' viewBox='0 0 32 32' fill='none' xmlns='http://www.w3.org/2000/svg'>
+          <path d='M16 4C9.373 4 4 9.373 4 16C4 22.627 16 28 16 28C16 28 28 22.627 28 16C28 9.373 22.627 4 16 4Z' fill='url(#brandGrad)' opacity='0.2'/>
+          <path d='M16 6C10.03 6 5.25 10.78 5.25 16C5.25 21.22 16 26 16 26C16 26 26.75 21.22 26.75 16C26.75 10.78 22 6 16 6Z' fill='url(#brandGrad)'/>
+          <path d='M16 12L16 20' stroke='#0A0F1E' stroke-width='2' stroke-linecap='round' opacity='0.5'/>
+          <circle cx='16' cy='22' r='2' fill='#C6FF3D'/>
+          <circle cx='22' cy='22' r='2' fill='#AEEB2E'/>
+          <path d='M4 8L8 12L8 24' stroke='#AEEB2E' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' opacity='0.6'/>
+          <defs><linearGradient id='brandGrad' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#D8FF7A'/><stop offset='1' stop-color='#AEEB2E'/></linearGradient></defs>
+        </svg>
+        <span class='name'>VoltRide<span class='tagline'>route-aware sharing</span></span>
+      </a>
+      <button class='theme-toggle' id='themeToggle' aria-label='Toggle theme'>&#9728;</button>
+      <button class='nav-toggle' id='navToggle' aria-label='Menu'>&#9776;</button>
+      <nav class='nav-links' id='navLinks'>
+        <a href='search.html' class='active'>Find a ride</a>
+        <a href='trips.html'>My trips</a>
+        <a href='requests.html'>Requests</a>
+        <a href='analytics.html'>Impact</a>
+        <a href='login.html' class='header-cta login'>Log in</a>
+        <a href='register.html' class='header-cta primary'>Join</a>
+      </nav>
+    </div>
+  </header>
+  <main class='page-main'>
+    <div class='max-w-5xl'>
+      <a href='index.html' class='btn btn-ghost btn-sm'>&#8592; VoltRide</a>
+      <header class='panel-head'>
+        <div class='glow-iris'></div>
+        <div class='relative flex flex-wrap items-end justify-between gap-4'>
+          <div class='min-w-0'>
+            <p class='eyebrow'>Passenger</p>
+            <h1 class='font-display mt-1 text-3xl font-extrabold tracking-tight'>Find a ride<span class='text-iris-300'> &#183; same-day &#183; seats checked</span></h1>
+            <p class='mt-1.5 text-sm text-muted'>Drivers publish trips. We match you on real route overlap, not just city names.</p>
+          </div>
+          <span class='pill pill-iris'>Auto-ranked &#183; AI blend</span>
+        </div>
+        <div class='roadline relative mt-4'></div>
+      </header>
+      <div class='search-form'>
+        <form action='#' class='flow'>
+          <p class='text-xs text-muted'>Type a place &#8212; typos are fine &#8212; or tap <span class='link-volt'>&#127760;</span> to drop a pin.</p>
+          <div class='form-row'>
+            <div class='field'>
+              <label for='src'>From</label>
+              <input id='src' type='text' placeholder='Hebbal &#8230; try 'Man miss''>
+              <span class='pill pill-idle'>&#127760;</span>
+            </div>
+            <div class='field'>
+              <label for='dst'>To</label>
+              <input id='dst' type='text' placeholder='Electronic City&#8230;'>
+              <span class='pill pill-idle'>&#127760;</span>
+            </div>
+          </div>
+          <div class='form-row'>
+            <div class='field'>
+              <label for='date'>Date</label>
+              <input id='date' type='date'>
+            </div>
+            <div class='field'>
+              <label for='time'>Time (&#177;2h)</label>
+              <input id='time' type='time'>
+            </div>
+            <div class='field'>
+              <label for='seats'>Seats</label>
+              <select id='seats'>
+                <option>1</option>
+                <option>2</option>
+                <option>3</option>
+                <option>4</option>
+                <option>5</option>
+                <option>6</option>
+                <option>7</option>
+              </select>
+            </div>
+          </div>
+          <button class='btn btn-primary' type='submit'>Search rides &#8594;</button>
+          <p class='alert'><span class='text-ink'>&#128276;</span> Loading trips for the selected route.</p>
+        </form>
+      </div>
+      <section class='flow'>
+        <div class='flex flex-wrap items-center gap-3'>
+          <h2 class='font-display text-lg font-bold'>No rides that day</h2>
+          <span class='pill pill-idle'>&#128229;</span>
+        </div>
+        <div class='empty'>
+          <p>Try a nearby date or fewer seats.</p>
+          <a href='trips.html' class='link-volt font-bold'>Browse published trips &#8594;</a>
+        </div>
+      </section>
+    </div>
+  </main>
+  <footer class='site-footer'>
+    <div class='footer-inner'>
+      <div class='trust-row'>
+        <div class='trust-item'><div class='icon'>&#128231;</div><div><div class='title'>Verified drivers</div><div class='desc'>Every car is checked before it can take passengers.</div></div></div>
+        <div class='trust-item'><div class='icon'>&#128276;</div><div><div class='title'>Live SOS</div><div class='desc'>One tap alerts our safety team, in real time.</div></div></div>
+        <div class='trust-item'><div class='icon'>&#127760;</div><div><div class='title'>Live tracking</div><div class='desc'>See your trip and driver the whole way.</div></div></div>
+        <div class='trust-item'><div class='icon'>&#8360;</div><div><div class='title'>Transparent fares</div><div class='desc'>Know the split before you book. No surprises.</div></div></div>
+      </div>
+      <div class='footer-cols'>
+        <div class='footer-col'><h4>Ride</h4><ul>
+          <li><a href='search.html'>Find a ride</a></li>
+          <li><a href='requests.html'>Your bookings</a></li>
+          <li><a href='analytics.html'>Your impact</a></li>
+          <li><a href='search.html'>Track live</a></li>
+        </ul></div>
+        <div class='footer-col'><h4>Drive</h4><ul>
+          <li><a href='trips.html'>Publish a trip</a></li>
+          <li><a href='garage.html'>Your garage</a></li>
+          <li><a href='me.html'>Your profile</a></li>
+          <li><a href='verify.html'>Verify phone</a></li>
+        </ul></div>
+        <div class='footer-col'><h4>Company</h4><ul>
+          <li><a href='register.html'>Create account</a></li>
+          <li><a href='login.html'>Log in</a></li>
+          <li><a href='index.html#how-it-works'>How it works</a></li>
+          <li><a href='index.html#safety'>Safety</a></li>
+        </ul></div>
+        <div class='footer-col'><h4>Safety</h4><ul>
+          <li><a href='index.html#safety'>Emergency protocol</a></li>
+          <li><a href='index.html#safety'>Verified cars</a></li>
+          <li><a href='index.html#safety'>Live monitoring</a></li>
+        </ul></div>
+      </div>
+      <div class='footer-bottom'>
+        <span>&copy; 2026 VoltRide. All rights reserved.</span>
+        <div>
+          <a href='index.html'>Privacy</a>
+          <a href='index.html'>Terms</a>
+          <a href='index.html'>Support</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+  <script src='js/main.js'></script>
+</body>
+</html>

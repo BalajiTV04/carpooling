@@ -14,16 +14,16 @@ export function RoleCard({
 }) {
   const ring =
     accent === "volt"
-      ? "hover:border-volt-400/60 hover:shadow-glow"
+      ? "hover:border-brand-teal/60 hover:shadow-glow"
       : accent === "iris"
-        ? "hover:border-iris-400/60 hover:shadow-card"
+        ? "hover:border-accent/60 hover:shadow-card"
         : "hover:border-rose-400/60 hover:shadow-card";
   const chip =
     accent === "volt"
-      ? "bg-volt-400 text-night-950"
+      ? "bg-brand-teal text-brand-teal"
       : accent === "iris"
-        ? "bg-iris-500 text-white"
-        : "bg-rose-400 text-night-950";
+        ? "bg-accent text-white"
+        : "bg-brand-rose text-brand-teal";
   return (
     <a
       href={href}
@@ -31,7 +31,7 @@ export function RoleCard({
     >
       <span className={`inline-block rounded-full px-3 py-1 text-xs font-bold ${chip}`}>{title}</span>
       <p className="mt-3 text-sm leading-relaxed text-muted">{desc}</p>
-      <p className="font-display mt-4 text-sm font-semibold text-volt-300">{cta}</p>
+      <p className="font-display mt-4 text-sm font-semibold text-brand-teal">{cta}</p>
     </a>
   );
 }

@@ -18,11 +18,11 @@ export function VehicleArt() {
   ];
 
   return (
-    <div className="map-glow relative min-h-[430px] overflow-hidden rounded-xl3 border border-iris-400/26 bg-night-900/70">
+    <div className="map-glow relative min-h-[430px] overflow-hidden rounded-xl3 border border-brand-teal/26 bg-surface/70">
       {/* Scenery */}
       <div className="grid-drift absolute inset-0 opacity-40" />
-      <div className="aurora aurora-a -left-14 top-4 h-52 w-52 bg-iris-500/35" />
-      <div className="aurora aurora-b -right-6 bottom-16 h-44 w-44 bg-volt-400/20" />
+      <div className="aurora aurora-a -left-14 top-4 h-52 w-52 bg-accent/35" />
+      <div className="aurora aurora-b -right-6 bottom-16 h-44 w-44 bg-brand-teal/20" />
 
       {/* Far skyline: parallax depth */}
       <svg viewBox="0 0 460 340" className="absolute inset-x-0 bottom-0 h-[62%] w-full opacity-40">
@@ -42,8 +42,8 @@ export function VehicleArt() {
 
       {/* Road */}
       <div className="absolute inset-x-0 bottom-0 h-[26%]">
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-night-900 to-night-950" />
-        <div className="absolute inset-x-0 bottom-0 h-1/2 border-t border-iris-400/18 bg-night-950/70" />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-surface to-surface" />
+        <div className="absolute inset-x-0 bottom-0 h-1/2 border-t border-brand-teal/18 bg-surface/70" />
         {/* Centre line: dashes scroll right to sell forward motion */}
         <div className="road-dash absolute bottom-3 left-0 h-0.5 w-full" />
       </div>
@@ -53,7 +53,7 @@ export function VehicleArt() {
         {[0, 1, 2, 3].map((i) => (
           <span
             key={i}
-            className="streak absolute h-[2px] w-1/3 rounded-full bg-gradient-to-r from-transparent via-volt-400/60 to-transparent"
+            className="streak absolute h-[2px] w-1/3 rounded-full bg-gradient-to-r from-transparent via-brand-teal/60 to-transparent"
             style={{ top: `${i * 22 + 6}%`, animationDelay: `${i * 0.45}s` }}
           />
         ))}
@@ -149,21 +149,21 @@ export function VehicleArt() {
         </svg>
       </div>
 
-      <div className="passenger-pop absolute bottom-[30%] left-[27%] flex items-center gap-1.5 rounded-full border border-volt-400/40 bg-night-950/85 px-2.5 py-1 text-[10px] font-bold text-volt-300 backdrop-blur">
-        <span className="grid h-4 w-4 place-items-center rounded-full bg-volt-400 text-[9px] font-black text-night-950">
+      <div className="passenger-pop absolute bottom-[30%] left-[27%] flex items-center gap-1.5 rounded-full border border-brand-teal/40 surface/85 px-2.5 py-1 text-[10px] font-bold text-brand-teal backdrop-blur">
+        <span className="grid h-4 w-4 place-items-center rounded-full bg-brand-teal text-[9px] font-black text-brand-teal">
           P
         </span>
         boarding
       </div>
 
       {/* Status chips */}
-      <div className="absolute left-4 top-4 rounded-full border border-volt-400/30 bg-night-950/80 px-3 py-1 text-[11px] font-semibold text-volt-300 backdrop-blur">
-        <span className="mr-1.5 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-volt-400 align-middle" />
+      <div className="absolute left-4 top-4 rounded-full border border-brand-teal/30 surface/80 px-3 py-1 text-[11px] font-semibold text-brand-teal backdrop-blur">
+        <span className="mr-1.5 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-brand-teal align-middle" />
         Live corridor
       </div>
 
-      <div className="absolute bottom-4 left-4 right-4 rounded-2xl border border-volt-400/30 bg-night-950/85 p-3 text-[11px] backdrop-blur">
-        <span className="font-bold text-volt-300">Matched on route</span>
+      <div className="absolute bottom-4 left-4 right-4 rounded-2xl border border-brand-teal/30 surface/85 p-3 text-[11px] backdrop-blur">
+        <span className="font-bold text-brand-teal">Matched on route</span>
         <span className="text-muted">
           {" "}
           86% overlap · pickup 320 m away · driver detours only 1.2 km

@@ -56,16 +56,16 @@ export function MatchPipeline() {
       {STAGES.map((s) => (
         <div
           key={s.key}
-          className="glass group sheen relative rounded-2xl p-4 transition hover:border-volt-400/50"
+          className="glass group sheen relative rounded-2xl p-4 transition hover:border-brand-teal/50"
         >
           <div className="flex items-center justify-between">
-            <span className="font-display text-xs font-bold text-iris-300">{s.key}</span>
+            <span className="font-display text-xs font-bold text-accent">{s.key}</span>
             {s.hard ? (
               <span className="rounded-full bg-rose-500/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-rose-300">
                 must pass
               </span>
             ) : (
-              <span className="rounded-full bg-volt-400/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-volt-300">
+              <span className="rounded-full bg-brand-teal/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-brand-teal">
                 fine-tune
               </span>
             )}
@@ -76,14 +76,14 @@ export function MatchPipeline() {
             className={`mt-3 h-0.5 rounded-full ${
               s.hard
                 ? "bg-gradient-to-r from-rose-400/70 to-transparent"
-                : "bg-gradient-to-r from-volt-400/70 to-transparent"
+                : "bg-gradient-to-r from-brand-teal/70 to-transparent"
             }`}
           />
         </div>
       ))}
 
       <div className="glass rounded-2xl p-4 md:col-span-2 lg:col-span-1">
-        <p className="font-display text-[15px] font-bold text-volt-300">Why it matters</p>
+        <p className="font-display text-[15px] font-bold text-brand-teal">Why it matters</p>
         <p className="mt-1 text-[11px] leading-relaxed text-muted">
           The final step only reorders trips that already passed every check. It
           can never lift an unsafe, impractical or fully booked trip into your

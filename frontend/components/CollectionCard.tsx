@@ -19,10 +19,10 @@ export function CollectionCard({
             key={ix}
             className={`rounded-full px-2.5 py-1 text-[11px] ${
               ix.startsWith("geo_")
-                ? "bg-volt-400 font-semibold text-night-950"
+                ? "bg-brand-teal font-semibold text-surface"
                 : ix.startsWith("uq_")
                   ? "border border-rose-400/50 text-rose-300"
-                  : "border border-iris-400/36 text-iris-300"
+                  : "border border-brand-teal/36 text-brand-teal"
             }`}
           >
             {ix.startsWith("geo_") ? "◆ " : ix.startsWith("uq_") ? "⌀ " : "▤ "}{ix}

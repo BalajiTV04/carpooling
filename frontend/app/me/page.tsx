@@ -35,9 +35,9 @@ function ReviewsCard({ userId }: { userId: string }) {
             {[5, 4, 3, 2, 1].map((n) => (
               <div key={n} className="flex items-center gap-2 text-[11px] text-muted">
                 <span className="w-3">{n}★</span>
-                <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-night-950">
+                <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface">
                   <span
-                    className="block h-full bg-volt-400"
+                    className="block h-full bg-brand-teal"
                     style={{ width: `${((Number(card.distribution[String(n)] ?? 0)) / max) * 100}%` }}
                   />
                 </span>
@@ -48,7 +48,7 @@ function ReviewsCard({ userId }: { userId: string }) {
           <ul className="mt-3 grid gap-2">
             {card.items.map((r) => (
               <li key={r.id} className="panel-inset p-3 text-[11px]">
-                <p className="text-volt-300">
+                <p className="text-brand-teal">
                   {"★".repeat(r.stars)}{"☆".repeat(5 - r.stars)}
                   <span className="ml-1 text-muted">
                     {r.rater_name ?? "a rider"}
@@ -143,7 +143,7 @@ function MeInner() {
     <main className="mx-auto max-w-2xl px-5 pb-20 pt-8">
       <a href="/" className="btn btn-ghost btn-sm">← VoltRide</a>
       <section className="panel panel-head mt-3 flex items-center gap-4 p-5">
-        <div className="grid h-16 w-16 place-items-center rounded-2xl bg-gradient-to-br from-iris-400 to-iris-600 font-display text-2xl font-bold text-white shadow-glow">
+        <div className="grid h-16 w-16 place-items-center rounded-2xl bg-gradient-to-br from-brand-teal to-brand font-display text-2xl font-bold text-white shadow-glow">
           {initial}
         </div>
         <div className="min-w-0 flex-1">
@@ -154,7 +154,7 @@ function MeInner() {
         {(p?.phone_verified ?? false) ? (
           <span className="pill pill-solid">✓ verified</span>
         ) : (
-          <a href="/verify" className="btn btn-ghost btn-sm text-volt-300">verify →</a>
+          <a href="/verify" className="btn btn-ghost btn-sm text-brand-teal">verify →</a>
         )}
       </section>
       {msg && <p className="alert alert-ok mt-3">{msg}</p>}

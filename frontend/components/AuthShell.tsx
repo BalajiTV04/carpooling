@@ -11,10 +11,10 @@ export function AuthShell({ title, sub, children }: { title: string; sub: string
   return (
     <main className="relative mx-auto max-w-md px-5 pb-20 pt-12">
       {/* Soft glow so the auth card sits in the same lit world as the landing page. */}
-      <div className="glow-iris -left-10 top-6 h-56 w-56 bg-iris-500/25" aria-hidden />
+      <div className="glow-iris -left-10 top-6 h-56 w-56 bg-accent/25" aria-hidden />
 
       <div className="relative">
-        <Link href="/" className="inline-flex items-center gap-2 text-sm font-semibold text-volt-300 transition hover:text-volt-400">
+        <Link href="/" className="inline-flex items-center gap-2 text-sm font-semibold text-brand-teal transition hover:text-brand-teal">
           <span className="text-base leading-none">←</span> VoltRide
         </Link>
 

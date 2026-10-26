@@ -163,7 +163,7 @@ function AdminInner() {
                 {t.status} · {t.seats_booked}/{t.seats_offered} seats · driver {t.driver_name ?? t.driver_id.slice(-6)}
                 {t.tracked ? " · tracked" : " · no GPS yet"}
                 {t.open_alerts > 0 && <span className="text-rose-300"> · {t.open_alerts} open alert{t.open_alerts > 1 ? "s" : ""}</span>}
-                {t.recurring && <span className="text-volt-300"> · recurring</span>}
+                {t.recurring && <span className="text-brand-teal"> · recurring</span>}
               </p>
             </div>
           ))}
@@ -228,7 +228,7 @@ function AdminInner() {
                     className="btn btn-danger btn-sm">Suspend</button>
                 ) : (
                   <button disabled={busy} onClick={() => act(() => adminApi.reactivate(u.id), "Account reactivated.")}
-                    className="btn btn-ghost btn-sm text-volt-300">Reactivate</button>
+                    className="btn btn-ghost btn-sm text-brand-teal">Reactivate</button>
                 )}
               </div>
             ))}

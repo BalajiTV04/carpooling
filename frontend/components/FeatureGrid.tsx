@@ -48,14 +48,14 @@ const FEATURES: {
 
 const TONES: Record<Accent, { ring: string; chip: string; text: string }> = {
   volt: {
-    ring: "hover:border-volt-400/60 hover:shadow-glow",
-    chip: "bg-volt-400/15 text-volt-300 border-volt-400/30",
-    text: "text-volt-300"
+    ring: "hover:border-brand-teal/60 hover:shadow-glow",
+    chip: "bg-brand-teal/15 text-brand-teal border-brand-teal/30",
+    text: "text-brand-teal"
   },
   iris: {
-    ring: "hover:border-iris-400/60 hover:shadow-card",
-    chip: "bg-iris-500/15 text-iris-300 border-iris-400/30",
-    text: "text-iris-300"
+    ring: "hover:border-accent/60 hover:shadow-card",
+    chip: "bg-accent/15 text-accent border-brand-teal/30",
+    text: "text-accent"
   },
   rose: {
     ring: "hover:border-rose-400/60 hover:shadow-card",
@@ -84,8 +84,8 @@ export function FeatureGrid() {
                 f.accent === "rose"
                   ? "bg-rose-400"
                   : f.accent === "iris"
-                    ? "bg-iris-400"
-                    : "bg-volt-400"
+                    ? "bg-brand-teal"
+                    : "bg-brand-teal"
               }`}
             />
           </div>

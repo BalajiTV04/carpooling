@@ -35,9 +35,9 @@ export function TrustSignals() {
       {SIGNALS.map((s) => (
         <div
           key={s.title}
-          className="glass sheen group rounded-2xl p-4 transition hover:border-volt-400/50"
+          className="glass sheen group rounded-2xl p-4 transition hover:border-brand-teal/50"
         >
-          <span className="grid h-10 w-10 place-items-center rounded-xl border border-volt-400/25 bg-volt-400/10 text-lg transition group-hover:scale-105">
+          <span className="grid h-10 w-10 place-items-center rounded-xl border border-brand-teal/25 bg-brand-teal/10 text-lg transition group-hover:scale-105">
             {s.icon}
           </span>
           <p className="font-display mt-3 text-sm font-bold">{s.title}</p>

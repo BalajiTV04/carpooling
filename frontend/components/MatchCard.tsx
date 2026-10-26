@@ -10,9 +10,9 @@ function Bar({ label, value, display }: { label: string; value: number; display:
         <span className="text-muted">{label}</span>
         <span className="font-semibold text-ink">{display}</span>
       </div>
-      <div className="mt-0.5 h-1.5 overflow-hidden rounded-full bg-night-950">
+      <div className="mt-0.5 h-1.5 overflow-hidden rounded-full bg-surface">
         <div
-          className="h-full rounded-full bg-gradient-to-r from-iris-500 to-volt-400"
+          className="h-full rounded-full bg-gradient-to-r from-accent to-brand-teal"
           style={{ width: `${pct}%` }}
         />
       </div>
@@ -24,21 +24,21 @@ export function MatchCard({ m }: { m: MatchInfo }) {
   const shown = m.blended ?? m.score;
   const ring = `conic-gradient(#C6FF4A ${shown}%, #1A2154 ${shown}% 100%)`;
   return (
-    <div className="mt-2 rounded-2xl border border-volt-400/30 bg-night-950 p-3">
+    <div className="mt-2 rounded-2xl border border-brand-teal/30 bg-surface p-3">
       <div className="flex items-center gap-3">
         <div
           className="grid h-14 w-14 shrink-0 place-items-center rounded-full"
           style={{ background: ring }}
         >
-          <div className="grid h-11 w-11 place-items-center rounded-full bg-night-950">
-            <span className="font-display text-sm font-bold text-volt-300">{Math.round(shown)}</span>
+          <div className="grid h-11 w-11 place-items-center rounded-full bg-surface">
+            <span className="font-display text-sm font-bold text-brand-teal">{Math.round(shown)}</span>
           </div>
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-bold text-volt-300">
+          <p className="text-xs font-bold text-brand-teal">
             {m.routed ? "Why this ride" : "Why (estimated — offline route)"}
             {m.ai_model === "logreg" && m.ai_score != null && (
-              <span className="ml-1 rounded-full border border-volt-400/40 px-1.5 py-0.5 text-[10px] font-bold text-volt-300">
+              <span className="ml-1 rounded-full border border-brand-teal/40 px-1.5 py-0.5 text-[10px] font-bold text-brand-teal">
                 AI · {Math.round(m.ai_score)}
               </span>
             )}

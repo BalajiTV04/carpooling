@@ -55,7 +55,7 @@ export function SafetyBanner({ tripId, driverId, isDriverForce }: { tripId: stri
   };
 
   return (
-    <div className="mt-2 rounded-2xl border border-iris-400/26 bg-night-950 p-3">
+    <div className="mt-2 rounded-2xl border border-brand-teal/26 bg-surface p-3">
       <div className="flex items-center gap-2">
         <p className="text-xs font-bold text-ink">
           Safety {open > 0 && <span className="ml-1 rounded-full bg-rose-500/20 px-2 py-0.5 text-[10px] text-rose-200">{open} open</span>}
@@ -65,7 +65,7 @@ export function SafetyBanner({ tripId, driverId, isDriverForce }: { tripId: stri
             value={sosMsg}
             onChange={(e) => setSosMsg(e.target.value)}
             placeholder="SOS note (optional)"
-            className="w-32 rounded-full border border-iris-400/30 bg-night-900 px-2.5 py-1 text-[11px] text-ink"
+            className="w-32 rounded-full border border-brand-teal/30 bg-surface px-2.5 py-1 text-[11px] text-ink"
           />
           <button
             onClick={sos} disabled={busy}

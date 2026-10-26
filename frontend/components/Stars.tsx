@@ -3,7 +3,7 @@ export function Stars({ avg, count }: { avg: number | null; count: number }) {
   if (avg === null || avg === undefined)
     return <span className="text-xs text-muted">★ new — no ratings yet</span>;
   return (
-    <span className="text-sm text-volt-300">
+    <span className="text-sm text-brand-teal">
       {"★".repeat(Math.round(avg))}{"☆".repeat(5 - Math.round(avg))}
       <span className="ml-1 text-xs text-muted">{avg.toFixed(1)} ({count})</span>
     </span>

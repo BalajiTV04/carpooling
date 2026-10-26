@@ -34,14 +34,14 @@ function RateRiders({ tripId }: { tripId: string }) {
 
 function Receipt({ s }: { s: TripSummary }) {
   return (
-    <div className="mt-2 rounded-2xl border border-volt-400/30 bg-night-950 p-3 text-[11px]">
-      <p className="font-bold text-volt-300">
+    <div className="mt-2 rounded-2xl border border-brand-teal/30 bg-surface p-3 text-[11px]">
+      <p className="font-bold text-brand-teal">
         Trip receipt {s.completed ? "· completed" : `· ${s.status} (provisional)`}
       </p>
       <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-0.5 text-muted sm:grid-cols-4">
         <span>seats sold <b className="text-ink">{s.seats_sold}/{s.seats_offered}</b></span>
         <span>occupancy <b className="text-ink">{s.occupancy_pct}%</b></span>
-        <span>collected <b className="text-volt-300">₹{s.collected_total}</b></span>
+        <span>collected <b className="text-brand-teal">₹{s.collected_total}</b></span>
         <span>duration <b className="text-ink">{s.duration_min ?? "—"} min</b></span>
       </div>
       {s.auto_rejected > 0 && (
@@ -112,8 +112,8 @@ export function TripCard({
         </div>
         <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-bold ${statusCls(t.status)}`}>{t.status}</span>
       </div>
-      <div className="mt-3 h-2 overflow-hidden rounded-full bg-night-950">
-        <div className="h-full bg-gradient-to-r from-iris-500 to-volt-400" style={{ width: `${pct}%` }} />
+      <div className="mt-3 h-2 overflow-hidden rounded-full bg-surface">
+        <div className="h-full bg-gradient-to-r from-brand to-brand-teal" style={{ width: `${pct}%` }} />
       </div>
       <p className="mt-1 text-xs text-muted">{t.seats_booked}/{t.seats_offered} seats filled · {t.seats_left} left</p>
       <div className="mt-3 flex flex-wrap gap-1.5 text-xs">
@@ -137,7 +137,7 @@ export function TripCard({
               const s = await tripApi.complete(t.id);
               setReceipt(s as TripSummary);
             }, "Trip completed ✓ — money is frozen, receipt below.")}
-            className="btn btn-ghost btn-sm text-volt-300"
+            className="btn btn-ghost btn-sm text-brand-teal"
           >
             Complete ride
           </button>

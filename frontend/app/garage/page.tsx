@@ -82,7 +82,7 @@ function GarageInner() {
       accent="· cars"
       subtitle={
         <>
-          Only <span className="text-volt-300">verified</span> cars publish trips (Module 6).
+          Only <span className="text-brand-teal">verified</span> cars publish trips (Module 6).
         </>
       }
     >

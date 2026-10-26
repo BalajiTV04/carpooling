@@ -1,6 +1,6 @@
 "use client";
 // Top nav: brand + session-aware, ROLE-aware, PAGE-aware links.
-//
+// 
 // Why a config array instead of hand-written JSX: the old bar rendered the
 // SAME list for everyone, so a logged-out visitor on the landing page saw
 // "Find ride / Requests / Impact / Data map" — four links that all bounce to
@@ -21,21 +21,21 @@ type Role = "driver" | "passenger" | "admin";
 type NavItem = { href: string; label: string; roles?: Role[] };
 
 /** Ordered left→right. `roles` = who may see it; omitted = any signed-in user.
- *  A user may hold several roles, so they see the UNION of every match. */
+ *  A user may hold several roles, so they see the UNION of every match.
+ */
 const LINKS: NavItem[] = [
-  { href: "/search",    label: "Find ride" },
-  { href: "/trips",     label: "My trips", roles: ["driver"] },
-  { href: "/garage",    label: "Garage",   roles: ["driver"] },
-  { href: "/requests",  label: "Requests" },
+  { href: "/search", label: "Find ride" },
+  { href: "/trips", label: "My trips", roles: ["driver"] },
+  { href: "/garage", label: "Garage", roles: ["driver"] },
+  { href: "/requests", label: "Requests" },
   { href: "/analytics", label: "Impact" },
-  { href: "/admin",     label: "Console",  roles: ["admin"] },
+  { href: "/admin", label: "Console", roles: ["admin"] },
   // Data map ships an "Initialise DB" button — dev-only, so admin-only.
-  { href: "/database",  label: "Data map", roles: ["admin"] },
+  { href: "/database", label: "Data map", roles: ["admin"] },
 ];
 
-const IDLE = "rounded-full px-3 py-1.5 text-muted transition hover:bg-night-800 hover:text-volt-300";
 /** "You are here" cue — the bar previously gave none. */
-const ACTIVE = "rounded-full border border-volt-400/40 bg-volt-400/15 px-3 py-1.5 font-semibold text-volt-300 shadow-glow";
+const ACTIVE = "rounded-full border border-brand-teal/40 bg-brand-teal/15 px-3 py-1.5 font-semibold text-brand shadow-sm";
 
 export function NavBar() {
   const { user, ready, logout } = useSession();
@@ -50,9 +50,9 @@ export function NavBar() {
   );
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-iris-400/18 bg-night-950/70 backdrop-blur-xl">
+    <nav className="sticky top-0 z-50 border-b border-brand-teal/10 bg-surface/80 backdrop-blur-xl">
       {/* Volt line: a 2px gradient rule that ties the bar to the hero route. */}
-      <div className="absolute inset-x-0 -bottom-px h-px bg-gradient-to-r from-transparent via-volt-400/50 to-transparent" />
+      <div className="absolute inset-x-0 -bottom-px h-px bg-gradient-to-r from-transparent via-brand-teal/20 to-transparent" />
       <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-3">
         <Link href="/" className="group flex items-center gap-2.5">
           <span className="transition-transform duration-200 group-hover:-translate-y-0.5">
@@ -62,7 +62,7 @@ export function NavBar() {
             <span className="font-display block text-[15px] font-bold tracking-tight">
               VoltRide
             </span>
-            <span className="block text-[10px] uppercase tracking-[.18em] text-muted transition-colors group-hover:text-volt-300">
+            <span className="block text-[10px] uppercase tracking-[.18em] text-muted transition-colors group-hover:text-brand">
               route-aware sharing
             </span>
           </span>
@@ -73,7 +73,7 @@ export function NavBar() {
               key={l.href}
               href={l.href}
               aria-current={pathname === l.href ? "page" : undefined}
-              className={pathname === l.href ? ACTIVE : IDLE}
+              className={pathname === l.href ? ACTIVE : "text-muted hover:text-brand transition-colors"}
             >
               {l.label}
             </Link>
@@ -85,22 +85,28 @@ export function NavBar() {
           ) : user ? (
             <>
               {!user.phone_verified && (
-                <Link href="/verify" className="rounded-full border border-volt-400/60 px-3 py-1.5 text-volt-300 transition hover:bg-volt-400/10">Verify</Link>
+                <Link href="/verify" className="rounded-full border border-brand-teal/60 px-3 py-1.5 text-brand transition hover:bg-brand-teal/10">
+                  Verify
+                </Link>
               )}
-              <Link href="/me" className="rounded-full bg-night-800 px-3 py-1.5 text-ink transition hover:bg-night-700">
+              <Link href="/me" className="rounded-full bg-brand px-3 py-1.5 text-white transition hover:bg-brand/90">
                 {user.full_name || user.phone}
               </Link>
               <button
-                onClick={() => { logout(); window.location.href = "/"; }}
-                className="rounded-full px-3 py-1.5 text-muted transition hover:text-rose-300"
+                onClick={() => {
+                  logout(); window.location.href = "/";
+                }}
+                className="rounded-full px-3 py-1.5 text-muted transition hover:text-brand"
               >
                 Out
               </button>
             </>
           ) : (
             <>
-              <Link href="/login" className="rounded-full px-3 py-1.5 text-muted transition hover:bg-night-800 hover:text-volt-300">Log in</Link>
-               <Link href="/register" className="btn btn-primary btn-sm">
+              <Link href="/login" className="rounded-full px-3 py-1.5 text-muted transition hover:bg-surface/50 hover:text-brand">
+                Log in
+              </Link>
+              <Link href="/register" className="btn btn-primary btn-sm">
                 Join
               </Link>
             </>

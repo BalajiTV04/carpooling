@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+  <meta charset='UTF-8'>
+  <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+  <meta name='description' content='Route-aware private vehicle sharing: match on real route overlap, minimum-detour pickup, per-leg fare split, live tracking'>
+  <title>VoltRide - Route-Aware Private Vehicle Sharing</title>
+  <link rel='stylesheet' href='css/styles.css'>
+  <link rel='icon' href='assets/vehicle.svg' type='image/svg+xml'>
+  <script>document.documentElement.setAttribute('data-theme', (document.documentElement.getAttribute('data-theme') || 'dark') );</script>
+</head>
+<body>
+  <header class='site-header'>
+    <div class='header-inner'>
+      <a href='index.html' class='brand'>
+        <svg class='logo' viewBox='0 0 32 32' fill='none' xmlns='http://www.w3.org/2000/svg'>
+          <path d='M16 4C9.373 4 4 9.373 4 16C4 22.627 16 28 16 28C16 28 28 22.627 28 16C28 9.373 22.627 4 16 4Z' fill='url(#brandGrad)' opacity='0.2'/>
+          <path d='M16 6C10.03 6 5.25 10.78 5.25 16C5.25 21.22 16 26 16 26C16 26 26.75 21.22 26.75 16C26.75 10.78 22 6 16 6Z' fill='url(#brandGrad)'/>
+          <path d='M16 12L16 20' stroke='#0A0F1E' stroke-width='2' stroke-linecap='round' opacity='0.5'/>
+          <circle cx='16' cy='22' r='2' fill='#C6FF3D'/>
+          <circle cx='22' cy='22' r='2' fill='#AEEB2E'/>
+          <path d='M4 8L8 12L8 24' stroke='#AEEB2E' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' opacity='0.6'/>
+          <defs><linearGradient id='brandGrad' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#D8FF7A'/><stop offset='1' stop-color='#AEEB2E'/></linearGradient></defs>
+        </svg>
+        <span class='name'>VoltRide<span class='tagline'>route-aware sharing</span></span>
+      </a>
+      <button class='theme-toggle' id='themeToggle' aria-label='Toggle theme'>&#9728;</button>
+      <button class='nav-toggle' id='navToggle' aria-label='Menu'>&#9776;</button>
+      <nav class='nav-links' id='navLinks'>  <main>
+    <div class='max-w-7xl'>
+      <a href='index.html' class='btn btn-ghost btn-sm'>&#8592; VoltRide</a>
+      <header class='panel-head'>
+        <div class='glow-iris'></div>
+        <div class='relative flex flex-wrap items-end justify-between gap-4'>
+          <div class='min-w-0'>
+            <p class='eyebrow'>Profile</p>
+            <h1 class='font-display mt-1 text-3xl font-extrabold tracking-tight'>Your profile</h1>
+            <p class='mt-1.5 text-sm text-muted'>Manage your rides, favorites and safety settings.</p>
+          </div>
+          <div class='flex flex-wrap items-center gap-2'>
+            <button class='btn btn-iris btn-sm'>Edit profile</button>
+            <button class='btn btn-ghost btn-sm'>Notifications</button>
+          </div>
+        </div>
+        <div class='roadline relative mt-4'></div>
+      </header>
+      <div class='flow'>
+        <div class='card'>
+          <div class='card-header'><div class='card-title'>Account</div></div>
+          <div class='card-body'>
+            <div class='flex flex-wrap items-center gap-4'>
+              <div class='card-body' style='flex:1;text-align:center;padding:1rem'>
+                <div style='width:80px;height:80px;border-radius:9999px;background:rgb(22 16 60) border:2px solid rgb(var(--volt-400) / 0.4);display:flex;align-items:center;justify-content:center;margin:0 auto'>
+                  <span style='font-size:2rem'>&#127911;</span>
+                </div>
+                <p class='font-bold mt-2'>Aditya Rao</p>
+                <p class='text-muted'>+91 98765 43210</p>
+                <span class='pill pill-live'>Phone verified</span>
+              </div>
+              <div class='grid gap-2' style='flex:1'>
+                <div class='flex justify-between'><span class='label'>Trips this month</span><span class='text-ink'>12</span></div>
+                <div class='flex justify-between'><span class='label'>Rides shared</span><span class='text-ink'>38</span></div>
+                <div class='flex justify-between'><span class='label'>Fares collected</span><span class='text-ink value accent'>&#8377; 4,820</span></div>
+                <div class='flex justify-between'><span class='label'>Trust score</span><span class='text-ink'>96</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class='card'>
+          <div class='card-header'><div class='card-title'>Recent rides</div></div>
+          <div class='card-body'>
+            <ul class='list'>
+              <li><span class='dot dot-from'></span><span class='truncate'>Hebbal &rarr; Electronic City</span><span class='ml-auto text-ink'>18 km</span></li>
+              <li><span class='dot dot-from'></span><span class='truncate'>JP Nagar &rarr; Koramangala</span><span class='ml-auto text-ink'>14 km</span></li>
+              <li><span class='dot dot-from'></span><span class='truncate'>Koramangala &rarr; Whitefield</span><span class='ml-auto text-ink'>12 km</span></li>
+            </ul>
+          </div>
+        </div>
+        <div class='card'>
+          <div class='card-header'><div class='card-title'>Safety &amp; privacy</div></div>
+          <div class='card-body'>
+            <div class='flex flex-wrap gap-4'>
+              <label class='field' style='flex:1'><span class='label'>Share live location while driving</span><input type='checkbox' checked></label>
+              <label class='field' style='flex:1'><span class='label'>Share trip with emergency contacts</span><input type='checkbox' checked></label>
+              <label class='field' style='flex:1'><span class='label'>Share trip with VoltRide</span><input type='checkbox'></label>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+    </div>
+  </header>
+  <main>
+  </main>
+  <footer class='site-footer'>
+    <div class='footer-inner'>
+      <div class='trust-row'>
+        <div class='trust-item'><div class='icon'>&#128231;</div><div><div class='title'>Verified drivers</div><div class='desc'>Every car is checked before it can take passengers.</div></div></div>
+        <div class='trust-item'><div class='icon'>&#128276;</div><div><div class='title'>Live SOS</div><div class='desc'>One tap alerts our safety team, in real time.</div></div></div>
+        <div class='trust-item'><div class='icon'>&#127760;</div><div><div class='title'>Live tracking</div><div class='desc'>See your trip and driver the whole way.</div></div></div>
+        <div class='trust-item'><div class='icon'>&#8360;</div><div><div class='title'>Transparent fares</div><div class='desc'>Know the split before you book. No surprises.</div></div></div>
+      </div>
+      <div class='footer-cols'>
+        <div class='footer-col'><h4>Ride</h4><ul>
+          <li><a href='search.html'>Find a ride</a></li>
+          <li><a href='trips.html'>My trips</a></li>
+          <li><a href='requests.html'>Your bookings</a></li>
+          <li><a href='analytics.html'>Your impact</a></li>
+        </ul></div>
+        <div class='footer-col'><h4>Drive</h4><ul>
+          <li><a href='trips.html'>Publish a trip</a></li>
+          <li><a href='garage.html'>Your garage</a></li>
+          <li><a href='me.html'>Your profile</a></li>
+          <li><a href='verify.html'>Verify phone</a></li>
+        </ul></div>
+        <div class='footer-col'><h4>Company</h4><ul>
+          <li><a href='register.html'>Create account</a></li>
+          <li><a href='login.html'>Log in</a></li>
+          <li><a href='index.html#how-it-works'>How it works</a></li>
+          <li><a href='index.html#safety'>Safety</a></li>
+        </ul></div>
+        <div class='footer-col'><h4>Safety</h4><ul>
+          <li><a href='index.html#safety'>Emergency protocol</a></li>
+          <li><a href='index.html#safety'>Verified cars</a></li>
+          <li><a href='index.html#safety'>Live monitoring</a></li>
+        </ul></div>
+      </div>
+      <div class='footer-bottom'>
+        <span>&copy; 2026 VoltRide. All rights reserved.</span>
+        <div>
+          <a href='index.html'>Privacy</a>
+          <a href='index.html'>Terms</a>
+          <a href='index.html'>Support</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+  <script src='js/main.js'></script>
+</body>
+</html>

@@ -111,18 +111,18 @@ export function LiveTrack({ tripId, geometry, canPing = false, pingAt = null }: 
   if (err) return <p className="mt-2 text-xs text-rose-300">{err}</p>;
   if (!live) return <p className="mt-2 text-xs text-muted">Loading live view…</p>;
   if (!live.fix) {
-    return <p className="mt-2 rounded-2xl border border-dashed border-iris-400/36 p-3 text-xs text-muted">Driver has not shared location yet — check back after departure.</p>;
+    return <p className="mt-2 rounded-2xl border border-dashed border-brand-teal/36 p-3 text-xs text-muted">Driver has not shared location yet — check back after departure.</p>;
   }
   const frac = live.progress?.frac ?? null;
   const trailLine = trail && trail.fixes.length >= 2
     ? { type: "LineString", coordinates: [...trail.fixes].reverse().map((f) => [f.lng, f.lat] as [number, number]) }
     : null;
   return (
-    <div className="mt-2 rounded-2xl border border-volt-400/30 bg-night-950 p-3">
+    <div className="mt-2 rounded-2xl border border-brand-teal/30 bg-surface p-3">
       <div className="flex flex-wrap items-center gap-2 text-[11px]">
-        <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-volt-400" />
-        <span className="font-bold text-volt-300">LIVE · {live.trip_status}</span>
-        <span className={`rounded-full border px-1.5 py-0.5 ${transport === "live" ? "border-volt-400/50 text-volt-300" : "border-iris-400/40 text-muted"}`}>
+        <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-brand-teal" />
+        <span className="font-bold text-brand-teal">LIVE · {live.trip_status}</span>
+        <span className={`rounded-full border px-1.5 py-0.5 ${transport === "live" ? "border-brand-teal/50 text-brand-teal" : "border-brand-teal/40 text-muted"}`}>
           {transport === "live" ? "push" : transport === "connecting" ? "connecting…" : "polling"}
         </span>
         {openAlerts > 0 && (
@@ -138,8 +138,8 @@ export function LiveTrack({ tripId, geometry, canPing = false, pingAt = null }: 
         </span>
       </div>
       {frac !== null && (
-        <div className="mt-2 h-2 overflow-hidden rounded-full bg-night-900">
-          <div className="h-full bg-gradient-to-r from-iris-500 to-volt-400" style={{ width: `${Math.round(frac * 100)}%` }} />
+        <div className="mt-2 h-2 overflow-hidden rounded-full bg-surface">
+          <div className="h-full bg-gradient-to-r from-brand to-brand-teal" style={{ width: `${Math.round(frac * 100)}%` }} />
         </div>
       )}
       <div className="mt-2">
@@ -153,7 +153,7 @@ export function LiveTrack({ tripId, geometry, canPing = false, pingAt = null }: 
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <button
             onClick={ping} disabled={busy}
-            className="rounded-full border border-volt-400/50 px-3 py-1.5 text-xs font-bold text-volt-300 disabled:opacity-50"
+            className="rounded-full border border-brand-teal/50 px-3 py-1.5 text-xs font-bold text-brand-teal disabled:opacity-50"
           >
             {busy ? "Sharing…" : "📍 Share live location"}
           </button>

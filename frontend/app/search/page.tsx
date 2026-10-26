@@ -67,7 +67,7 @@ function SearchInner() {
       <form onSubmit={submit} className="panel mt-5 grid gap-3 p-5">
         <p className="text-[11px] text-muted">
           Type a place — typos are fine — or tap{" "}
-          <span className="text-volt-300">📍</span> to drop a pin on the map.
+          <span className="text-brand-teal">📍</span> to drop a pin on the map.
         </p>
         <div className="grid gap-3 md:grid-cols-2">
           <PlacePicker label="From" value={src} onPick={setSrc} placeholder="Hebbal… try “Man miss”" />

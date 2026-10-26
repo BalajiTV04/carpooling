@@ -17,7 +17,7 @@ export function LiveCorridorMap() {
   const ref = useRef<HTMLDivElement>(null);
 
   return (
-    <div className="map-glow relative overflow-hidden rounded-xl3 border border-iris-400/26">
+    <div className="map-glow relative overflow-hidden rounded-xl3 border border-brand-teal/26">
       {/* Real tiles + the corridor line, drawn by the shared RouteMap. */}
       <RouteMap
         src={CORRIDOR[0]}
@@ -27,15 +27,15 @@ export function LiveCorridorMap() {
       />
 
       {/* Caption strip */}
-      <div className="pointer-events-none absolute inset-x-3 bottom-3 rounded-2xl border border-volt-400/25 bg-night-950/85 px-3 py-2 text-[11px] backdrop-blur">
-        <span className="font-bold text-volt-300">Live corridor</span>
+      <div className="pointer-events-none absolute inset-x-3 bottom-3 rounded-2xl border border-brand-teal/25 bg-surface/80 px-3 py-2 text-[11px] backdrop-blur">
+        <span className="font-bold text-brand-teal">Live corridor</span>
         <span className="text-muted">
           {" "}
           Hebbal → MG Road → Indiranagar → Whitefield → Electronic City
         </span>
       </div>
-      <div className="pointer-events-none absolute left-3 top-3 rounded-full border border-volt-400/30 bg-night-950/80 px-3 py-1 text-[11px] font-semibold text-volt-300 backdrop-blur">
-        <span className="mr-1.5 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-volt-400 align-middle" />
+      <div className="pointer-events-none absolute left-3 top-3 rounded-full border border-brand-teal/30 surface/80 px-3 py-1 text-[11px] font-semibold text-brand-teal backdrop-blur">
+        <span className="mr-1.5 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-brand-teal align-middle" />
         OpenStreetMap · live
       </div>
     </div>

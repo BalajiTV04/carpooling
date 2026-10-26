@@ -3,7 +3,7 @@
 // Before this existed the logo was literally a letter "V" in a lime square —
 // nothing about it said "vehicles" or "routes". This SVG draws the product's
 // actual idea: a map pin whose outline is a road, with a car sitting on it.
-// It is inline SVG (no asset request) and inherits the volt->iris gradient so
+// It is inline SVG (no asset request) and inherits the brand gradient so
 // it matches the theme in the nav, the footer and the auth pages.
 export function BrandMark({ size = 36, className = "" }: { size?: number; className?: string }) {
   const id = "vm-grad";

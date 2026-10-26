@@ -36,9 +36,9 @@ export function RideCard({ t, pickupHint = null, dropHint = null }: {
             {t.distance_km ? <span className="pill pill-quiet">~{t.distance_km} km</span> : null}
           </div>
           <p className="mt-2 text-xs">
-            <span className="text-volt-300">▲ {t.src_km} km from your start</span>
+            <span className="text-brand-teal">▲ {t.src_km} km from your start</span>
             <span className="text-muted"> · </span>
-            <span className="text-iris-300">▼ {t.dst_km} km to your end</span>
+            <span className="text-accent">▼ {t.dst_km} km to your end</span>
           </p>
         </div>
         <button

@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+  <meta charset='UTF-8'>
+  <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+  <meta name='description' content='Modern platform built for teams that want to move faster and work smarter.'>
+  <title>VoltRide — Build Better, Together</title>
+  <link rel='preconnect' href='https://fonts.googleapis.com'>
+  <link rel='preconnect' href='https://fonts.gstatic.com' crossorigin>
+  <link href='https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800|JetBrains+Mono:wght@400;600&display=swap' rel='stylesheet'>
+  <link rel='stylesheet' href='css/styles.css'>
+  <link rel='icon' href='assets/vehicle.svg' type='image/svg+xml'>
+  <script>document.documentElement.setAttribute('data-theme', (document.documentElement.getAttribute('data-theme') || 'dark') );</script>
+</head>
+<body>
+  <header class='site-header'>
+    <div class='header-inner flex items-center justify-between gap-4 flex-wrap'>
+      <a href='index.html' class='brand flex items-center gap-2'>
+        <svg class='logo' viewBox='0 0 32 32' fill='none' xmlns='http://www.w3.org/2000/svg'>
+          <path d='M16 4C9.373 4 4 9.373 4 16C4 22.627 16 28C16 28 28 22.627 28 16C28 9.373 22.627 4 16 4Z' fill='url(#brandGrad)' opacity='0.2'/>
+          <path d='M16 6C10.03 6 5.25 10.78 5.25 16C5.25 21.22 16 26C16 26 26.75 21.22 26.75 16C26.75 10.78 22 6 16 6Z' fill='url(#brandGrad)'/>
+          <path d='M16 12L16 20' stroke='#0B1120' stroke-width='2' stroke-linecap='round' opacity='0.5'/>
+          <circle cx='16' cy='22' r='2' fill='#FB923C'/>
+          <circle cx='22' cy='22' r='2' fill='#F59E0B'/>
+          <path d='M4 8L8 12L8 24' stroke='#F59E0B' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' opacity='0.6'/>
+          <defs><linearGradient id='brandGrad' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#FCD34D'/><stop offset='1' stop-color='#F59E0B'/></linearGradient></defs>
+        </svg>
+        <span class='name'>VoltRide<span class='tagline'>build better together</span></span>
+      </a>
+      <nav class='nav-links hidden-md flex items-center gap-5'>
+        <a href='index.html'>Home</a>
+        <a href='#about'>About</a>
+        <a href='#features'>Features</a>
+        <a href='#pricing'>Pricing</a>
+        <a href='#contact'>Contact</a>
+      </nav>
+      <div class='flex items-center gap-2'>
+        <button class='theme-toggle' id='themeToggle' aria-label='Toggle theme'>&#9728;</button>
+        <a href='#contact' class='btn btn-primary'>Get Started</a>
+        <a href='login.html' class='btn btn-ghost'>Sign in</a>
+      </div>
+      <button class='nav-toggle md:hidden' id='navToggle' aria-label='Menu'>&#9776;</button>
+    </div>
+  </header>
+  <main class='page-main'>
+    <section class='hero section relative isolate overflow-hidden'>
+      <div class='container'>
+        <div class='flex flex-col md:flex-row items-center gap-8 md:gap-12 text-center md:text-left'>
+          <div class='flex-1 min-w-0'>
+            <span class='kicker inline-flex items-center gap-2 rounded-full border border-coral-20 bg-coral-10 px-3 py-1 text-xs font-bold uppercase tracking-[.18em] text-coral-300 mb-4 block'>
+              <span class='h-1.5 w-1.5 animate-pulse rounded-full bg-coral-400' />
+              New platform &#8226; Launching soon
+            </span>
+            <h1 class='hero-title mt-2 font-extrabold text-4xl md:text-6xl tracking-tight leading-[1.1] mb-5'>
+              Build better. <span class='text-coral'>Ship faster.</span>
+            </h1>
+            <p class='hero-sub mt-0 text-lg text-muted leading-relaxed max-w-xl mx-auto md:mx-auto mb-8 md:mb-0'>
+              A clean, modern foundation for your next project. Designed for teams that value speed, clarity, and simplicity.
+            </p>
+            <div class='hero-actions mt-8 md:mt-0 flex flex-wrap justify-center md:justify-start gap-3'>
+              <a href='#contact' class='btn btn-primary'>Get Started &#8594;</a>
+              <a href='#features' class='btn btn-secondary'>Learn More</a>
+            </div>
+          </div>
+          <div class='flex-1 min-w-0 flex justify-center'>
+            <div class='relative aspect-road w-full max-w-md mx-auto md:mx-0'>
+              <img class='hero-art w-full h-auto rounded-2xl shadow-xl' src='assets/vehicle.svg' alt='Platform illustration'>
+              <div class='absolute -bottom-6 -left-6 flex items-center gap-3 bg-surface p-4 rounded-xl border border-coral-20 shadow-2xl'>
+                <div class='h-10 w-10 rounded-xl bg-coral-400/20 flex items-center justify-center text-coral font-bold text-xl'>&#128187;</div>
+                <div>
+                  <div class='font-bold text-ink'>10,000+</div>
+                  <div class='text-sm text-muted'>active users</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section id='about' class='section bg-surface'>
+      <div class='container'>
+        <div class='grid grid-cols-2 md:gap-12 gap-8 items-center'>
+          <div>
+            <h2 class='font-extrabold text-3xl md:text-4xl tracking-tight mb-5'>Designed for modern teams</h2>
+            <p class='text-lg text-muted leading-relaxed mb-6'>We help teams collaborate more effectively with tools that stay out of the way. No bloat, no complexity — just what you need to get work done.</p>
+            <ul class='list'>
+              <li><span class='dot dot-ok'></span> Clean, intuitive interface</li>
+              <li><span class='dot dot-ok'></span> Fast performance on any device</li>
+              <li><span class='dot dot-ok'></span> Secure by default</li>
+              <li><span class='dot dot-ok'></span> Scalable architecture</li>
+            </ul>
+          </div>
+          <div class='relative'>
+            <div class='aspect-road rounded-2xl overflow-hidden border border-surface-light shadow-lg'>
+              <img class='w-full h-full object-cover' src='assets/vehicle.svg' alt='Team collaboration'>
+            </div>
+            <div class='absolute -bottom-4 -right-4 flex items-center gap-3 bg-white p-4 rounded-xl shadow-xl border border-gray-100'>
+              <div class='h-10 w-10 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xl'>&#128200;</div>
+              <div>
+                <div class='font-bold text-ink'>99.9%</div>
+                <div class='text-sm text-muted'>uptime</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id='features' class='section'>
+      <div class='container'>
+        <div class='text-center mb-14'>
+          <p class='eyebrow'>What you get</p>
+          <h2 class='mt-2 font-extrabold text-3xl md:text-4xl tracking-tight mb-5'>Everything you need</h2>
+          <p class='text-lg text-muted max-w-2xl mx-auto leading-relaxed'>Powerful features wrapped in a simple, focused experience.</p>
+        </div>
+        <div class='grid grid-cols-1 md:grid-cols-3 gap-6'>
+          <div class='card p-8'>
+            <div class='h-12 w-12 rounded-xl bg-coral-10 flex items-center justify-center text-coral font-bold text-2xl mb-6'>&#128187;</div>
+            <h3 class='font-bold text-ink mb-3'>Fast &amp; Reliable</h3>
+            <p class='text-muted leading-relaxed'>Optimized for speed so your users never wait.</p>
+          </div>
+          <div class='card p-8'>
+            <div class='h-12 w-12 rounded-xl bg-blue-10 flex items-center justify-center text-blue-600 font-bold text-2xl mb-6'>&#128200;</div>
+            <h3 class='font-bold text-ink mb-3'>Secure &amp; Private</h3>
+            <p class='text-muted leading-relaxed'>Enterprise-grade security built into every layer.</p>
+          </div>
+          <div class='card p-8'>
+            <div class='h-12 w-12 rounded-xl bg-amber-10 flex items-center justify-center text-amber-600 font-bold text-2xl mb-6'>&#128189;</div>
+            <h3 class='font-bold text-ink mb-3'>Simple to Scale</h3>
+            <p class='text-muted leading-relaxed'>Grow from 1 to 1,000 users without friction.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class='section bg-surface'>
+      <div class='container text-center'>
+        <h2 class='font-extrabold text-3xl md:text-4xl tracking-tight mb-3'>Trusted by teams everywhere</h2>
+        <div class='grid grid-cols-2 md:grid-cols-4 gap-8 mt-10'>
+          <div class='stat-item'>
+            <div class='stat-num text-coral'>10k+</div>
+            <div class='text-sm text-muted'>Active users</div>
+          </div>
+          <div class='stat-item'>
+            <div class='stat-num text-blue-600'>50+</div>
+            <div class='text-sm text-muted'>Countries</div>
+          </div>
+          <div class='stat-item'>
+            <div class='stat-num text-amber-600'>100k+</div>
+            <div class='text-sm text-muted'>Projects created</div>
+          </div>
+          <div class='stat-item'>
+            <div class='stat-num text-coral'>4.9</div>
+            <div class='text-sm text-muted'>Average rating</div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section id='pricing' class='section'>
+      <div class='container'>
+        <div class='text-center mb-14'>
+          <p class='eyebrow'>Simple pricing</p>
+          <h2 class='mt-2 font-extrabold text-3xl md:text-4xl tracking-tight mb-5'>Choose your plan</h2>
+          <p class='text-lg text-muted max-w-2xl mx-auto leading-relaxed'>No hidden fees. Cancel anytime.</p>
+        </div>
+        <div class='grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto'>
+          <div class='card p-8 border-coral-20'>
+            <h3 class='font-bold text-ink mb-3'>Starter</h3>
+            <div class='flex items-baseline gap-2 mb-6'>
+              <span class='text-3xl font-extrabold text-ink'></span>
+              <span class='text-muted'>/mo</span>
+            </div>
+            <p class='text-muted mb-6'>Perfect for getting started.</p>
+            <ul class='list mb-8'>
+              <li>Up to 3 projects</li>
+              <li>Basic analytics</li>
+              <li>Community support</li>
+            </ul>
+            <a href='#contact' class='btn btn-ghost w-full'>Choose Starter</a>
+          </div>
+          <div class='card p-8 border-coral-20 relative'>
+            <div class='absolute -top-4 left-1/2 -translate-x-1/2 bg-coral-400 text-white px-4 py-1 rounded-full text-xs font-bold uppercase'>Most Popular</div>
+            <h3 class='font-bold text-ink mb-3'>Professional</h3>
+            <div class='flex items-baseline gap-2 mb-6'>
+              <span class='text-3xl font-extrabold text-ink'></span>
+              <span class='text-muted'>/mo</span>
+            </div>
+            <p class='text-muted mb-6'>For growing teams.</p>
+            <ul class='list mb-8'>
+              <li>Unlimited projects</li>
+              <li>Advanced analytics</li>
+              <li>Priority support</li>
+            </ul>
+            <a href='#contact' class='btn btn-primary w-full'>Choose Professional</a>
+          </div>
+          <div class='card p-8 border-coral-20'>
+            <h3 class='font-bold text-ink mb-3'>Enterprise</h3>
+            <div class='flex items-baseline gap-2 mb-6'>
+              <span class='text-3xl font-extrabold text-ink'></span>
+              <span class='text-muted'>/mo</span>
+            </div>
+            <p class='text-muted mb-6'>For large organizations.</p>
+            <ul class='list mb-8'>
+              <li>Everything in Professional</li>
+              <li>SSO &amp; audit logs</li>
+              <li>Dedicated support</li>
+            </ul>
+            <a href='#contact' class='btn btn-ghost w-full'>Contact Sales</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id='contact' class='section bg-surface'>
+      <div class='container'>
+        <div class='card p-10 md:p-16 text-center rounded-3xl border-coral-20 mx-auto max-w-2xl'>
+          <h2 class='font-extrabold text-3xl md:text-4xl tracking-tight mb-4'>Ready to get started?</h2>
+          <p class='text-lg text-muted mb-8'>Join thousands of teams already building on VoltRide.</p>
+          <a href='register.html' class='btn btn-primary'>Create Account</a>
+        </div>
+      </div>
+    </section>
+  </main>
+  <footer class='site-footer section border-top'>
+    <div class='container'>
+      <div class='grid grid-cols-1 md:grid-cols-4 gap-10 mb-10'>
+        <div class='footer-col'>
+          <a href='index.html' class='brand flex items-center gap-2 mb-4 block'>
+            <svg class='logo' viewBox='0 0 32 32' fill='none' xmlns='http://www.w3.org/2000/svg'>
+              <path d='M16 4C9.373 4 4 9.373 4 16C4 22.627 16 28C16 28 28 22.627 28 16C28 9.373 22.627 4 16 4Z' fill='url(#brandGrad)' opacity='0.2'/>
+              <path d='M16 6C10.03 6 5.25 10.78 5.25 16C5.25 21.22 16 26C16 26 26.75 21.22 26.75 16C26.75 10.78 22 6 16 6Z' fill='url(#brandGrad)'/>
+              <path d='M16 12L16 20' stroke='#0B1120' stroke-width='2' stroke-linecap='round' opacity='0.5'/>
+              <circle cx='16' cy='22' r='2' fill='#FB923C'/>
+              <circle cx='22' cy='22' r='2' fill='#F59E0B'/>
+              <path d='M4 8L8 12L8 24' stroke='#F59E0B' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' opacity='0.6'/>
+              <defs><linearGradient id='brandGrad' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#FCD34D'/><stop offset='1' stop-color='#F59E0B'/></linearGradient></defs>
+            </svg>
+            <span class='name'>VoltRide</span>
+          </a>
+          <p class='text-muted text-sm'>Building the foundation for modern teams.</p>
+        </div>
+        <div class='footer-col'>
+          <h4>Product</h4>
+          <ul class='list'>
+            <li><a href='#features'>Features</a></li>
+            <li><a href='#pricing'>Pricing</a></li>
+            <li><a href='#about'>About</a></li>
+          </ul>
+        </div>
+        <div class='footer-col'>
+          <h4>Company</h4>
+          <ul class='list'>
+            <li><a href='#contact'>Contact</a></li>
+            <li><a href='#about'>About us</a></li>
+            <li><a href='index.html'>Blog</a></li>
+          </ul>
+        </div>
+        <div class='footer-col'>
+          <h4>Legal</h4>
+          <ul class='list'>
+            <li><a href='index.html'>Privacy</a></li>
+            <li><a href='index.html'>Terms</a></li>
+            <li><a href='index.html'>Support</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class='border-top pt-6 flex flex-col md:flex-row items-center justify-between gap-3 text-sm text-muted'>
+        <span>&copy; 2026 VoltRide. All rights reserved.</span>
+        <div class='flex gap-4'>
+          <a href='index.html'>Privacy</a>
+          <a href='index.html'>Terms</a>
+          <a href='index.html'>Support</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src='js/main.js'></script>
+</body>
+</html>

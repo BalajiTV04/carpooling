@@ -127,7 +127,7 @@ export function RouteMap({
   }, []);
 
   return (
-    <div className="map-glow overflow-hidden rounded-xl3 border border-iris-400/22">
+    <div className="map-glow overflow-hidden rounded-xl3 border border-brand-teal/22">
       <div ref={divRef} style={{ height }} className="leaflet-night z-0" />
       <style>{`.leaflet-night .leaflet-tile-pane{filter:saturate(.7) brightness(.85) hue-rotate(-15deg);}`}</style>
     </div>

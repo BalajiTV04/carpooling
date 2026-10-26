@@ -57,9 +57,9 @@ function VerifyForm() {
           Send code
         </button>
         {devCode && (
-          <p className="panel-inset border-dashed border-volt-400/50 p-3 text-center">
+          <p className="panel-inset border-dashed border-brand-teal/50 p-3 text-center">
             <span className="text-xs text-muted">DEV CODE (no SMS in project): </span>
-            <span className="font-display text-xl font-bold tracking-[.3em] text-volt-300">{devCode}</span>
+            <span className="font-display text-xl font-bold tracking-[.3em] text-brand-teal">{devCode}</span>
           </p>
         )}
         <form onSubmit={verify} className="grid gap-3">

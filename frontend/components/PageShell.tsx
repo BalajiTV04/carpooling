@@ -37,13 +37,13 @@ export function PageShell({
         </Link>
 
         <header className="panel-head relative mt-3 overflow-hidden p-6">
-          <div className="glow-iris -right-16 -top-24 h-56 w-56 bg-iris-500/30" aria-hidden />
+          <div className="glow-iris -right-16 -top-24 h-56 w-56 bg-accent/30" aria-hidden />
           <div className="relative flex flex-wrap items-end justify-between gap-4">
             <div className="min-w-0">
               {eyebrow ? <p className="eyebrow">{eyebrow}</p> : null}
               <h1 className="font-display mt-1 text-3xl font-extrabold tracking-tight">
                 {title}
-                {accent ? <span className="text-iris-300"> {accent}</span> : null}
+                {accent ? <span className="text-accent"> {accent}</span> : null}
               </h1>
               {subtitle ? <p className="mt-1.5 text-sm text-muted">{subtitle}</p> : null}
             </div>

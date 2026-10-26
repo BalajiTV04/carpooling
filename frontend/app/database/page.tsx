@@ -70,8 +70,8 @@ export default function DatabasePage() {
         })}
       </div>
 
-      <div className="panel mt-6 border-volt-400/30 p-5 text-sm text-muted">
-        <span className="font-semibold text-volt-300">Why this shape?</span> Trips carry the
+      <div className="panel mt-6 border-brand-teal/30 p-5 text-sm text-muted">
+        <span className="font-semibold text-brand-teal">Why this shape?</span> Trips carry the
         LineString route so matching (Module 9) is a geo query, not string compare.
         Bookings store pickup/dropoff as Points so detour optimisation (Module 10) can
         rank them. Locations TTL away for privacy — tracking exists only inside active trips.

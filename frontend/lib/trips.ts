@@ -45,10 +45,10 @@ export const tripApi = {
 
 export function statusCls(s: string) {
   return s === "published"
-    ? "bg-volt-400 text-night-950"
+    ? "bg-brand-teal text-brand-teal"
     : s === "draft"
-      ? "border border-volt-400/50 text-volt-300"
+      ? "border border-brand-teal/50 text-brand-teal"
       : s === "cancelled"
         ? "border border-rose-400/50 text-rose-300"
-        : "border border-[rgba(154,151,255,.4)] text-iris-300";
+        : "border border-[rgba(154,151,255,.4)] text-accent";
 }

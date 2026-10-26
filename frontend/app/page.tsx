@@ -64,21 +64,21 @@ export default function Home() {
     <main className="relative overflow-hidden">
       {/* ------ HERO --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- */}
       <section className="relative isolate px-5 pb-16 pt-14">
-        <div className="aurora aurora-a -left-24 -top-24 h-96 w-96 bg-iris-500/30" />
-        <div className="aurora aurora-b -right-20 top-24 h-80 w-80 bg-volt-400/15" />
+        <div className="aurora aurora-a -left-24 -top-24 h-96 w-96 bg-accent/30" />
+        <div className="aurora aurora-b -right-20 top-24 h-80 w-80 bg-brand-teal/15" />
         <div className="grid-drift absolute inset-0 -z-10 opacity-40" />
 
         <div className="mx-auto grid max-w-7xl items-center gap-10 lg:grid-cols-[1.05fr_.95fr]">
           <div>
-            <span className="inline-flex items-center gap-2 rounded-full border border-volt-400/30 bg-volt-400/10 px-4 py-1.5 text-xs font-bold uppercase tracking-[.18em] text-volt-300">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-volt-400" />
+            <span className="inline-flex items-center gap-2 rounded-full border border-brand-teal/30 bg-brand-teal/10 px-4 py-1.5 text-xs font-bold uppercase tracking-[.18em] text-brand-teal">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-brand-teal" />
               Route-aware · Shortest pickup · Always explained
             </span>
 
             <h1 className="font-display mt-5 text-4xl font-extrabold leading-[1.08] tracking-tight md:text-6xl">
               <span className="text-gradient">Share the ride.</span>
               <br />
-              <span className="text-iris-300">Keep the route.</span>
+              <span className="text-accent">Keep the route.</span>
             </h1>
 
             <p className="mt-5 max-w-lg text-[15px] leading-relaxed text-muted">
@@ -162,15 +162,15 @@ export default function Home() {
             </p>
             <ul className="mt-5 grid gap-2 text-sm text-muted">
               <li className="flex items-center gap-2">
-                <span className="h-1.5 w-1.5 rounded-full bg-volt-400" />
+                <span className="h-1.5 w-1.5 rounded-full bg-brand-teal" />
                 Match strength comes from the road you actually share
               </li>
               <li className="flex items-center gap-2">
-                <span className="h-1.5 w-1.5 rounded-full bg-iris-400" />
+                <span className="h-1.5 w-1.5 rounded-full bg-brand-teal" />
                 Pickup is checked every kilometre for the shortest detour
               </li>
               <li className="flex items-center gap-2">
-                <span className="h-1.5 w-1.5 rounded-full bg-volt-400" />
+                <span className="h-1.5 w-1.5 rounded-full bg-brand-teal" />
                 Find places by typing loosely, or tap them on the map
               </li>
             </ul>

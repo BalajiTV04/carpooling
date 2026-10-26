@@ -34,7 +34,7 @@ export const notifyApi = {
 export function priorityDotCls(p: Priority): string {
   return p === "critical" ? "bg-rose-400"
     : p === "high" ? "bg-amber-400"
-      : p === "low" ? "bg-[#5b6194]" : "bg-volt-400";
+      : p === "low" ? "bg-[#5b6194]" : "bg-brand-teal";
 }
 
 /** Where a notification's `action` hint takes the user.

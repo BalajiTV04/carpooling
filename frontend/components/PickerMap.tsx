@@ -81,7 +81,7 @@ export function PickerMap({
   }, [pin, label]);
 
   return (
-    <div className="map-glow overflow-hidden rounded-2xl border border-iris-400/26">
+    <div className="map-glow overflow-hidden rounded-2xl border border-brand-teal/26">
       <div ref={divRef} className="leaflet-night z-0" style={{ height }} />
     </div>
   );

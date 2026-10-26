@@ -48,8 +48,8 @@ export function RateRideCard({
   };
 
   return (
-    <div className="mt-2 rounded-2xl border border-volt-400/30 bg-night-950 p-3 text-[11px]">
-      <p className="font-bold text-volt-300">
+    <div className="mt-2 rounded-2xl border border-brand-teal/30 bg-surface p-3 text-[11px]">
+      <p className="font-bold text-brand-teal">
         {editing ? "Update your review" : "Rate this ride"}
         <span className="ml-1 font-normal text-muted">
           {row.target_name ? `for ${row.target_name}` : ""} · {route}
@@ -67,7 +67,7 @@ export function RateRideCard({
         rows={2}
         maxLength={500}
         placeholder="Optional note (max 500 chars)"
-        className="mt-1.5 w-full resize-none rounded-xl border border-iris-400/30 bg-night-950 px-2 py-1.5 text-[11px]"
+        className="mt-1.5 w-full resize-none rounded-xl border border-brand-teal/30 bg-surface px-2 py-1.5 text-[11px]"
       />
       <div className="mt-1.5 flex items-center gap-2">
         <button
@@ -80,7 +80,7 @@ export function RateRideCard({
           <span className="text-muted">you rated ★{row.my_stars}</span>
         )}
       </div>
-      {msg && <p className="mt-1 text-volt-300">{msg}</p>}
+      {msg && <p className="mt-1 text-brand-teal">{msg}</p>}
       {err && <p className="mt-1 text-rose-300">{err}</p>}
     </div>
   );

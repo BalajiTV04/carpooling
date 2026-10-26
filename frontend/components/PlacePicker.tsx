@@ -190,7 +190,7 @@ function PlaceRow({
           aria-expanded={open}
         />
         {open && hits.length > 0 && (
-          <div className="absolute z-30 mt-1 max-h-64 w-full overflow-auto rounded-2xl border border-iris-400/30 bg-night-950 shadow-card">
+          <div className="absolute z-30 mt-1 max-h-64 w-full overflow-auto rounded-2xl border border-brand-teal/30 bg-surface shadow-card">
             {hits.map((h, i) => (
               <button
                 key={`${h.lat},${h.lng},${i}`}
@@ -201,18 +201,18 @@ function PlaceRow({
                 }}
                 onMouseEnter={() => onHover(i)}
                 className={`block w-full px-4 py-2 text-left text-sm transition ${
-                  i === cursor ? "bg-night-800" : "hover:bg-night-800"
+                  i === cursor ? "bg-surface" : "hover:bg-surface"
                 }`}
               >
                 <span className="flex items-center gap-2">
                   <span className="font-semibold text-ink">{h.name}</span>
-                  <span className="rounded-full bg-night-900 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-volt-300">
+                  <span className="rounded-full surface px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-brand-teal">
                     {h.source === "catalog" ? "known stop" : "map"}
                   </span>
                 </span>
                 <span className="flex items-center justify-between gap-2">
                   <span className="block truncate text-xs text-muted">{h.address}</span>
-                  <span className="shrink-0 text-[10px] text-iris-300">{h.reason}</span>
+                  <span className="shrink-0 text-[10px] text-accent">{h.reason}</span>
                 </span>
               </button>
             ))}
@@ -227,8 +227,8 @@ function PlaceRow({
         aria-pressed={showMap}
         className={`shrink-0 rounded-2xl border px-3 text-sm transition ${
           showMap
-            ? "border-volt-400 bg-volt-400/15 text-volt-300"
-            : "border-iris-400/30 text-muted hover:border-volt-400/60 hover:text-volt-300"
+            ? "border-brand-teal bg-brand-teal/15 text-brand-teal"
+            : "border-brand-teal/30 text-muted hover:border-brand-teal/60 hover:text-brand-teal"
         }`}
       >
         {showMap ? "✕" : "📍"}

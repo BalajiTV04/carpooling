@@ -41,8 +41,8 @@ export default function RegisterPage() {
             required
           />
           <span className="mt-1 block text-[11px] text-muted">
-            Starts with <b className="text-volt-300">+</b> — e.g.{" "}
-            <span className="text-volt-300">+919876543210</span>
+            Starts with <b className="text-brand-teal">+</b> — e.g.{" "}
+            <span className="text-brand-teal">+919876543210</span>
           </span>
         </Field>
         <Field label="Full name">

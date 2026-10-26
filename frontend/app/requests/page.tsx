@@ -126,7 +126,7 @@ function RequestsInner() {
         )}
         {b.status === "completed" && (
           <>
-            <p className="mt-2 text-[11px] text-volt-300">
+            <p className="mt-2 text-[11px] text-brand-teal">
               Rode ✓{b.cost_share !== null ? ` · settled ₹${b.cost_share}` : ""}. Money frozen at completion.
             </p>
             {/* Module 22: the rating prompt the Module 23 bell links to. */}

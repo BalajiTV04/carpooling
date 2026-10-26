@@ -37,19 +37,19 @@ export function TripCostCard({ tripId, seatsLeft }: { tripId: string; seatsLeft:
   };
 
   return (
-    <div className="mt-3 rounded-2xl border border-iris-400/30 bg-night-950 p-3">
+    <div className="mt-3 rounded-2xl border border-brand-teal/30 bg-surface p-3">
       <p className="text-xs font-bold text-ink">Cost & sharing</p>
       {cost && (
         <div className="mt-2 grid grid-cols-3 gap-2 text-center">
-          <div className="rounded-2xl bg-night-900 px-2 py-2">
-            <p className="font-display text-base font-bold text-volt-300">₹{cost.fuel.total_cost}</p>
+          <div className="rounded-2xl bg-surface px-2 py-2">
+            <p className="font-display text-base font-bold text-brand-teal">₹{cost.fuel.total_cost}</p>
             <p className="text-[10px] uppercase tracking-wider text-muted">trip fuel</p>
           </div>
-          <div className="rounded-2xl bg-night-900 px-2 py-2">
-            <p className="font-display text-base font-bold text-iris-300">₹{cost.per_seat_estimate}</p>
+          <div className="rounded-2xl bg-surface px-2 py-2">
+            <p className="font-display text-base font-bold text-brand-teal">₹{cost.per_seat_estimate}</p>
             <p className="text-[10px] uppercase tracking-wider text-muted">per seat</p>
           </div>
-          <div className="rounded-2xl bg-night-900 px-2 py-2">
+          <div className="rounded-2xl bg-surface px-2 py-2">
             <p className="font-display text-base font-bold text-ink">₹{cost.collected_total}</p>
             <p className="text-[10px] uppercase tracking-wider text-muted">collected</p>
           </div>
@@ -59,18 +59,18 @@ export function TripCostCard({ tripId, seatsLeft }: { tripId: string; seatsLeft:
           mileage and the car it came from must both be on screen — a bare
           "₹344" is unverifiable. Shown as: identity · fuel inputs · working. */}
       {cost ? (
-        <div className="mt-2 rounded-2xl bg-night-900 p-2.5 text-[11px]">
+        <div className="mt-2 rounded-2xl bg-surface p-2.5 text-[11px]">
           <p className="truncate text-ink">
             <span className="font-semibold">
               {cost.vehicle.make ?? "Car"} {cost.vehicle.model ?? ""}
             </span>
             {cost.vehicle.year ? <span className="text-muted"> · {cost.vehicle.year}</span> : null}
-            {cost.vehicle.plate_no ? <span className="font-mono text-volt-300"> · {cost.vehicle.plate_no}</span> : null}
+            {cost.vehicle.plate_no ? <span className="font-mono text-brand-teal"> · {cost.vehicle.plate_no}</span> : null}
             {cost.vehicle.color ? <span className="text-muted"> · {cost.vehicle.color}</span> : null}
           </p>
           <p className="mt-0.5 text-muted">
             {cost.vehicle.fuel_type ?? "fuel"} ·{" "}
-            <span className="font-semibold text-volt-300">{cost.fuel.mileage_kmpl} kmpl</span>
+            <span className="font-semibold text-brand-teal">{cost.fuel.mileage_kmpl} kmpl</span>
             {cost.vehicle.mileage_kmpl === null ? (
               <span className="text-[10px] text-muted"> (project default)</span>
             ) : null}
@@ -79,7 +79,7 @@ export function TripCostCard({ tripId, seatsLeft }: { tripId: string; seatsLeft:
           <p className="mt-1.5 font-mono text-[10px] leading-relaxed text-muted">
             {cost.fuel.distance_km} km ÷ {cost.fuel.mileage_kmpl} kmpl = {cost.fuel.litres} L
             {" × "}₹{cost.fuel.fuel_price} ={" "}
-            <span className="text-volt-300">₹{cost.fuel.total_cost}</span>
+            <span className="text-brand-teal">₹{cost.fuel.total_cost}</span>
           </p>
         </div>
       ) : (
@@ -97,10 +97,10 @@ export function TripCostCard({ tripId, seatsLeft }: { tripId: string; seatsLeft:
         <Field label="Fuel price ₹/unit (blank = default)">
           <input className={inputCls} value={price} onChange={(e) => setPrice(e.target.value)} inputMode="decimal" placeholder="e.g. 104.5" />
         </Field>
-        <button onClick={save} className="rounded-2xl bg-volt-400 py-2 text-xs font-bold text-night-950">
+        <button onClick={save} className="rounded-2xl bg-brand-teal py-2 text-xs font-bold text-surface">
           Save pricing
         </button>
-        {msg && <p className="text-[11px] text-volt-300">{msg}</p>}
+        {msg && <p className="text-[11px] text-brand-teal">{msg}</p>}
         {err && <p className="text-[11px] text-rose-300">{err}</p>}
       </div>
       {/* Module 13: leg-by-leg breakdown + recalculation trigger */}

@@ -9,8 +9,8 @@ import type { PlaceHit } from "@/lib/geo";
 
 function Metric({ label, value, tone }: { label: string; value: string; tone: "volt" | "iris" }) {
   return (
-    <div className="rounded-2xl bg-night-900 px-3 py-2 text-center">
-      <p className={`font-display text-base font-bold ${tone === "volt" ? "text-volt-300" : "text-iris-300"}`}>{value}</p>
+    <div className="rounded-2xl bg-surface px-3 py-2 text-center">
+      <p className={`font-display text-base font-bold ${tone === "volt" ? "text-brand-teal" : "text-brand-teal"}`}>{value}</p>
       <p className="text-[10px] uppercase tracking-wider text-muted">{label}</p>
     </div>
   );
@@ -21,7 +21,7 @@ function PointRow({ p, active, onPick }: { p: PickupPoint; active: boolean; onPi
     <button
       onClick={onPick}
       className={`w-full rounded-2xl border px-3 py-2 text-left text-xs ${
-        active ? "border-volt-400 bg-volt-400/10" : "border-iris-400/26 hover:border-volt-400/50"
+        active ? "border-brand-teal bg-brand-teal/10" : "border-brand-teal/26 hover:border-brand-teal/50"
       }`}
     >
       <span className="font-semibold text-ink">
@@ -89,7 +89,7 @@ export function PickupChooser({ tripId, pickupHint, dropHint }: {
   const last = coords && coords.length > 0 ? coords[coords.length - 1] : null;
 
   return (
-    <div className="mt-3 rounded-2xl border border-iris-400/30 bg-night-950 p-3">
+    <div className="mt-3 rounded-2xl border border-brand-teal/30 bg-surface p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs font-bold text-ink">Minimum-detour pickup</p>
         <div className="flex gap-1.5">
@@ -101,10 +101,10 @@ export function PickupChooser({ tripId, pickupHint, dropHint }: {
           </button>
           {opts && (
             <>
-              <button onClick={() => run("walk")} className="rounded-full border border-volt-400/50 px-3 py-1 text-[11px] text-volt-300">
+              <button onClick={() => run("walk")} className="rounded-full border border-brand-teal/50 px-3 py-1 text-[11px] text-brand-teal">
                 Force walk
               </button>
-              <button onClick={() => run("door")} className="rounded-full border border-iris-400/60 px-3 py-1 text-[11px] text-iris-300">
+              <button onClick={() => run("door")} className="rounded-full border border-brand-teal/60 px-3 py-1 text-[11px] text-brand-teal">
                 Force door
               </button>
             </>
@@ -121,7 +121,7 @@ export function PickupChooser({ tripId, pickupHint, dropHint }: {
 
       {opts?.chosen && selected && (
         <>
-          <p className="mt-2 rounded-2xl border border-volt-400/36 bg-night-900 p-2 text-[11px] text-volt-300">
+          <p className="mt-2 rounded-2xl border border-brand-teal/36 bg-surface p-2 text-[11px] text-brand-teal">
             {selected.why}
             {opts.saved_detour_km > 0 && (
               <span className="text-muted"> · saves {opts.saved_detour_km} km vs your exact door</span>

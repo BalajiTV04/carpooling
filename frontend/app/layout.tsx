@@ -1,48 +1,27 @@
-import type { Metadata } from "next";
-import { Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import { Inter } from "next/font/google";
 import { SessionProvider } from "@/components/SessionProvider";
 import { NavBar } from "@/components/NavBar";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
-// One sans + one mono, loaded through next/font (self-hosted, no render-block
-// request to fonts.googleapis.com). CSS variables are mapped onto Tailwind's
-// fontFamily in tailwind.config.ts: --font-body -> font-sans,
-// --font-num -> font-mono (numbers: overlap %, km, rupee fares, distances).
-const body = Plus_Jakarta_Sans({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-body"
-});
-const num = JetBrains_Mono({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-num"
-});
+export { metadata } from "./layout.metadata";
 
-export const metadata: Metadata = {
-  title: "VoltRide — Route-Aware Private Vehicle Sharing",
-  description:
-    "AI route-aware vehicle sharing: match on real route overlap, pick the minimum-detour pickup point, split the fare per leg, and track the ride live.",
-  keywords: [
-    "vehicle sharing", "ride sharing", "route matching", "carpooling",
-    "minimum detour pickup", "AI matching", "Karnataka", "Bengaluru"
-  ],
-  openGraph: {
-    title: "VoltRide — Route-Aware Private Vehicle Sharing",
-    description:
-      "Match riders to drivers on the same corridor. Every recommendation is explainable.",
-    type: "website"
-  }
-};
+const inter = Inter({ subsets: ["latin"] });
 
-// Dark-first shell: <html class="dark"> locks Direction B night theme.
-// SessionProvider (Module 3) makes login state available on every page.
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`dark ${body.variable} ${num.variable}`}>
+    <html lang="en" className={inter.className} suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem("theme");var d=t==="dark"||(t!=="light"&&window.matchMedia("(prefers-color-scheme: dark)").matches);if(d)document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body className="min-h-screen antialiased">
         <SessionProvider>
           <NavBar />
+          <ThemeToggle />
           {children}
         </SessionProvider>
       </body>

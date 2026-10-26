@@ -92,12 +92,12 @@ export function NotificationBell({ enabled }: { enabled: boolean }) {
       <button
         onClick={openFeed}
         aria-label={`Notifications${unread ? ` (${unread} unread)` : ""}`}
-        className="relative rounded-full border border-iris-400/36 px-3 py-1.5 text-muted hover:text-volt-300"
+        className="relative rounded-full border border-brand-teal/36 px-3 py-1.5 text-muted hover:text-brand-teal"
       >
         <span aria-hidden>🔔</span>
         {unread > 0 && (
-          <span className={`absolute -right-1 -top-1 min-w-[18px] rounded-full px-1 text-[10px] font-bold leading-[18px] text-night-950 ${
-            critical > 0 ? "bg-rose-400" : "bg-volt-400"
+          <span className={`absolute -right-1 -top-1 min-w-[18px] rounded-full px-1 text-[10px] font-bold leading-[18px] text-surface ${
+            critical > 0 ? "bg-rose-400" : "bg-brand-teal"
           }`}>
             {unread > 9 ? "9+" : unread}
           </span>
@@ -105,11 +105,11 @@ export function NotificationBell({ enabled }: { enabled: boolean }) {
       </button>
 
       {open && (
-        <div className="absolute right-0 z-50 mt-2 w-80 rounded-2xl border border-iris-400/30 bg-night-950 p-2 shadow-card">
+        <div className="absolute right-0 z-50 mt-2 w-80 rounded-2xl border border-brand-teal/30 bg-surface p-2 shadow-card">
           <div className="flex items-center justify-between px-2 py-1">
             <p className="font-display text-sm font-bold">Notifications</p>
             {unread > 0 && (
-              <button onClick={markAll} className="text-[11px] text-volt-300 underline">
+              <button onClick={markAll} className="text-[11px] text-brand-teal underline">
                 mark all read
               </button>
             )}
@@ -128,7 +128,7 @@ export function NotificationBell({ enabled }: { enabled: boolean }) {
                 <div
                   key={n.id}
                   className={`rounded-xl px-2 py-2 text-[11px] ${
-                    n.read_at ? "opacity-60" : "bg-night-900/70"
+                    n.read_at ? "opacity-60" : "surface/70"
                   }`}
                 >
                   <div className="flex items-start gap-2">
@@ -138,20 +138,20 @@ export function NotificationBell({ enabled }: { enabled: boolean }) {
                       <p className="text-muted">{n.body}</p>
                       <p className="mt-0.5 text-[10px] text-muted">
                         {ago(n.created_at)}
-                        {label && <> · <span className="text-volt-300">{label}</span></>}
+                        {label && <> · <span className="text-brand-teal">{label}</span></>}
                       </p>
                     </div>
                   </div>
                   <div className="mt-1 flex gap-2 pl-4">
                     {!n.read_at && (
-                      <button onClick={() => markOne(n)} className="text-[10px] text-volt-300 underline">
+                      <button onClick={() => markOne(n)} className="text-[10px] text-brand-teal underline">
                         mark read
                       </button>
                     )}
                     {href && (
                       <button
                         onClick={() => { setOpen(false); window.location.assign(href); }}
-                        className="text-[10px] text-volt-300 underline"
+                        className="text-[10px] text-brand-teal underline"
                       >
                         open
                       </button>

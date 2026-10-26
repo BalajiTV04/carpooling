@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+  <meta charset='UTF-8'>
+  <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+  <meta name='description' content='Route-aware private vehicle sharing: match on real route overlap, minimum-detour pickup, per-leg fare split, live tracking'>
+  <title>VoltRide - Route-Aware Private Vehicle Sharing</title>
+  <link rel='stylesheet' href='css/styles.css'>
+  <link rel='icon' href='assets/vehicle.svg' type='image/svg+xml'>
+  <script>document.documentElement.setAttribute('data-theme', (document.documentElement.getAttribute('data-theme') || 'dark') );</script>
+</head>
+<body>
+  <header class='site-header'>
+    <div class='header-inner'>
+      <a href='index.html' class='brand'>
+        <svg class='logo' viewBox='0 0 32 32' fill='none' xmlns='http://www.w3.org/2000/svg'>
+          <path d='M16 4C9.373 4 4 9.373 4 16C4 22.627 16 28 16 28C16 28 28 22.627 28 16C28 9.373 22.627 4 16 4Z' fill='url(#brandGrad)' opacity='0.2'/>
+          <path d='M16 6C10.03 6 5.25 10.78 5.25 16C5.25 21.22 16 26 16 26C16 26 26.75 21.22 26.75 16C26.75 10.78 22 6 16 6Z' fill='url(#brandGrad)'/>
+          <path d='M16 12L16 20' stroke='#0A0F1E' stroke-width='2' stroke-linecap='round' opacity='0.5'/>
+          <circle cx='16' cy='22' r='2' fill='#C6FF3D'/>
+          <circle cx='22' cy='22' r='2' fill='#AEEB2E'/>
+          <path d='M4 8L8 12L8 24' stroke='#AEEB2E' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' opacity='0.6'/>
+          <defs><linearGradient id='brandGrad' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#D8FF7A'/><stop offset='1' stop-color='#AEEB2E'/></linearGradient></defs>
+        </svg>
+        <span class='name'>VoltRide<span class='tagline'>route-aware sharing</span></span>
+      </a>
+      <button class='theme-toggle' id='themeToggle' aria-label='Toggle theme'>&#9728;</button>
+      <button class='nav-toggle' id='navToggle' aria-label='Menu'>&#9776;</button>
+      <nav class='nav-links' id='navLinks'>  <main>
+    <div class='max-w-7xl'>
+      <a href='index.html' class='btn btn-ghost btn-sm'>&#8592; VoltRide</a>
+      <header class='panel-head'>
+        <div class='glow-iris'></div>
+        <div class='relative flex flex-wrap items-end justify-between gap-4'>
+          <div class='min-w-0'>
+            <p class='eyebrow'>Impact</p>
+            <h1 class='font-display mt-1 text-3xl font-extrabold tracking-tight'>Your impact</h1>
+            <p class='mt-1.5 text-sm text-muted'>How you've moved people this month.</p>
+          </div>
+        </div>
+        <div class='roadline relative mt-4'></div>
+      </header>
+      <div class='flow'>
+        <div class='flex flex-wrap gap-4' style='margin-bottom:1.5rem'>
+          <div class='stat card' style='flex:1;min-width:120px;text-align:center;padding:1.25rem'>
+            <p class='stat-num'>64</p>
+            <p class='text-xs text-muted'>Rides shared</p>
+          </div>
+          <div class='stat card' style='flex:1;min-width:120px;text-align:center;padding:1.25rem'>
+            <p class='stat-num'>1,288</p>
+            <p class='text-xs text-muted'>Km driven</p>
+          </div>
+          <div class='stat card' style='flex:1;min-width:120px;text-align:center;padding:1.25rem'>
+            <p class='stat-num'>&#8377; 24,820</p>
+            <p class='text-xs text-muted'>Fare collected</p>
+          </div>
+          <div class='stat card' style='flex:1;min-width:120px;text-align:center;padding:1.25rem'>
+            <p class='stat-num'>18</p>
+            <p class='text-xs text-muted'>Passengers helped</p>
+          </div>
+        </div>
+        <div class='card'>
+          <div class='card-header'><div class='card-title'>Ride wave (last 7 days)</div></div>
+          <div class='card-body'>
+            <div class='flex items-end gap-3 h-32'>
+              <div style='flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%'><div style='width:100%;background:rgb(var(--volt-400));height:60%;border-radius:4px'></div><span class='text-xs text-muted'>14d</span></div>
+              <div style='flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%'><div style='width:100%;background:rgb(var(--iris-500));height:40%;border-radius:4px'></div><span class='text-xs text-muted'>16d</span></div>
+              <div style='flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%'><div style='width:100%;background:rgb(var(--volt-400));height:85%;border-radius:4px'></div><span class='text-xs text-muted'>18d</span></div>
+              <div style='flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%'><div style='width:100%;background:rgb(var(--iris-500));height:50%;border-radius:4px'></div><span class='text-xs text-muted'>17d</span></div>
+              <div style='flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%'><div style='width:100%;background:rgb(var(--volt-400));height:95%;border-radius:4px'></div><span class='text-xs text-muted'>19d</span></div>
+              <div style='flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%'><div style='width:100%;background:rgb(var(--iris-500));height:55%;border-radius:4px'></div><span class='text-xs text-muted'>18d</span></div>
+              <div style='flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%'><div style='width:100%;background:rgb(var(--volt-400));height:70%;border-radius:4px'></div><span class='text-xs text-muted'>20d</span></div>
+            </div>
+          </div>
+        </div>
+        <div class='card'>
+          <div class='card-header'><div class='card-title'>By road type</div></div>
+          <div class='card-body'>
+            <div class='flex flex-wrap gap-4'>
+              <div class='flex-1 text-center'><div class='flex items-center justify-center gap-2'><span class='w-3 h-3 rounded-full bg-rgb(var(--iris-500))'></span> <span class='label'>City centre</span><span class='text-ink font-bold'>42%</span></div></div>
+              <div class='flex-1 text-center'><div class='flex items-center justify-center gap-2'><span class='w-3 h-3 rounded-full bg-rgb(var(--volt-400))'></span> <span class='label'>Airport</span><span class='text-ink font-bold'>28%</span></div></div>
+              <div class='flex-1 text-center'><div class='flex items-center justify-center gap-2'><span class='w-3 h-3 rounded-full bg-rgb(var(--color-warn))'></span> <span class='label'>University</span><span class='text-ink font-bold'>18%</span></div></div>
+              <div class='flex-1 text-center'><div class='flex items-center justify-center gap-2'><span class='w-3 h-3 rounded-full bg-rgb(var(--color-success))'></span> <span class='label'>Industrial</span><span class='text-ink font-bold'>12%</span></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+    </div>
+  </header>
+  <main>
+  </main>
+  <footer class='site-footer'>
+    <div class='footer-inner'>
+      <div class='trust-row'>
+        <div class='trust-item'><div class='icon'>&#128231;</div><div><div class='title'>Verified drivers</div><div class='desc'>Every car is checked before it can take passengers.</div></div></div>
+        <div class='trust-item'><div class='icon'>&#128276;</div><div><div class='title'>Live SOS</div><div class='desc'>One tap alerts our safety team, in real time.</div></div></div>
+        <div class='trust-item'><div class='icon'>&#127760;</div><div><div class='title'>Live tracking</div><div class='desc'>See your trip and driver the whole way.</div></div></div>
+        <div class='trust-item'><div class='icon'>&#8360;</div><div><div class='title'>Transparent fares</div><div class='desc'>Know the split before you book. No surprises.</div></div></div>
+      </div>
+      <div class='footer-cols'>
+        <div class='footer-col'><h4>Ride</h4><ul>
+          <li><a href='search.html'>Find a ride</a></li>
+          <li><a href='trips.html'>My trips</a></li>
+          <li><a href='requests.html'>Your bookings</a></li>
+          <li><a href='analytics.html'>Your impact</a></li>
+        </ul></div>
+        <div class='footer-col'><h4>Drive</h4><ul>
+          <li><a href='trips.html'>Publish a trip</a></li>
+          <li><a href='garage.html'>Your garage</a></li>
+          <li><a href='me.html'>Your profile</a></li>
+          <li><a href='verify.html'>Verify phone</a></li>
+        </ul></div>
+        <div class='footer-col'><h4>Company</h4><ul>
+          <li><a href='register.html'>Create account</a></li>
+          <li><a href='login.html'>Log in</a></li>
+          <li><a href='index.html#how-it-works'>How it works</a></li>
+          <li><a href='index.html#safety'>Safety</a></li>
+        </ul></div>
+        <div class='footer-col'><h4>Safety</h4><ul>
+          <li><a href='index.html#safety'>Emergency protocol</a></li>
+          <li><a href='index.html#safety'>Verified cars</a></li>
+          <li><a href='index.html#safety'>Live monitoring</a></li>
+        </ul></div>
+      </div>
+      <div class='footer-bottom'>
+        <span>&copy; 2026 VoltRide. All rights reserved.</span>
+        <div>
+          <a href='index.html'>Privacy</a>
+          <a href='index.html'>Terms</a>
+          <a href='index.html'>Support</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+  <script src='js/main.js'></script>
+</body>
+</html>

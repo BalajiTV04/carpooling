@@ -25,14 +25,14 @@ export function VehicleCard({
           alt={`${v.make} ${v.model}`}
           loading="lazy"
           onError={() => setBroken(true)}
-          className="h-14 w-14 shrink-0 rounded-2xl border border-iris-400/26 bg-night-800 object-cover"
+          className="h-14 w-14 shrink-0 rounded-2xl border border-brand-teal/26 bg-surface object-cover"
         />
       ) : (
-        <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl border border-iris-400/26 bg-night-800 font-display text-xl">🚗</div>
+        <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl border border-brand-teal/26 bg-surface font-display text-xl">🚗</div>
       )}
       <div className="min-w-0 flex-1">
         <p className="font-display font-bold">{v.make} {v.model} <span className="text-xs font-normal text-muted">{v.year ?? ""}</span></p>
-        <p className="font-mono text-sm text-volt-300">{v.plate_no}</p>
+        <p className="font-mono text-sm text-brand-teal">{v.plate_no}</p>
         <p className="text-xs text-muted">{v.seats_total} seats · {v.fuel_type}{v.mileage_kmpl ? ` · ${v.mileage_kmpl} kmpl` : ""}</p>
       </div>
       <div className="flex flex-col items-end gap-1.5">

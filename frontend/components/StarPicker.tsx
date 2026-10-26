@@ -22,7 +22,7 @@ export function StarPicker({
           disabled={disabled}
           onClick={() => onChange(n)}
           className={`text-2xl leading-none transition disabled:opacity-50 ${
-            n <= value ? "text-volt-400" : "text-[#3d4270] hover:text-volt-300"
+            n <= value ? "text-brand-teal" : "text-[#3d4270] hover:text-brand-teal"
           }`}
         >
           ★
