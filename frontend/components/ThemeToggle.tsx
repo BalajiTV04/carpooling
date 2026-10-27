@@ -20,9 +20,9 @@ export function ThemeToggle() {
     if (!mounted) return;
     const html = document.documentElement;
     if (isDark) {
-      html.setAttribute("data-theme", "dark");
+      html.removeAttribute("data-theme"); // dark is the default (Direction B)
     } else {
-      html.removeAttribute("data-theme");
+      html.setAttribute("data-theme", "light");
     }
     localStorage.setItem("theme", isDark ? "dark" : "light");
   }, [isDark, mounted]);

@@ -83,6 +83,20 @@ async def register(body: RegisterIn):
     created = await db.users.find_one({"_id": res.inserted_id})
     user = _public_user(created)
     token = create_access_token(user["id"], user["phone"], user["roles"])
+    # Admin feed: a driver or passenger account was just created.
+    try:
+        await db.admin_notifications.insert_one({
+            "type": "account_created",
+            "title": "New account created",
+            "body": (f"{'Driver' if 'driver' in body.roles else 'Passenger'} "
+                     f"signed up — {user['full_name']} ({user['phone']})"),
+            "user_id": created["_id"],
+            "actor_id": created["_id"],
+            "read_at": None,
+            "created_at": now,
+        })
+    except Exception:
+        pass
     return {"access_token": token, "token_type": "bearer", "user": user}
 
 

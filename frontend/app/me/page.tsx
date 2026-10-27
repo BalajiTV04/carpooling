@@ -143,7 +143,7 @@ function MeInner() {
     <main className="mx-auto max-w-2xl px-5 pb-20 pt-8">
       <a href="/" className="btn btn-ghost btn-sm">← VoltRide</a>
       <section className="panel panel-head mt-3 flex items-center gap-4 p-5">
-        <div className="grid h-16 w-16 place-items-center rounded-2xl bg-gradient-to-br from-brand-teal to-brand font-display text-2xl font-bold text-white shadow-glow">
+        <div className="grid h-16 w-16 place-items-center rounded-2xl bg-gradient-to-br from-brand via-brand/85 to-brand font-display text-2xl font-bold text-white shadow-glow">
           {initial}
         </div>
         <div className="min-w-0 flex-1">

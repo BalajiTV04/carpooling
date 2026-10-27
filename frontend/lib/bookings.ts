@@ -39,12 +39,12 @@ export const bookingApi = {
 
 export function statusPillCls(s: BookingStatus) {
   return s === "confirmed" || s === "completed"
-    ? "bg-brand-teal text-brand-teal"
+    ? "bg-brand-teal text-on-brand-teal"
     : s === "accepted"
-      ? "bg-accent text-white"
+      ? "bg-accent text-on-accent"
       : s === "requested"
         ? "border border-brand-teal/60 text-brand-teal"
         : s === "rejected"
           ? "border border-rose-400/50 text-rose-300"
-          : "border border-[rgba(154,151,255,.4)] text-[#A5ABD6]";
+          : "border border-brand/40 text-muted";
 }

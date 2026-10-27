@@ -11,6 +11,7 @@ from app.api.v1 import (
     bookings,
     cost,
     db_admin,
+    fuel,
     geo,
     health,
     live,
@@ -32,6 +33,7 @@ from app.api.v1 import (
 router = APIRouter()
 router.include_router(health.router)
 router.include_router(db_admin.router)
+router.include_router(fuel.router)
 router.include_router(auth.router)
 router.include_router(profile.router)
 router.include_router(vehicles.router)

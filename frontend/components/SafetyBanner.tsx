@@ -69,7 +69,7 @@ export function SafetyBanner({ tripId, driverId, isDriverForce }: { tripId: stri
           />
           <button
             onClick={sos} disabled={busy}
-            className="rounded-full bg-rose-500 px-3 py-1 text-[11px] font-bold text-white"
+            className="rounded-full bg-danger px-3 py-1 text-[11px] font-bold text-white"
           >
             {busy ? "…" : "🆘 SOS"}
           </button>

@@ -352,4 +352,225 @@ async def resolve_alert(alert_id: str, user: Dict = Depends(_admin)):
     return {"resolved": True, "alert": _alert_row(updated)}
 
 
+# ---------------------------------------------------------------------------
+# Driver approval (admin gates whether a driver may publish trips/plans)
+# ---------------------------------------------------------------------------
+
+def _driver_row(doc: Dict) -> Dict:
+    """One driver account with their latest vehicle + approval state."""
+    return {
+        "id": str(doc["_id"]),
+        "full_name": doc.get("full_name", ""),
+        "phone": doc.get("phone"),
+        "roles": doc.get("roles", []),
+        "phone_verified": bool(doc.get("phone_verified", False)),
+        "driver_approval": doc.get("driver_approval"),
+        "driver_approval_note": doc.get("driver_approval_note"),
+        "driver_approval_at": doc.get("driver_approval_at"),
+        "driver_approval_by": doc.get("driver_approval_by"),
+        "status": doc.get("status", "active"),
+        "rating_avg": doc.get("rating_avg"),
+        "rating_count": int(doc.get("rating_count", 0)),
+        "created_at": doc.get("created_at"),
+    }
+
+
+@router.get("/drivers")
+async def admin_drivers(
+    status_: str = Query(default="", alias="status"),
+    approval: str = Query(default="", description="pending|approved|rejected"),
+    limit: int = Query(default=50, ge=1, le=200),
+    user: Dict = Depends(_admin),
+):
+    """All driver accounts with approval state — admin decides who may plan."""
+    _ = user
+    db = get_db()
+    query: Dict = {"roles": "driver"}
+    if status_:
+        if status_ not in ("active", "suspended"):
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY,
+                                "bad status filter")
+        query["status"] = status_
+    if approval:
+        if approval not in ("pending", "approved", "rejected"):
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY,
+                                "bad approval filter")
+        query["driver_approval"] = approval
+    cur = db.users.find(query).sort("created_at", -1).limit(limit)
+    rows: List[Dict] = []
+    async for doc in cur:
+        row = _driver_row(doc)
+        vehicle = await db.vehicles.find_one(
+            {"owner_id": doc["_id"], "is_active": True},
+            sort=[("created_at", -1)])
+        row["vehicle"] = None
+        if vehicle:
+            row["vehicle"] = {
+                "id": str(vehicle["_id"]),
+                "make": vehicle.get("make"),
+                "model": vehicle.get("model"),
+                "year": vehicle.get("year"),
+                "plate_no": vehicle.get("plate_no"),
+                "seats_total": vehicle.get("seats_total"),
+                "fuel_type": vehicle.get("fuel_type"),
+                "mileage_kmpl": vehicle.get("mileage_kmpl"),
+                "image_url": vehicle.get("image_url"),
+                "verification_status": vehicle.get("verification_status"),
+            }
+        rows.append(row)
+    return {"count": len(rows), "drivers": rows}
+
+
+class DriverDecisionIn(BaseModel):
+    decision: str  # approved | rejected
+    note: Optional[str] = None
+
+
+@router.post("/drivers/{user_id}/approve")
+async def approve_driver(user_id: str, body: DriverDecisionIn,
+                         user: Dict = Depends(_admin)):
+    """Admin accepts/rejects a driver — only approved drivers may plan trips."""
+    if body.decision not in ("approved", "rejected"):
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY,
+                            "decision must be approved|rejected")
+    db = get_db()
+    target = await _target_user(db, user_id)
+    if "driver" not in (target.get("roles") or []):
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY,
+                            "account is not a driver")
+    now = _utcnow()
+    patch = {
+        "driver_approval": body.decision,
+        "driver_approval_note": body.note,
+        "driver_approval_at": now,
+        "driver_approval_by": user["id"],
+        "updated_at": now,
+    }
+    if body.decision == "approved":
+        patch["status"] = "active"
+    await db.users.update_one({"_id": target["_id"]}, {"$set": patch})
+    if body.decision == "approved":
+        await db.users.update_one({"_id": target["_id"]},
+                                  {"$addToSet": {"roles": "driver"}})
+    updated = await db.users.find_one({"_id": target["_id"]})
+    await db.admin_notifications.insert_one({
+        "type": "driver_approved" if body.decision == "approved" else "driver_rejected",
+        "title": ("Driver approved — can now publish trips"
+                  if body.decision == "approved"
+                  else "Driver application rejected"),
+        "body": (f"{target.get('full_name')} ({target.get('phone')}) "
+                 f"{'is approved' if body.decision == 'approved' else 'was rejected'}"
+                 + (f" — {body.note}" if body.note else "")),
+        "user_id": target["_id"],
+        "actor_id": user["id"],
+        "read_at": None,
+        "created_at": now,
+    })
+    return {"changed": True, "decision": body.decision,
+            "user": _driver_row(updated)}
+
+
+@router.get("/notifications")
+async def admin_notifications_feed(
+    limit: int = Query(default=50, ge=1, le=200),
+    unread_only: bool = False,
+    user: Dict = Depends(_admin),
+):
+    """Admin notification feed: accounts created, trips accepted, SOS raised."""
+    _ = user
+    db = get_db()
+    query: Dict = {}
+    if unread_only:
+        query["read_at"] = None
+    docs = await db.admin_notifications.find(query).sort(
+        "created_at", -1).limit(limit).to_list(limit)
+    out = []
+    for d in docs:
+        actor = await db.users.find_one(
+            {"_id": d.get("actor_id")}, {"full_name": 1, "phone": 1})
+        out.append({
+            "id": str(d["_id"]),
+            "type": d.get("type"),
+            "title": d.get("title"),
+            "body": d.get("body"),
+            "actor_name": (actor or {}).get("full_name") or (actor or {}).get("phone") or "—",
+            "user_id": str(d["user_id"]) if d.get("user_id") else None,
+            "read_at": d.get("read_at"),
+            "created_at": d.get("created_at"),
+        })
+    unread = sum(1 for d in docs if d.get("read_at") is None)
+    return {"count": len(out), "unread": unread, "items": out}
+
+
+@router.post("/notifications/{notification_id}/read")
+async def admin_notification_read(notification_id: str,
+                                  user: Dict = Depends(_admin)):
+    db = get_db()
+    doc = await db.admin_notifications.find_one_and_update(
+        {"_id": _oid(notification_id, "notification not found"),
+         "read_at": None},
+        {"$set": {"read_at": _utcnow()}}, return_document=True)
+    if doc is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND,
+                            "notification not found or already read")
+    return {"read": True}
+
+
+# ---------------------------------------------------------------------------
+# Dashboard charts (graphs for the admin console)
+# ---------------------------------------------------------------------------
+
+@router.get("/charts")
+async def admin_charts(
+    days: int = Query(default=7, ge=1, le=90),
+    user: Dict = Depends(_admin),
+):
+    """Time-series counts for dashboard graphs: signups, trips, bookings,
+    SOS alerts — one row per day over the last `days`."""
+    _ = user
+    from datetime import datetime, timezone, timedelta
+    db = get_db()
+    now = datetime.now(timezone.utc)
+    start = now - timedelta(days=days - 1)
+    start = start.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    def bucket(docs, date_field):
+        counts = {}
+        for d in docs:
+            v = d.get(date_field)
+            if v is None:
+                continue
+            day = (v if hasattr(v, "date") else
+                   datetime.fromisoformat(str(v).replace("Z", "+00:00")))
+            key = day.strftime("%Y-%m-%d")
+            counts[key] = counts.get(key, 0) + 1
+        return counts
+
+    users_docs = await db.users.find({"created_at": {"$gte": start}},
+                                     {"created_at": 1}).to_list(None)
+    trips_docs = await db.trips.find({"created_at": {"$gte": start}},
+                                     {"created_at": 1}).to_list(None)
+    bookings_docs = await db.bookings.find({"created_at": {"$gte": start}},
+                                           {"created_at": 1}).to_list(None)
+    alerts_docs = await db.safety_alerts.find({"created_at": {"$gte": start}},
+                                              {"created_at": 1}).to_list(None)
+
+    labels = []
+    series = {"signups": [], "trips": [], "bookings": [], "alerts": []}
+    for i in range(days):
+        day = (start + timedelta(days=i)).strftime("%Y-%m-%d")
+        labels.append(day)
+        u = bucket(users_docs, "created_at").get(day, 0)
+        t = bucket(trips_docs, "created_at").get(day, 0)
+        b = bucket(bookings_docs, "created_at").get(day, 0)
+        a = bucket(alerts_docs, "created_at").get(day, 0)
+        series["signups"].append(u)
+        series["trips"].append(t)
+        series["bookings"].append(b)
+        series["alerts"].append(a)
+
+    return {"labels": labels, "days": days, "series": series,
+            "generated_at": _utcnow()}
+
+
 

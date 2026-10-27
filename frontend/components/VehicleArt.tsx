@@ -150,7 +150,7 @@ export function VehicleArt() {
       </div>
 
       <div className="passenger-pop absolute bottom-[30%] left-[27%] flex items-center gap-1.5 rounded-full border border-brand-teal/40 surface/85 px-2.5 py-1 text-[10px] font-bold text-brand-teal backdrop-blur">
-        <span className="grid h-4 w-4 place-items-center rounded-full bg-brand-teal text-[9px] font-black text-brand-teal">
+        <span className="grid h-4 w-4 place-items-center rounded-full bg-brand-teal text-[9px] font-black text-on-brand-teal">
           P
         </span>
         boarding

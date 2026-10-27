@@ -20,10 +20,10 @@ export function RoleCard({
         : "hover:border-rose-400/60 hover:shadow-card";
   const chip =
     accent === "volt"
-      ? "bg-brand-teal text-brand-teal"
+      ? "bg-brand-teal text-on-brand-teal"
       : accent === "iris"
-        ? "bg-accent text-white"
-        : "bg-brand-rose text-brand-teal";
+        ? "bg-accent text-on-accent"
+        : "bg-danger text-white";
   return (
     <a
       href={href}

@@ -62,7 +62,7 @@ export function NavBar() {
             <span className="font-display block text-[15px] font-bold tracking-tight">
               VoltRide
             </span>
-            <span className="block text-[10px] uppercase tracking-[.18em] text-muted transition-colors group-hover:text-brand">
+            <span className="block mt-1 text-[10px] uppercase tracking-[.18em] text-muted transition-colors group-hover:text-brand">
               route-aware sharing
             </span>
           </span>
@@ -103,11 +103,33 @@ export function NavBar() {
             </>
           ) : (
             <>
-              <Link href="/login" className="rounded-full px-3 py-1.5 text-muted transition hover:bg-surface/50 hover:text-brand">
-                Log in
-              </Link>
-              <Link href="/register" className="btn btn-primary btn-sm">
-                Join
+              <div className="flex items-center gap-1 text-sm">
+                <Link
+                  href="/login?role=driver"
+                  className="rounded-full border border-brand-teal/60 px-3 py-1.5 text-brand transition hover:bg-brand-teal/10"
+                  title="Driver login"
+                >
+                  Driver login
+                </Link>
+                <Link
+                  href="/login?role=passenger"
+                  className="rounded-full border border-brand-teal/60 px-3 py-1.5 text-brand transition hover:bg-brand-teal/10"
+                  title="Passenger login"
+                >
+                  Passenger login
+                </Link>
+                <Link
+                  href="/login?role=admin"
+                  className="rounded-full border border-brand-teal/60 px-3 py-1.5 text-brand transition hover:bg-brand-teal/10"
+                  title="Admin login"
+                >
+                  Admin login
+                </Link>
+              </div>
+              <div className="px-2 text-[10px] text-muted">·</div>
+              <span className="text-xs text-muted">New here?</span>{" "}
+              <Link href="/register" className="text-xs underline underline-offset-2 hover:text-brand transition-colors">
+                Create account
               </Link>
             </>
           )}

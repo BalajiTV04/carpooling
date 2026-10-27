@@ -44,6 +44,25 @@ export type PendingVehicle = {
   verification_status: string; is_active: boolean;
 };
 
+export type AdminDriverVehicle = {
+  id: string; make: string; model: string; year: number | null;
+  plate_no: string; seats_total: number; fuel_type: string;
+  mileage_kmpl: number | null; image_url: string | null;
+  verification_status: string;
+};
+
+export type AdminDriver = {
+  id: string; full_name: string; phone: string | null;
+  roles: string[]; phone_verified: boolean;
+  driver_approval: string | null;
+  driver_approval_note: string | null;
+  driver_approval_at: string | null;
+  driver_approval_by: string | null;
+  status: string; rating_avg: number | null; rating_count: number;
+  created_at: string | null;
+  vehicle: AdminDriverVehicle | null;
+};
+
 import { req } from "@/lib/http";
 
 export const adminApi = {
@@ -64,6 +83,27 @@ export const adminApi = {
   verifyVehicle: (id: string, decision: "verified" | "rejected", note = "") =>
     req(`/vehicles/admin/${id}/verify?decision=${decision}&note=${encodeURIComponent(note)}`,
       { method: "POST" }),
+
+  // ---- Driver approval (admin gates who may publish plans) ----
+  drivers: (status = "", approval = "", limit = 50) =>
+    req<{ count: number; drivers: AdminDriver[] }>(
+      `/admin/drivers?status=${encodeURIComponent(status)}&approval=${encodeURIComponent(approval)}&limit=${limit}`),
+  approveDriver: (id: string, decision: "approved" | "rejected", note = "") =>
+    req(`/admin/drivers/${id}/approve`, {
+      method: "POST",
+      body: JSON.stringify({ decision, note }),
+    }),
+
+  // ---- Admin notification feed ----
+  adminNotifications: (limit = 50, unreadOnly = false) =>
+    req(`/admin/notifications?limit=${limit}&unread_only=${unreadOnly ? "true" : "false"}`),
+  readAdminNotification: (id: string) =>
+    req(`/admin/notifications/${id}/read`, { method: "POST" }),
+
+  // ---- Dashboard charts ----
+  adminCharts: (days = 7) =>
+    req<{ labels: string[]; days: number; series: any; generated_at: string }>(
+      `/admin/charts?days=${days}`),
 };
 
 export function severityCls(sev: string) {

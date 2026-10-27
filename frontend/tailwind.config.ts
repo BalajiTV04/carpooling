@@ -65,7 +65,7 @@ export default {
         display: ["var(--font-sans)"],
       },
       boxShadow: {
-        glow: "0 0 24px rgba(22, 125, 141, 0.35)",
+        glow: "0 0 24px rgba(198, 255, 74, 0.35)",
       },
     },
   },
