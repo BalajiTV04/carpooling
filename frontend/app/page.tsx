@@ -23,7 +23,6 @@ export default function Home() {
       .then(setHealth)
       .catch((e) => setError(e?.message ?? "Backend unreachable"));
   }, []);
-
   const healthClass = health?.db === "connected" ? "pill-brand" : "pill-muted";
   const healthLabel = health?.db === "connected" ? "connected" : "offline";
 <section className="relative isolate py-16 px-4 md:px-8">
