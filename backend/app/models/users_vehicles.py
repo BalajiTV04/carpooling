@@ -15,6 +15,10 @@ class UserDoc(BaseModel):
     roles: List[str]
     avatar_url: Optional[str] = None
     phone_verified: bool = False
+    driver_approval: Optional[str] = Field(default=None, description="pending | approved | rejected; null for non-drivers")
+    driver_approval_note: Optional[str] = Field(default=None, description="admin note for rejection")
+    driver_approval_at: Optional[datetime] = Field(default=None, description="when the decision was made")
+    driver_approval_by: Optional[str] = Field(default=None, description="admin who made the decision")
     rating_avg: Optional[float] = Field(default=None, ge=0, le=5)
     rating_count: int = 0
     status: str = "active"

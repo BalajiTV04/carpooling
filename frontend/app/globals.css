@@ -6,47 +6,46 @@
 /* Light theme (default) and Dark theme via [data-theme="dark"] */
 
 :root {
-  --color-bg: 245 247 250;      /* #F5F7FA - page background (light) */
-  --color-surface: 234 240 245; /* #EAF0F5 - secondary background (light) */
-  --color-card: 255 255 255;    /* #FFFFFF - cards (light) */
-  --color-brand: 20 43 74;      /* #142B4A - nav, headings */
-  --color-brand-teal: 22 125 141; /* #167D8D - primary actions */
-  --color-accent: 66 199 183;   /* #42C7B7 - highlights */
-  --color-ink: 23 43 77;        /* #172B4D - primary text */
-  --color-muted: 100 116 139;   /* #64748B - secondary text */
-  --color-line: 220 228 236;    /* #DCE4EC - borders */
-  --color-success: 22 134 91;   /* #16865B */
-  --color-warn: 233 162 59;     /* #E9A23B */
-  --color-danger: 220 53 69;    /* #DC3545 - errors/emergency */
+  /* Palette (light, default) */
+  --color-bg: 245 247 250;        /* #F5F7FA — primary page background */
+  --color-surface: 234 240 245;   /* #EAF0F5 — secondary background / panels */
+  --color-card: 255 255 255;      /* #FFFFFF — card background */
+  --color-brand: 20 43 74;        /* #142B4A — nav, headings, primary text anchors */
+  --color-brand-teal: 22 125 141; /* #167D8D — primary actions, links */
+  --color-accent: 66 199 183;     /* #42C7B7 — highlights, accent strokes */
+  --color-ink: 23 43 77;          /* #172B4D — primary text */
+  --color-muted: 100 116 139;     /* #64748B — secondary text */
+  --color-line: 220 228 236;      /* #DCE4EC — borders */
+  --color-success: 22 134 91;     /* #16865B */
+  --color-warn: 233 162 59;       /* #E9A23B */
+  --color-danger: 220 53 69;      /* #DC3545 — errors / emergency */
 
-  /* Dark theme tokens */
-  --color-dark-bg: 10 15 30;    /* #0A0F1E - page background (dark) */
-  --color-dark-surface: 17 24 51; /* #111833 - secondary background (dark) */
-  --color-dark-card: 20 25 35;  /* #141927 - cards (dark) */
-  --color-dark-ink: 242 244 255; /* #F2F4FF - primary text (dark) */
-  --color-dark-muted: 142 152 192; /* #8E98C0 - secondary text (dark) */
-  --color-dark-line: 31 42 77;  /* #1F2A4D - borders (dark) */
+  /* Functional derived tokens */
+  --color-brand-teal-hover: 15 95 107;
+  --color-brand-teal-active: 11 72 82;
 
-  /* Font: Inter, system UI fallback */
+  /* Elevation & shape */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.03);
+  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.04);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.07), 0 4px 6px -4px rgb(0 0 0 / 0.05);
+
+  /* Focus ring */
+  --ring-width: 2px;
+  --ring-color: rgb(var(--color-brand-teal) / 0.45);
+
+  /* Fonts */
   --font-sans: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  --font-display: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
 }
 
-/* Apply font and background to root based on theme */
-html {
-  font-family: var(--font-sans);
-  background-color: rgb(var(--color-bg));
-  color: rgb(var(--color-ink));
-}
+html { font-family: var(--font-sans); background-color: rgb(var(--color-bg)); color: rgb(var(--color-ink)); }
 
-/* Dark theme when [data-theme="dark"] is set on <html> */
-[data-theme="dark"] {
-  --color-bg: var(--color-dark-bg);
-  --color-surface: var(--color-dark-surface);
-  --color-card: var(--color-dark-card);
-  --color-ink: var(--color-dark-ink);
-  --color-muted: var(--color-dark-muted);
-  --color-line: var(--color-dark-line);
-}
+body { background-color: rgb(var(--color-bg)); color: rgb(var(--color-ink)); -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 
 /* Remove Tailwind's default bg-white/color-gray-800 */
 @layer base {
@@ -62,9 +61,13 @@ html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
+  h1, h2, h3, h4, h5, h6 { font-family: var(--font-display); color: rgb(var(--color-ink)); }
+  a { color: inherit; text-decoration: inherit; }
+  button, input, select, textarea { font-family: inherit; }
+  body { line-height: 1.5; }
 }
 
-/* --- Tailwind Component Customizations --- */
+/* --- VoltRide component system --- */
 @layer components {
   /* Buttons */
   .btn {
@@ -160,3 +163,87 @@ html {
     @apply rounded-md border border-line bg-surface/50 px-4 py-3 text-ink;
   }
 }
+
+/* VoltRide component system (clean light theme; overrides via cascade) */
+@layer components {
+  /* Buttons */
+  .btn { @apply inline-flex items-center justify-center rounded-md font-medium text-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-60 disabled:pointer-events-none; }
+  .btn-primary { @apply btn bg-brand-teal text-white hover:bg-brand-teal/90 focus-visible:ring-2 focus-visible:ring-brand-teal/50 shadow-sm; }
+  .btn-secondary { @apply btn bg-white text-ink border border-line hover:bg-surface focus-visible:ring-2 focus-visible:ring-brand-teal/50 shadow-sm; }
+  .btn-ghost { @apply btn bg-transparent text-muted hover:bg-surface hover:text-brand focus-visible:ring-2 focus-visible:ring-brand-teal/50; }
+  .btn-danger { @apply btn bg-danger text-white hover:bg-danger/90 focus-visible:ring-2 focus-visible:ring-danger/50 shadow-sm; }
+  .btn-sm { @apply px-3 py-1.5 text-xs; }
+  .btn-md { @apply px-4 py-2; }
+  .btn-lg { @apply px-5 py-2.5 text-base; }
+
+  /* Inputs */
+  .input { @apply w-full rounded-md border border-line bg-card px-3 py-2.5 text-sm text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-brand-teal focus:border-brand-teal transition-colors disabled:bg-surface/50 disabled:cursor-not-allowed; }
+  .textarea { @apply input min-h-[100px] resize-y; }
+  .select { @apply w-full rounded-md border border-line bg-card px-3 py-2.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand-teal focus:border-brand-teal cursor-pointer disabled:bg-surface/50 disabled:cursor-not-allowed; }
+
+  /* Cards / panels */
+  .card { @apply rounded-xl border border-line bg-card shadow-sm overflow-hidden; }
+  .card-hover { @apply card transition-shadow hover:shadow-md; }
+  .panel { @apply rounded-lg border border-line bg-card shadow-sm; }
+
+  /* Badges / pills */
+  .badge { @apply inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium leading-none; }
+  .badge-brand { @apply badge border-brand-teal/20 bg-brand-teal/10 text-brand-teal; }
+  .badge-success { @apply badge border-success/20 bg-success/10 text-success; }
+  .badge-warning { @apply badge border-warn/20 bg-warn/10 text-ink; }
+  .badge-danger { @apply badge border-danger/20 bg-danger/10 text-danger; }
+  .badge-muted { @apply badge border-line/50 bg-surface text-muted; }
+  .pill { @apply inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold leading-none; }
+  .pill-brand { @apply pill border-brand-teal/20 bg-brand-teal/10 text-brand-teal; }
+  .pill-success { @apply pill border-success/20 bg-success/10 text-success; }
+  .pill-warning { @apply pill border-warn/20 bg-warn/10 text-ink; }
+  .pill-danger { @apply pill border-danger/20 bg-danger/10 text-danger; }
+  .pill-muted { @apply pill border-line/50 bg-surface text-muted; }
+
+  /* Alerts */
+  .alert { @apply rounded-md border px-4 py-3 text-sm; }
+  .alert-success { @apply alert border-success/20 bg-success/5 text-success; }
+  .alert-warning { @apply alert border-warn/20 bg-warn/5 text-ink; }
+  .alert-danger { @apply alert border-danger/20 bg-danger/5 text-danger; }
+  .alert-info { @apply alert border-brand-teal/20 bg-brand-teal/5 text-brand-teal; }
+
+  /* Section header / empty state / table */
+  .section-head { @apply flex items-center justify-between mb-6; }
+  .section-title { @apply text-lg font-bold text-ink tracking-tight; }
+  .section-sub { @apply text-sm text-muted; }
+  .empty-state { @apply flex flex-col items-center justify-center py-12 text-center; }
+  .empty-icon { @apply mb-4 h-12 w-12 rounded-full bg-surface flex items-center justify-center text-muted; }
+  .table-wrap { @apply overflow-x-auto; }
+  .table { @apply w-full text-left border-collapse text-sm; }
+  .table th { @apply px-4 py-3 text-xs font-semibold text-muted uppercase tracking-wider border-b border-line bg-surface; }
+  .table td { @apply px-4 py-3.5 border-b border-line text-ink/90; }
+  .table tr:last-child td { @apply border-b-0; }
+  .table tr:hover td { @apply bg-surface/40; }
+
+  /* Toast / loader / nav link */
+  .toast { @apply fixed bottom-5 right-5 z-50 rounded-lg border border-line bg-card shadow-lg px-4 py-3 text-sm text-ink animate-in fade-in slide-in-from-right-4 duration-300; }
+  .toast-success { @apply toast border-success/20 bg-success/5 text-success; }
+  .toast-error { @apply toast border-danger/20 bg-danger/5 text-danger; }
+  .loader { @apply inline-block h-5 w-5 rounded-full border-2 border-current border-t-transparent animate-spin text-brand-teal; }
+  .nav-link { @apply relative text-muted hover:text-brand transition-colors after:absolute after:bottom-0 after:left-0 after:w-0 after:h-[1px] after:bg-brand-teal after:transition-all hover:after:w-full; }
+
+  /* Token utilities */
+  .bg-token-bg { background-color: rgb(var(--color-bg)); }
+  .bg-token-surface { background-color: rgb(var(--color-surface)); }
+  .bg-token-card { background-color: rgb(var(--color-card)); }
+  .bg-token-brand { background-color: rgb(var(--color-brand)); }
+  .bg-token-brand-teal { background-color: rgb(var(--color-brand-teal)); }
+  .bg-token-accent { background-color: rgb(var(--color-accent)); }
+  .text-token-ink { color: rgb(var(--color-ink)); }
+  .text-token-muted { color: rgb(var(--color-muted)); }
+  .text-token-brand { color: rgb(var(--color-brand)); }
+  .text-token-brand-teal { color: rgb(var(--color-brand-teal)); }
+  .text-token-accent { color: rgb(var(--color-accent)); }
+  .border-token-line { border-color: rgb(var(--color-line)); }
+}
+
+/* Link styling */
+.link-volt { @apply text-brand-teal font-medium transition-colors hover:underline hover:text-brand-teal-hover; }
+
+/* Skip link for accessibility */
+.skip-link { @apply sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:bg-brand focus:text-white focus:px-4 focus:py-2 focus:rounded; }
