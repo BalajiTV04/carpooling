@@ -18,10 +18,16 @@ export default {
         },
         ink: "rgb(var(--color-ink))",
         muted: "rgb(var(--color-muted))",
-        line: "rgb(var(--color-line))",
+        line: {
+          DEFAULT: "rgb(var(--color-line))",
+          hover: "rgb(var(--color-line-hover))",
+        },
         surface: "rgb(var(--color-surface))",
         bg: "rgb(var(--color-bg))",
-        card: "rgb(var(--color-card))",
+        card: {
+          DEFAULT: "rgb(var(--color-card))",
+          hover: "rgb(var(--color-card-hover))",
+        },
         success: {
           DEFAULT: "rgb(var(--color-success))",
         },
@@ -66,8 +72,13 @@ export default {
       },
       boxShadow: {
         glow: "0 0 24px rgba(198, 255, 74, 0.35)",
+        "glow-brand": "0 0 40px rgb(var(--color-brand) / 0.25)",
       },
     },
   },
   plugins: [],
+  safelist: [
+    'bg-card-hover',
+    'border-line-hover',
+  ],
 } satisfies Config;

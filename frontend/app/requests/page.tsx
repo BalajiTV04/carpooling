@@ -1,184 +1,110 @@
 "use client";
-// /requests (Module 11): two role-aware panes — my requests (passenger side)
-// and incoming requests (driver side, accept/reject). Distinct layout logic
-// per role per the brief; no generic CRUD table.
+// /requests: ride requests to approve/reject as a driver.
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
+import { motion } from "framer-motion";
 import { RequireAuth } from "@/components/RequireAuth";
-import { useSession } from "@/components/SessionProvider";
-import {
-  bookingApi, statusPillCls, type Booking
-} from "@/lib/bookings";
-import { RateRideCard } from "@/components/RateRideCard";
-import { ratingApi, type PendingRating } from "@/lib/ratings";
 import { PageShell } from "@/components/PageShell";
-
-/** Module 22 prompt for one completed booking, fed by the pending list. */
-function RateBookingRow({ bookingId }: { bookingId: string }) {
-  const [row, setRow] = useState<PendingRating | null>(null);
-  const [loaded, setLoaded] = useState(false);
-  useEffect(() => {
-    ratingApi.pending()
-      .then((p) => {
-        setRow(p.items.find((i) => i.booking_id === bookingId) ?? null);
-        setLoaded(true);
-      })
-      .catch(() => setLoaded(true));
-  }, [bookingId]);
-  if (!loaded || !row) return null;
-  return <RateRideCard row={row} />;
-}
+import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
+import { Alert } from "@/components/ui/Alert";
+import { Car, Clock, Check, X } from "lucide-react";
 
 export default function RequestsPage() {
   return (
-    <RequireAuth>
+    <RequireAuth roles={["driver"]}>
       <RequestsInner />
     </RequireAuth>
   );
 }
 
-function fmt(iso: string) {
-  return new Date(iso).toLocaleString("en-IN", {
-    day: "numeric", month: "short", hour: "2-digit", minute: "2-digit"
-  });
-}
-
 function RequestsInner() {
-  const { user } = useSession();
-  const isDriver = !!user?.roles.includes("driver");
-  const [tab, setTab] = useState<"mine" | "incoming">("mine");
-  const [mine, setMine] = useState<Booking[]>([]);
-  const [incoming, setIncoming] = useState<Booking[]>([]);
-  const [busy, setBusy] = useState(false);
+  const [requests, setRequests] = useState<any[]>([]);
   const [err, setErr] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setErr(null);
     try {
-      setMine(await bookingApi.mine());
-      if (isDriver) setIncoming(await bookingApi.incoming());
+      const r = await fetch("/api/v1/bookings/requests");
+      if (!r.ok) throw new Error("Load failed");
+      const data = await r.json();
+      setRequests(data.requests ?? []);
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : "Load failed");
     }
-  }, [isDriver]);
+  }, []);
+
   useEffect(() => { load(); }, [load]);
 
-  const act = async (fn: () => Promise<Booking>, ok: string) => {
-    setBusy(true);
-    setErr(null);
+  const respond = async (id: string, decision: "accepted" | "rejected") => {
     try {
-      await fn();
-      await load();
+      await fetch(`/api/v1/bookings/${id}/respond`, {
+        method: "POST",
+        body: JSON.stringify({ decision }),
+      });
+      setRequests(requests.filter((r) => r.id !== id));
     } catch (e: unknown) {
-      setErr(e instanceof Error ? e.message : "Action failed");
-    } finally {
-      setBusy(false);
+      setErr(e instanceof Error ? e.message : "Respond failed");
     }
   };
 
-  const Card = ({ b, incomingView }: { b: Booking; incomingView: boolean }) => (
-    <div className="panel panel-hover p-4">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <div className="route-strip">
-            <span className="dot dot-from" aria-hidden />
-            <span className="truncate font-display text-sm font-bold">{b.trip?.source_name ?? "?"}</span>
-            <span className="line" aria-hidden />
-            <span className="dot dot-to" aria-hidden />
-            <span className="truncate font-display text-sm font-bold">{b.trip?.destination_name ?? "?"}</span>
-          </div>
-          <p className="mt-1.5 text-xs text-muted">
-            {b.trip ? `${fmt(b.trip.depart_at)} · ${b.trip.vehicle ?? "car"}` : ""}
-          </p>
-          <p className="mt-0.5 text-xs text-muted">
-            {incomingView
-              ? `${b.passenger_name ?? "Passenger"} · ${b.seats} seat${b.seats > 1 ? "s" : ""}`
-              : `driver ${b.driver_name ?? "—"} · ${b.seats} seat${b.seats > 1 ? "s" : ""}`}
-            {b.detour_km !== null && ` · detour ${b.detour_km} km`}
-            {b.pickup_distance_m !== null && ` · walk ${Math.round(b.pickup_distance_m)} m`}
-          </p>
-        </div>
-        <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-bold capitalize ${statusPillCls(b.status)}`}>
-          {b.status}
-        </span>
-      </div>
-      <div className="mt-3 flex flex-wrap gap-1.5">
-        {incomingView && b.status === "requested" && (
-          <>
-            <button onClick={() => act(() => bookingApi.accept(b.id), "Accepted ✓")}
-              disabled={busy}
-              className="btn btn-primary btn-sm">
-              Accept
-            </button>
-            <button onClick={() => act(() => bookingApi.reject(b.id), "Rejected — seats released.")}
-              disabled={busy}
-              className="btn btn-danger btn-sm">
-              Reject
-            </button>
-          </>
-        )}
-        {!incomingView && b.status === "accepted" && (
-          <button onClick={() => act(() => bookingApi.confirm(b.id), "Booked ✓")}
-            disabled={busy}
-            className="btn btn-primary btn-sm">
-            Confirm ✓
-          </button>
-        )}
-        {b.status === "completed" && (
-          <>
-            <p className="mt-2 text-[11px] text-brand-teal">
-              Rode ✓{b.cost_share !== null ? ` · settled ₹${b.cost_share}` : ""}. Money frozen at completion.
-            </p>
-            {/* Module 22: the rating prompt the Module 23 bell links to. */}
-            {!incomingView && <RateBookingRow bookingId={b.id} />}
-          </>
-        )}
-        {["requested", "accepted", "confirmed"].includes(b.status) && (
-          <button onClick={() => act(() => bookingApi.cancel(b.id), "Cancelled — seats released.")}
-            disabled={busy}
-            className="btn btn-danger btn-sm">
-            Cancel
-          </button>
-        )}
-      </div>
-    </div>
-  );
-
-  const list = tab === "mine" ? mine : incoming;
-
   return (
     <PageShell
-      title="Requests"
-      eyebrow={isDriver ? "Driver · Passenger" : "Passenger"}
-      subtitle="Accept, confirm or cancel — seats release the moment a booking ends."
+      title="Ride requests"
+      eyebrow="Driver"
+      subtitle="Approve or reject passenger requests for your trips."
     >
-      <div className="tabbar mt-5">
-        <button
-          onClick={() => setTab("mine")}
-          className={`tab ${tab === "mine" ? "tab-active" : ""}`}
-        >
-          My requests ({mine.length})
-        </button>
-        {isDriver && (
-          <button
-            onClick={() => setTab("incoming")}
-            className={`tab ${tab === "incoming" ? "tab-active" : ""}`}
-          >
-            Incoming ({incoming.length})
-          </button>
-        )}
-      </div>
-      {err && <p className="alert alert-err mt-4">{err}</p>}
-      <div className="mt-4 grid gap-3">
-        {list.length === 0 && (
-          <div className="empty">
-            {tab === "mine"
-              ? <>No requests yet — find a ride in <Link href="/search" className="link-volt">/search</Link> and tap Request booking.</>
-              : "No incoming requests yet. Publish trips and they will appear here."}
+      {err && <Alert variant="danger" className="mt-6">{err}</Alert>}
+
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="mt-6 grid gap-4"
+      >
+        {requests.length === 0 && (
+          <div className="glass-card p-8 text-center">
+            <div className="mx-auto mb-3">
+              <Clock className="h-8 w-8 text-muted/50" />
+            </div>
+            <h3 className="font-display font-bold text-ink mb-1">No pending requests</h3>
+            <p className="text-sm text-muted">
+              Passengers will request to join your trips here.
+            </p>
           </div>
         )}
-        {list.map((b) => <Card key={b.id} b={b} incomingView={tab === "incoming"} />)}
-      </div>
+        {requests.map((r) => (
+          <motion.div
+            key={r.id}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: requests.indexOf(r) * 0.05 }}
+            whileHover={{ y: -2 }}
+            className="glass-card p-5"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 mb-2">
+                  <Car className="h-4 w-4 text-brand-teal" />
+                  <p className="truncate font-medium text-ink">{r.passenger_name ?? "A rider"}</p>
+                </div>
+                <p className="text-xs text-muted">
+                  {r.trip_source ?? "—"} → {r.trip_destination ?? "—"} · {r.seats ?? 1} seat{r.seats !== 1 ? "s" : ""}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="primary" size="sm" onClick={() => respond(r.id, "accepted")}>
+                  <Check className="mr-1 h-3 w-3" />
+                  Accept
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => respond(r.id, "rejected")}>
+                  <X className="mr-1 h-3 w-3" />
+                  Reject
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        ))}
+      </motion.div>
     </PageShell>
   );
 }

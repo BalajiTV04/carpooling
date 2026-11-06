@@ -1,482 +1,539 @@
-# Intelligent Private Vehicle Sharing
+# VoltRide — Intelligent Private Vehicle Sharing
 ### AI-Based Route-Aware Matching and Minimum-Detour Pickup Optimization
 
+---
 
-Status: **25 / 25 modules complete · 121 tests passing · 92 API routes · 11 collections**
+## Table of contents
 
-A private-vehicle sharing platform that matches riders to drivers travelling the
-same corridor, picks the pickup point that costs the driver the least extra
-distance, prices the share fairly, then tracks the ride and watches for safety
-events while it happens.
+1. [Overview](#overview)
+2. [Architecture](#architecture)
+3. [Tech stack](#tech-stack)
+4. [Directory structure](#directory-structure)
+5. [Environment setup](#environment-setup)
+6. [How to run locally](#how-to-run-locally)
+7. [API reference](#api-reference)
+8. [Frontend routes & components](#frontend-routes--components)
+9. [Design system (Tailwind)](#design-system-tailwind)
+10. [Testing](#testing)
+11. [25-module roadmap](#25-module-roadmap)
+12. [Deployment](#deployment)
+13. [Common errors & fixes](#common-errors--fixes)
+14. [Contributing & commit conventions](#contributing--commit-conventions)
 
-**Design direction locked:** B — Indigo + Lime Night Mobility (dark-first, bold map glow)
-
-**Priority order:** Safety → Route feasibility → Time compatibility → Seat
-availability → Minimum detour → Cost → Preferences → AI ranking.
-The model only re-orders candidates that already passed every hard gate; it can
-never promote a ride that is unsafe, infeasible or full. Every recommendation is
-explainable, and the numbers the driver sees are frozen at completion.
+> **Note:** `frontend/README.md` documents a separate *static HTML/CSS port* of the VoltRide design (no React, no Next.js, no build step). This file documents the real, framework-based codebase — the Next.js frontend + FastAPI backend monorepo.
 
 ---
 
-## At a glance
+## Overview
 
-| Layer | Technology |
-|---|---|
-| Backend | Python 3.8+, FastAPI, Pydantic v2, Motor (async MongoDB) |
-| Database | MongoDB 7 — 11 collections, JSON-schema validators, 28 indexes |
-| Frontend | Next.js 14 (App Router), React 18, TypeScript, Tailwind 3 |
-| Maps / routing | OSRM (route geometry), Nominatim (geocoding) |
-| ML | scikit-learn + XGBoost, offline training → stdlib JSON serving |
-| Realtime | Native WebSockets (Module 20) + in-app notification feed (Module 23) |
-| Deploy | Multi-stage Dockerfiles, healthchecked compose, readiness probes |
+VoltRide matches riders to drivers heading the same way. Core product logic:
 
-| Scale | |
-|---|---|
-| Modules | 25 |
-| Tests | 121 (`pytest`) |
-| API routes | 92 under `/api/v1` |
-| Pure service modules | 19 (~2 100 lines of DB-free, unit-tested business logic) |
-| API modules / model modules | 23 / 14 |
-| Frontend pages / components | 12 / 26 |
-| Ranker AUC | **0.9115** logreg (rf 0.8928 · xgb 0.9044) on 4 000 rows |
-
-### Four invariants worth knowing before reading the code
-1. **One ruler project-wide.** Matching, pickup optimisation, per-leg costing and
-   live progress all use the same equirectangular helpers in
-   `services/geo_math.py`, so two features can never disagree about a distance.
-2. **AI ranks, it never gates.** `services/matching.py` produces hard
-   feasibility; `services/ranker.py` only re-orders the survivors.
-3. **Money is frozen at completion.** Module 19 reads the settled `cost_share`
-   to build a receipt; it never recomputes it, so a later pricing change cannot
-   rewrite what the driver saw.
-4. **Side effects can never fail their caller.** `notifications.emit()` and
-   ratings writes are total — a dropped notification cannot roll back a booking,
-   a trip or a safety alert.
-
----
-
-## The 25 modules
-
-| # | Module | What it does | Key files | Tests | Note |
-|---|---|---|---|---|---|
-| 1 | [Setup](docs/module-01-setup.md) | Monorepo, env contract, health probe, run guide | `README.md`, `docker-compose.yml` | 2 | Entry point for everything |
-| 2 | [DB design](docs/module-02-db-design.md) | 11 collections, validators, 28 indexes, TTL | `database/schemas/*.json`, `core/indexes.py`, `init_db.py` | 10 | Tests pin all five schema mirrors |
-| 3 | [Auth](docs/module-03-auth.md) | Phone+password JWT, OTP verify, role add | `api/v1/auth.py`, `core/security.py` | 5 | Dev OTP shown on screen; no SMS provider |
-| 4 | [Profile](docs/module-04-profile.md) | Own profile edit, public card, role upgrade | `api/v1/profile.py` | 1 | Declared ratings read-only — M22 writes them |
-| 5 | [Vehicles](docs/module-05-vehicles.md) | Car CRUD + admin verification queue | `api/v1/vehicles.py` | 1 | Editing a car resets verification to pending |
-| 6 | [Trips](docs/module-06-trips.md) | Create/publish/cancel/delete + lifecycle | `api/v1/trips.py` | 1 | `draft → published → ongoing → completed` |
-| 7 | [Maps + routing](docs/module-07-maps.md) | OSRM route geometry, Nominatim geocoding | `services/routing.py` | 2 | Routing failure never fails a save |
-| 8 | [Search](docs/module-08-search.md) | Find rides by corridor, time, seats | `api/v1/search.py` | 1 | Returns feasible matches only |
-| 9 | [Matching](docs/module-09-matching.md) | Route overlap %, hard feasibility gates | `services/matching.py` | 7 | The gate the AI is not allowed to move |
-| 10 | [Pickup optimisation](docs/module-10-pickup-optimization.md) | Minimum-detour meeting point, walk/door | `services/pickup.py`, `services/stops.py` | 8 | Will walk up to 3 km to save a detour |
-| 11 | [Bookings](docs/module-11-bookings.md) | Request → accept/reject → confirm → cancel | `api/v1/bookings.py` | 1 | Seats reserved by atomic conditional `$inc` |
-| 12 | [Cost sharing](docs/module-12-cost.md) | Fuel model, 3 share policies, per-seat cap | `services/cost.py` | 8 | Shares can never exceed the trip cost |
-| 13 | [Per-leg segments](docs/module-13-segments.md) | Who pays for which leg of the route | `services/segments.py` | 6 | A full rider pays more than a short hop |
-| 14 | [Advance booking](docs/module-14-advance-booking.md) | Departure window policy + bookability | `services/booking_window.py` | 4 | Reason strings surface in the ride card |
-| 15 | [Recurring series](docs/module-15-recurring.md) | Daily / weekday / weekly materialisation | `services/recurring.py` | 6 | Instances are real trips, tagged with a group id |
-| 16 | [AI ranking](docs/module-16-ai-ranking.md) | Learned re-ranker over feasible matches | `ml/`, `services/ranker.py` | 5 | Trains offline, serves with stdlib only |
-| 17 | [Live tracking](docs/module-17-tracking.md) | Driver pings → progress + trail | `services/tracking.py`, `api/v1/tracking.py` | 3 | Off-route >500 m · stale >300 s |
-| 18 | [Safety](docs/module-18-safety.md) | SOS, over-speed, deviation alerts, ack | `services/safety.py`, `api/v1/safety.py` | 3 | One open alert per (trip, type) |
-| 19 | [Completion](docs/module-19-completion.md) | Start/complete, booking resolution, receipt | `services/lifecycle.py` | 4 | Money and seats are frozen here |
-| 20 | [Streaming](docs/module-20-streaming.md) | WebSocket push for fix/alert/ack frames | `services/hub.py`, `api/v1/live.py` | 6 | In-process hub → single worker by design |
-| 21 | [Admin console](docs/module-21-admin.md) | Users, trips, alerts, moderation, suspension | `services/moderation.py`, `api/v1/admin.py` | 5 | Self-lockout + last-admin protection |
-| 22 | [Ratings](docs/module-22-ratings.md) | One review per person per completed ride | `services/ratings.py`, `api/v1/ratings.py` | 7 | Aggregate recomputed, never `$inc`-drifted |
-| 23 | [Notifications](docs/module-23-notifications.md) | Event catalog, in-app bell, admin SOS fan-out | `services/notify.py`, `api/v1/notifications.py` | 5 | `emit()` can never raise |
-| 24 | [Analytics](docs/module-24-analytics.md) | Sustainability, demand forecast, model evaluation | `services/analytics.py`, `api/v1/analytics.py` | 13 | Negative km and unfavourable riders reported |
-| 25 | [Deploy](docs/module-25-deploy.md) | Production guard, probes, images, compose, seed | `core/config.py`, `seed.py` | 7 | Refuses to boot on a dev secret |
-| | **Total** | | | **121** | |
+- **Route-aware matching** — pair riders/drivers on shared corridors, not just nearby points.
+- **Minimum-detour pickup** — choose the pickup point that adds the least extra distance for the driver.
+- **Fair cost splitting** — price each share by fuel/mileage and a configurable cost policy.
+- **Live tracking** — follow the ride in real time with ETA.
+- **Safety monitoring** — watch for safety events while the ride is in progress.
+- **Driver/passenger roles** — separate consoles for publishing trips, booking, rating, and vehicle management.
 
 ---
 
 ## Architecture
 
 ```
-.
-├── backend/            FastAPI + Pydantic + Motor (async MongoDB)
+┌─────────────┐      HTTP /api/v1      ┌──────────────────┐      MongoDB      ┌──────────────┐
+│  Next.js    │ ◄─────────────────────► │   FastAPI        │ ◄───────────────► │  Motor ODM │
+│  (frontend) │     Port 3000           │  (backend)       │   Port 27017      │  (driver)  │
+│  Tailwind   │                         │  Port 8000       │                   │            │
+│  TypeScript │                         │  Python          │                   │            │
+└─────────────┘                         └──────────────────┘                   └──────────────┘
+        │                                               │
+        │                                               ▼
+        │                                      OSRM / Nominatim
+        │                              (routing + geocoding, Module 7)
+        ▼
+   framer-motion, lucide-react
+```
+
+Monorepo layout (each folder maps 1:1 to the 25 modules in `docs/`):
+
+## Tech stack
+
+| Layer | Technology | Version |
+|---|---|---|
+| Frontend framework | Next.js (App Router) | 14.2.13 |
+| UI library | React | 18.3.1 |
+| Language | TypeScript | 5.6.2 |
+| Styling | Tailwind CSS | 3.4.13 |
+| Animations | framer-motion | 14.7.1 |
+| Icons | lucide-react | 1.57.0 |
+| Utility | clsx, tailwind-merge | 2.1.1 / 3.7.0 |
+| Backend framework | FastAPI | 0.109–0.125 |
+| Backend language | Python | 3.8 / 3.11+ |
+| ASGI server | uvicorn | 0.25–0.34 |
+| Settings / validation | pydantic, pydantic-settings | 2.6+ / 2.2+ |
+| Database | MongoDB (Motor async driver) | 3.3+ |
+| Auth | python-jose, passlib[bcrypt] | 3.3.0 / 1.7.4 |
+| HTTP client | httpx | 0.26–0.29 |
+| Testing | pytest, pytest-asyncio | 7.4.4 / 0.21.1 |
+
+## Directory structure
+
+```
+carpooling/                         # monorepo root
+├── README.md                       # this file
+├── .env.example                    # full env contract (copy to .env)
+├── start-dev.bat / start-dev.ps1   # one-command dev launcher (Windows)
+├── docker-compose.yml              # mongo + backend + frontend dev wiring
+│
+├── frontend/                       # Next.js 14 App Router
 │   ├── app/
-│   │   ├── api/v1/     23 route modules (thin: gather → call service → write)
-│   │   ├── services/   19 PURE modules: no DB, no network, fully unit-tested
-│   │   ├── models/     14 Pydantic request/response + document shapes
-│   │   └── core/       config, security, deps, database, indexes
-│   ├── tests/          121 tests, one file per module
-│   ├── init_db.py      creates collections + validators + indexes (idempotent)
-│   ├── seed.py         one-command demo data (Module 25)
-│   └── Dockerfile      multi-stage, non-root production image
-├── frontend/           Next.js 14 App Router + React 18 + TS + Tailwind
-│   ├── app/            12 pages (/, /search, /requests, /trips, /me, /garage,
-│   │                   /admin, /analytics, /database, /login, /register, /verify)
-│   ├── components/     26 components
-│   └── lib/            20 typed API clients
-├── ml/                 dataset generation + ranker training → JSON weights
-├── database/           schemas/*.json validators + indexes/*.mongosh.js
-├── docs/               23 per-module notes (9-part template) → feeds the report
-└── docker-compose.yml  dev  ·  docker-compose.prod.yml  production
-```
+│   │   ├── layout.tsx              # root layout, imports ./globals.css
+│   │   ├── globals.css             # Tailwind directives + design tokens
+│   │   ├── page.tsx                # landing page (/)
+│   │   ├── analytics/...           # /analytics
+│   │   ├── admin/...               # /admin
+│   │   ├── database/...            # /database
+│   │   ├── driver/...              # /driver
+│   │   ├── garage/...              # /garage
+│   │   ├── login/...               # /login
+│   │   ├── me/...                  # /me
+│   │   ├── passenger/...           # /passenger
+│   │   ├── register/...            # /register
+│   │   ├── requests/...            # /requests
+│   │   ├── search/...              # /search
+│   │   ├── trips/...               # /trips
+│   │   └── verify/...              # /verify
+│   ├── components/
+│   │   ├── ui/                     # Button, Card, Input, Badge, Avatar, Separator, …
+│   │   ├── NavBar.tsx, PageShell.tsx, BrandMark.tsx, RequireAuth.tsx, …
+│   │   └── admin/, analytics/, database/, driver/, garage/, login/, me/,
+│   │       passenger/, register/, requests/, search/, trips/, verify/
+│   ├── lib/
+│   │   ├── api.ts, http.ts, auth.ts, bookings.ts, cost.ts, geo.ts, …
+│   │   └── utils.ts                # cn() helper (clsx + tailwind-merge)
+│   ├── tailwind.config.ts          # Tailwind theme + content paths
+│   ├── postcss.config.js
+│   ├── next.config.js
+│   ├── tsconfig.json               # paths: @/* -> ./*
+│   ├── .env.local                  # frontend env (copy from .env.example)
+│   └── package.json                # dev / build / start / lint / typecheck
+│
+├── backend/                        # FastAPI
+│   ├── app/
+│   │   ├── main.py                 # FastAPI entrypoint, CORS, mounts v1 router
+│   │   ├── api/v1/                 # versioned route modules (22 routers)
+│   │   │   ├── health.py           # /health, /ready, /version
+│   │   │   ├── auth.py             # auth (Module 3)
+│   │   │   ├── trips.py, bookings.py, search.py, geo.py, pickup.py, …
+│   │   │   ├── cost.py, segments.py, rank.py, ratings.py, …
+│   │   │   ├── notifications.py, analytics.py, tracking.py, safety.py, …
+│   │   │   ├── live.py             # /stream (Module 20 WebSocket)
+│   │   │   ├── admin.py, recurring.py, vehicles.py, profile.py, …
+│   │   │   ├── db_admin.py, fuel.py
+│   │   │   └── router.py           # single aggregation point
+│   │   ├── core/
+│   │   │   ├── config.py           # single env source of truth (get_settings)
+│   │   │   ├── database.py         # Motor client + ping_db()
+│   │   │   ├── deps.py, security.py, indexes.py
+│   │   │   └── models/
+│   │   └── services/
+│   ├── tests/                      # one test file per module (25 files)
+│   ├── conftest.py
+│   ├── pytest.ini                  # asyncio_mode = strict
+│   ├── requirements.txt
+│   ├── .env                        # backend env (copy from .env.example)
+│   └── .env.example
+│
+├── database/
+│   ├── schemas/                    # per-collection shapes (users, vehicles, trips, …)
+│   ├── indexes/                    # mongosh/js index scripts incl. 2dsphere
+│   └── seed/                       # dev seed scripts (never production data)
+│
+├── ml/                             # ML ranking / cost models (Module 16)
+│
+└── docs/
 
-**Why business logic lives in `services/`.** Every rule that the API, the tests
-and the report all need to agree on is a pure function with no database
-connection — `rating_eligibility()`, `completion_guard()`, `sustainability()`,
-`speed_verdict()`. The route module then only performs writes. That is why 121
-tests can cover the hard parts without a running server, and why the analytics
-console can never quote a different number than a receipt.
+## Environment setup
 
----
+1. Copy the root env template:
+   ```powershell
+   copy .env.example .env
+   ```
+2. Copy the backend env template:
+   ```powershell
+   copy backend\.env.example backend\.env
+   ```
+3. Copy the frontend env template:
+   ```powershell
+   copy frontend\.env.example frontend\.env.local
+   ```
+4. Edit values as needed (never commit real secrets).
 
-.
+### Full variable contract
 
-## Run the project
-
-### Prerequisites
-
-| Requirement | Version | Notes |
+| Variable | Default | Description |
 |---|---|---|
-| Python | 3.8+ | developed and tested on 3.8.0 |
-| Node.js | 18.17+ (20 LTS ideal) | Next 14 needs 18.17+ |
-| MongoDB | 7 | local `mongod` or `docker compose up -d mongo` |
-| Docker | optional | only for the container workflow |
+| `MONGO_URI` | `mongodb://localhost:27017` | MongoDB connection string |
+| `MONGO_DB` | `vehicle_sharing_dev` | Database name |
+| `BACKEND_PORT` | `8000` | Backend port |
+| `JWT_SECRET` | `change-me-in-dev-only-min-32-chars` | JWT signing secret (change in prod) |
+| `JWT_EXPIRE_MINUTES` | `10080` | Token lifetime (7 days) |
+| `CORS_ORIGINS` | `http://localhost:3000` | Comma-separated allowed frontend origins |
+| `APP_ENV` | `development` | `development` or `production` (Module 25 guard) |
+| `GIT_SHA` | `dev` | Build metadata baked in by Dockerfile |
+| `ROUTING_PROVIDER` | `osrm` | Routing provider switch (Module 7) |
+| `GEOCODER_PROVIDER` | `nominatim` | Geocoding provider |
+| `NEXT_PUBLIC_API_URL` | `http://localhost:8000/api/v1` | Frontend-facing API base |
+| `NEXT_PUBLIC_MAP_STYLE` | `dark` | Map theme |
+| `NEXT_PUBLIC_OSRM_URL` | `https://router.project-osrm.org` | OSRM demo endpoint |
+| `NEXT_PUBLIC_NOMINATIM_URL` | `https://nominatim.openstreetmap.org` | Nominatim endpoint |
+| `FUEL_PRICE_PETROL/DIESEL/CNG/EV/HYBRID` | `104.5 / 95.0 / 89.0 / 12.0 / 95.0` | Per-unit fuel prices in INR (Module 12) |
+| `DEFAULT_MILEAGE_KMPL` | `15.0` | Default vehicle mileage |
+| `DEFAULT_COST_POLICY` | `split_equal` | Default cost-split policy |
 
-### Quick start (Windows)
+## How to run locally
 
-```powershell
-.\start-dev.ps1            # opens backend (:8000) + frontend (:3000) windows
-# or double-click start-dev.bat
-```
+### Option 1 — one-command dev launcher (recommended, Windows)
 
-**Always-on:** two Task Scheduler tasks — `Carpooling Backend` and
-`Carpooling Frontend` — start the servers automatically at every logon
-(hidden; logs go to `backend\run.log` and `frontend\dev.log`). MongoDB runs
-as a Windows service, so it is already always-on. Manage the tasks with
-`Get-ScheduledTask -TaskName 'Carpooling*'` / `Stop-ScheduledTask` /
-`Start-ScheduledTask`.
-
-> **First time only:** the `frontend/node_modules` folder currently committed in
-> this repo is **incomplete** (`node_modules/next/package.json` is missing).
-> You must run `npm install` in `frontend/` once, or the dev server and the
-> TypeScript check will fail.
-
-### A. Run it locally (recommended)
+Open PowerShell in the repo root:
 
 ```powershell
-# 1) MongoDB — pick ONE
-docker compose up -d mongo
-# ...or run mongod directly on mongodb://localhost:27017
+# Both backend (:8000) and frontend (:3000) in separate windows
+.\start-dev.ps1
 
-# 2) Backend
-cd backend
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-copy .env.example .env
+# Backend only
+.\start-dev.ps1 -BackendOnly
 
-# 3) Create collections, validators and indexes  ← REQUIRED, run once
-python init_db.py
-#    -> "indexes ensured: 28 / DB ready: vehicle_sharing_dev"
+# Frontend only
+.\start-dev.ps1 -FrontendOnly
 
-# 4) Optional: demo data (run AFTER init_db.py)
-python seed.py
-#    -> 6 accounts + a week of trip history, ratings, notifications
-
-# 5) Start the API
-uvicorn app.main:app --reload --port 8000
+# Hidden scheduled-task mode (logs to backend\run.log / frontend\dev.log)
+.\start-dev.ps1 -Auto
 ```
+
+`start-dev.ps1` also nudges the MongoDB Windows service if it is stopped, and bypasses the PowerShell execution policy per-process (needed because `npm.ps1` is blocked by machine policy).
+
+Open:
+- Frontend: `http://localhost:3000`
+- API docs: `http://localhost:8000/docs`
+- Health: `http://localhost:8000/api/v1/health`
+
+### Option 2 — manual, backend only
 
 ```powershell
-# 6) Frontend (new terminal)
-cd ..\frontend
-npm install
-copy .env.example .env.local
-npm run dev
-```
 
-Open **http://localhost:3000**.
+## API reference
 
-### Verify it works
+All backend routes are versioned under `/api/v1` and aggregated in `backend/app/api/v1/router.py`.
 
-| URL | Expect |
-|---|---|
-| http://localhost:8000/api/v1/health | `{"status":"ok","db":"connected",...}` |
-| http://localhost:8000/api/v1/ready | `{"ready":true,...}` — 503 if Mongo is down |
-| http://localhost:8000/api/v1/version | build `git_sha`, `app_env`, python version |
-| http://localhost:8000/docs | interactive Swagger UI for all 92 routes |
-| http://localhost:3000 | landing page, backend "connected" pill |
+### Core probes
 
-
-## Demo walkthrough
-
-`python seed.py` creates six ready-to-use accounts. **All share the password
-`pass1234`**, and the OTP code is displayed on the `/verify` page (there is no SMS
-provider in the project, by design).
-
-| Phone | Role | Use it for |
+| Method | Path | Description |
 |---|---|---|
-| `+919000000001` | admin | the console, analytics, moderation |
-| `+919000000002` | driver | owns the seeded petrol car + trips |
-| `+919000000003` | driver | owns a diesel car (different fuel → different CO₂) |
-| `+919000000004` | passenger | has a rating and a completed ride |
-| `+919000000005` | passenger | same |
-| `+919000000006` | passenger | the cancelled booking in the evaluation |
+| `GET` | `/` | Service metadata (`service`, `docs`, `health`) |
+| `GET` | `/api/v1/health` | Liveness — always 200 while up, even if Mongo is down |
+| `GET` | `/api/v1/ready` | Readiness — 200 only when Mongo answers; use for load-balancer probes |
+| `GET` | `/api/v1/version` | Build metadata (`GIT_SHA`, `APP_ENV`, Python version) |
 
-**Sign in** at `/login` → open `/verify` → the dev code is shown on screen → enter
-it. Use a normal window for one role and an incognito window for the other.
+### Versioned route modules (`/api/v1/*`)
 
-### The eight steps that demonstrate the system
+| Module | Router | Domain |
+|---|---|---|
+| auth | `auth.py` | Authentication / sessions (Module 3) |
+| profile | `profile.py` | User profiles (Module 4) |
+| vehicles | `vehicles.py` | Driver vehicle management (Module 5) |
+| trips | `trips.py` | Trip lifecycle (Module 6) |
+| geo | `geo.py` (+ `_trips`) | Routing / geocoding (Module 7) |
+| search | `search.py` | Ride search (Module 8) |
+| pickup | `pickup.py` | Minimum-detour pickup optimization (Module 10) |
+| bookings | `bookings.py` | Booking requests (Module 11) |
+| cost | `cost.py` | Fuel / mileage cost engine (Module 12) |
+| segments | `segments.py` | Route segments (Module 13) |
+| advance-booking | (bookings) | Advance booking limits (Module 14) |
+| recurring | `recurring.py` | Recurring trip series (Module 15) |
+| rank | `rank.py` | ML match ranking (Module 16) |
+| ratings | `ratings.py` | Driver / ride ratings (Module 22) |
+| notifications | `notifications.py` | Notifications (Module 23) |
+| analytics | `analytics.py` | Impact dashboard (Module 24) |
+| tracking | `tracking.py` | Live ride tracking (Module 17) |
+| safety | `safety.py` | Safety events (Module 18) |
+| live | `live.py` | WebSocket stream `/stream` (Module 20) |
+| admin | `admin.py` | Admin panel (Module 21) |
 
-| # | Do this | Shows off | Module |
-|---|---|---|---|
-| 1 | As a driver: `/garage` → add a car | admin verification gate, plate normalisation | 5 |
-| 2 | As a driver: `/trips` → create a route → **Publish** | lifecycle machine, OSRM route geometry | 6, 7 |
-| 3 | As a passenger: `/search` for the same corridor → open a card | overlap %, minimum-detour pickup, per-leg cost | 8–13 |
-| 4 | Passenger: **Request booking** → **Confirm** | atomic seat reservation, price freeze | 11, 12 |
-| 5 | Driver: `/requests` → **Accept**; press **SOS** twice | WebSocket push, two critical alerts, admin fan-out | 18, 20, 23 |
-| 6 | Driver: **Start trip**, share location, then **Complete ride** | progress, off-route/stale flags, frozen receipt | 17, 19 |
-| 7 | Either side: **rate the ride** from the bell or `/requests` | one review per person; the score updates in place | 22, 23 |
-| 8 | Admin: `/admin` and `/analytics` | moderation queue, km/CO₂ saved, demand forecast, rule-vs-AI | 21, 24 |
+## Frontend routes & components
 
-Screens worth pausing on for an examiner:
-- `/search` → the AI badge plus the per-feature contribution drawer (why this ride ranked here)
-- `/analytics` → **negative `km_avoided`** on a detour-heavy trip — the platform reports the case where sharing cost the driver more, rather than hiding it
-- `/analytics` → the "worse than solo" rider count, the fairness check
+### App Router pages (`frontend/app/`)
 
----
+| Route | Page | Purpose |
+|---|---|---|
+| `/` | `page.tsx` | Landing page (hero, vehicle art, live corridor, features, roles) |
+| `/search` | `search/page.tsx` | Ride search form (from/to, date, time, seats) |
+| `/trips` | `trips/page.tsx` | Driver console (publish panel, upcoming trips, live track) |
+| `/requests` | `requests/page.tsx` | Booking requests |
+| `/analytics` | `analytics/page.tsx` | Impact dashboard |
+| `/garage` | `garage/page.tsx` | Driver vehicle management |
+| `/me` | `me/page.tsx` | Profile page |
+| `/login` | `login/page.tsx` | Sign in |
+| `/register` | `register/page.tsx` | Sign up |
+| `/verify` | `verify/page.tsx` | Email/phone verification |
+| `/admin` | `admin/page.tsx` | Admin panel |
+| `/database` | `database/page.tsx` | Database admin view |
+| `/driver` | `driver/page.tsx` | Driver shell |
+| `/passenger` | `passenger/page.tsx` | Passenger shell |
 
-### Run the tests
+### Shared layout & components
 
-```powershell
-cd backend
-python -m pytest -q                    # all 121
-python -m pytest tests/test_safety.py -v   # one module
-```
-Tests need Mongo reachable; the ones that need it skip cleanly when it is not.
+- `layout.tsx` — root layout; imports `./globals.css`
+- `globals.css` — Tailwind `@tailwind` directives + design tokens + `@layer` blocks
+- `components/NavBar.tsx` — top navigation with `BrandMark`
+- `components/PageShell.tsx` — reusable page container (`panel-head` variant)
 
-## API surface
+## Design system (Tailwind)
 
-92 routes under `/api/v1`. Full interactive reference at `/docs`.
+### Config (`frontend/tailwind.config.ts`)
 
-| Group | Routes | Auth | What it covers |
-|---|---|---|---|
-| `/trips` | 21 | mixed | create, publish, cancel, start, complete, receipt, segments, cost, recurring |
-| `/bookings` | 9 | user | request, accept, reject, confirm, cancel, mine, incoming |
-| `/admin` | 8 | admin | stats, users, suspend, roles, trips, alerts, resolve |
-| `/vehicles` | 7 | driver | CRUD + admin verify |
-| `/auth` | 6 | mixed | register, login, OTP request/verify, me, logout |
-| `/users` | 5 | user | own profile, edit, role add, password, public card |
-| `/ratings` | 4 | user | submit, pending, per-booking, public card *(M22)* |
-| `/notifications` | 4 | user | feed, summary, mark read, mark all *(M23)* |
-| `/analytics` | 4 | admin + me | impact, demand, evaluation, my impact *(M24)* |
-| `/recurring` | 4 | driver | series create, list, materialise, stop |
-| `/db` | 3 | open | dev-only init, stats, schema explorer |
-| `/geo` | 3 | open | geocode, reverse geocode |
-| `/tracking` | 3 | audience | ping, live, trail |
-| `/safety` | 3 | audience | SOS, trip alerts, ack |
-| `/search` | 2 | user | find rides |
-| `/stream` | 2 | audience | `WS /stream/trips/{id}`, stream stats |
-| `/health` `/ready` `/version` `/rank` | 4 | open | probes and the ranker model card |
+- `darkMode`: `["selector", '[data-theme="dark"]']`
+- `content`: `./app/**`, `./components/**`, `./lib/**` (`.js,.ts,.jsx,.tsx,.mdx`)
+- `theme.extend.colors` uses the project's `rgb(var(--color-...))` convention, keyed to CSS custom properties in `globals.css`.
+- Custom colors: `accent`, `brand` (DEFAULT/teal/accent), `ink`, `muted`, `line`, `surface`, `bg`, `card`, `success`, `warn`, `danger`, `iris`, `volt`, `rose`, `amber`, `orange`.
+- `borderRadius`: `lg`, `md`, `sm` (based on `--radius`).
+- `boxShadow`: `glow`, `glow-brand`.
 
-**Three ways to authenticate:**
-- `Authorization: Bearer <token>` — everything except the open routes
-- `?token=<jwt>` on the WebSocket (browsers cannot set headers on a WS handshake)
-- no auth — `/health`, `/ready`, `/version`, `/geo`, `/rank`
+### Tokens (`frontend/app/globals.css`)
 
----
+Defined in `:root` (dark) and `[data-theme="light"]`, referenced via `rgb(var(--color-*))`:
 
-## Database
-
-11 collections, each with a JSON-schema validator and indexed:
-
-`users` · `vehicles` · `trips` · `bookings` · `segments` · `locations` ·
-`safety_alerts` · `phone_otps` · `recurring_groups` · `ratings` · `notifications`
-
-- **28 indexes** covering unique constraints, 2dsphere geo, compound lookups,
-  a 30-day TTL on `locations`, and a **partial unique** index that enforces the
-  Module 23 dedupe rule.
-- The collection set is declared in **five** places that must agree:
-  `database/schemas/*.json`, `database/indexes/*.mongosh.js`,
-  `app/core/indexes.py`, `init_db.py`, and `db_admin.COLLECTIONS`.
-  `tests/test_db_design.py` fails the build if they drift — a real bug shipped
-  here once, when M22/M23 were added to four of the five.
-- Dev-only explorer: `POST /api/v1/db/init`, then `/database` in the UI shows
-  every collection, its indexes and its validator.
-
----
-
-## ML pipeline (Module 16)
-
-The ranker is **trained offline and served with the standard library only** — the
-backend has no ML dependency, which is what keeps it deployable anywhere.
-
-```powershell
-cd ml
-python make_dataset.py --n 4000 --seed 7     # writes data/matches.csv
-python train_ranker.py                       # writes artifacts/ranker.json
-```
-
-| Model | ROC-AUC (80/20 stratified, seed 7) |
+| Category | Variables |
 |---|---|
-| **Logistic regression — deployed** | **0.9115** |
-| XGBoost | 0.9044 |
-| Random forest | 0.8928 |
+| Backgrounds | `--color-bg`, `--color-bg-glow`, `--color-surface`, `--color-card`, `--color-card-hover` |
+| Brand | `--color-brand`, `--color-brand-teal`, `--color-brand-amber`, `--color-on-brand*`, `--color-accent` |
+| Text | `--color-ink`, `--color-ink-soft`, `--color-muted` |
+| Borders | `--color-line`, `--color-line-hover` |
+| Status | `--color-success`, `--color-warn`, `--color-danger` |
+| Glass | `--glass-bg`, `--glass-border`, `--glass-border-hover`, `--glass-shadow` |
+| Shadows | `--shadow-xs`…`--shadow-lg`, `--shadow-glow-brand`, `--shadow-glow-teal` |
+| Radius | `--radius-sm`…`--radius-full` |
+| Spacing | `--space-1`…`--space-16` |
 
-Only the logistic regression is exported, as four weights and a bias:
+### `@layer` structure
 
-```json
-{ "features": ["overlap01", "pickup01", "dropoff01", "time01"],
-  "weights": [8.6953, 4.456, 2.9891, 2.8011], "bias": -10.4554 }
+- `@tailwind base` / `@tailwind components` / `@tailwind utilities` — at the top of `globals.css` (lines 1–3).
+- `@layer base` — reset, `body`, typography, focus styles.
+- `@layer utilities` — keyframes, animations, gradients, glass utilities.
+- `@layer components` — `.btn`, `.card`, `.panel`, `.badge`, `.pill`, `.alert`, `.toast`, `.table`, `.nav-link`, `.link-volt`, `.skip-link`, and token helper classes (`.bg-token-*`, `.text-token-*`, `.border-token-line`).
+
+### Hover color tokens (added to fix `@apply` resolution)
+
+`card` and `line` were plain strings (only `DEFAULT`), so `bg-card-hover` / `border-line-hover` did not resolve in `@apply`. They are now nested:
+
+```ts
+line: {
+  DEFAULT: "rgb(var(--color-line))",
+  hover: "rgb(var(--color-line-hover))",
+},
+card: {
+  DEFAULT: "rgb(var(--color-card))",
+  hover: "rgb(var(--color-card-hover))",
+},
 ```
-
-`services/ranker.py` applies a sigmoid to those weights, reloads the artifact when
-its mtime changes, and **falls back to the rule baseline** if the file is missing,
-so search can never break because of ML. The final ranking is
-`0.5 × rule + 0.5 × AI` over already-feasible matches, and the UI shows each
-feature's contribution so the score is explainable.
-
----
-
-python -m pytest tests/test_safety.py -v   # one module
-```
-Tests need Mongo reachable; those that need it `skip` cleanly when it is not.
-
-### B. Run it with Docker
-
-```powershell
-# development (live reload)
-docker compose up -d --build
-
-# production — see docs/module-25-deploy.md for the full runbook
-copy .env.example .env.prod      # set a real JWT_SECRET + https CORS origin
-docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
-docker compose -f docker-compose.prod.yml exec backend python init_db.py
-```
-
-### Troubleshooting
-
-| Problem | Fix |
 
 ## Testing
 
-**121 tests**, one file per module, run against a live MongoDB.
+### Backend
 
 ```powershell
 cd backend
-python -m pytest -q                             # all 121  (~27 s)
-python -m pytest tests/test_analytics.py -v     # one module
-python -m pytest -q -k "pure or guard"           # only the no-DB tests
+python -m pytest -q
 ```
 
-| File | Tests | Covers |
-|---|---|---|
-| `test_db_design.py` | 10 | Document shapes, index mirrors, the five-way collection sync |
-| `test_analytics.py` | 13 | Impact arithmetic, shrinkage, MAE/RMSE, AUC, P/R/F1 + live endpoints |
-| `test_pickup.py` | 8 | Minimum-detour selection, walk vs door |
-| `test_cost.py` | 8 | Share policies, rounding, the no-profit cap |
-| `test_matching.py` | 7 | Overlap %, hard gates, fallback |
-| `test_deploy.py` | 7 | Production guard, probes, **route shadowing** |
-| `test_ratings.py` | 7 | Eligibility, one-vote-per-ride, aggregate recompute |
-| `test_segments.py` | 6 | Leg occupancy and per-leg pricing |
-| `test_recurring.py` | 6 | Daily/weekly materialisation and caps |
-| `test_live.py` | 6 | WebSocket frames, heartbeats, hub failures |
-| `test_admin.py` | 5 | Moderation guard, dashboard math |
-| `test_auth.py` | 5 | Register/login/OTP, role checks |
-| `test_notifications.py` | 5 | Catalog, dedupe modes, audience resolution |
-| `test_ranker.py` | 5 | Feature extraction, sigmoid, artifact fallback |
-| `test_advance.py` | 4 | Booking window policy |
-| `test_completion.py` | 4 | Completion guard, booking resolution, receipt math |
-| `test_tracking.py` | 3 | Progress projection, speed, staleness |
-| `test_safety.py` | 3 | Speed/deviation ladders, SOS fan-out |
-| `test_geo.py` | 2 | Distance + projection on the shared ruler |
-| `test_health.py` | 2 | Liveness / readiness |
-| `test_bookings.py` `test_profile.py` `test_search.py` `test_trips.py` `test_vehicles.py` | 1 each | End-to-end flow per module |
+- 25 test files, one per module (`tests/test_<module>.py`)
+- `pytest.ini`: `asyncio_mode = strict`, `testpaths = tests`
+- `conftest.py` shares fixtures
+- `test_health.py` are smoke tests that do not need MongoDB
 
-**What the suite deliberately does not cover:** the frontend (only a TypeScript
-check), real OSRM/Nominatim responses (network is stubbed), and real SMS/email
-delivery (no provider is configured). `filterwarnings = error` is set in
-`pytest.ini`, so any new warning fails the build.
+### Frontend
 
----
+```powershell
+cd frontend
+npm run typecheck   # tsc --noEmit
+npm run lint        # next lint
+npm run build       # next build (production compile)
+```
 
-## Known gaps and honest limitations
+## 25-module roadmap
 
-Stated plainly, because an examiner will find them anyway:
-
-**Documentation**
-- *(none — all 25 modules have a note in `docs/`)*
-
-**Product scope**
-- **Notifications are in-app only.** No email or SMS provider is configured.
-- **User-level updates poll** (30 s) rather than push. Module 20's WebSocket hub
-  is trip-scoped; a user-scoped channel would need a shared bus.
-- **The WebSocket hub is in-process**, so the backend must run a single uvicorn
-  worker. Scale-out needs Redis/NATS behind `hub.broadcast()` (no caller changes).
-- Driver location pings are currently driver-triggered; automatic device-GPS
-  streaming is future work.
-- There is **no payout ledger** — `completed` bookings are final in-app.
-- Ratings cannot be moderated (an admin can suspend the author) and have no reply.
-
-**Analytics honesty**
-- CO₂ factors are **indicative direct-emission constants**; EVs count as 0
-  tailpipe and grid intensity is deliberately excluded.
-- The demand forecast is a **shrunk-mean baseline**, not a trained model.
-- Model evaluation is **retrospective and selection-biased** — we only observe
-  outcomes for matches that were actually booked, so it measures correlation.
-- "Cost saved" assumes the alternative is a private car; public transport would
-  reduce the apparent saving.
-
-**Engineering**
-- No CI pipeline; tests are run locally.
-- `frontend/node_modules` as committed is incomplete — run `npm install`.
-- No `package-lock.json`, so frontend builds are not bit-reproducible.
-
----
-
-## Documentation index
-
-Per-module notes in `docs/`, each following the same 9-part template
-(concept → prerequisites → rules → code map → integration → run & test →
-common errors → commit message → SRS/report notes). These feed the SRS and the
-final report directly. **All 25 modules have one.**
-
-| # | Note | # | Note |
+| # | Module | Area | Notes |
 |---|---|---|---|
-| 1 | [setup](docs/module-01-setup.md) | 14 | [advance-booking](docs/module-14-advance-booking.md) |
-| 2 | [db-design](docs/module-02-db-design.md) | 15 | [recurring](docs/module-15-recurring.md) |
-| 3 | [auth](docs/module-03-auth.md) | 16 | [ai-ranking](docs/module-16-ai-ranking.md) |
-| 4 | [profile](docs/module-04-profile.md) | 17 | [tracking](docs/module-17-tracking.md) |
-| 5 | [vehicles](docs/module-05-vehicles.md) | 18 | [safety](docs/module-18-safety.md) |
-| 6 | [trips](docs/module-06-trips.md) | 19 | [completion](docs/module-19-completion.md) |
-| 7 | [maps](docs/module-07-maps.md) | 20 | [streaming](docs/module-20-streaming.md) |
-| 8 | [search](docs/module-08-search.md) | 21 | [admin](docs/module-21-admin.md) |
-| 9 | [matching](docs/module-09-matching.md) | 22 | [ratings](docs/module-22-ratings.md) |
-| 10 | [pickup-optimization](docs/module-10-pickup-optimization.md) | 23 | [notifications](docs/module-23-notifications.md) |
-| 11 | [bookings](docs/module-11-bookings.md) | 24 | [analytics](docs/module-24-analytics.md) |
-| 12 | [cost](docs/module-12-cost.md) | 25 | [deploy](docs/module-25-deploy.md) |
-| 13 | [segments](docs/module-13-segments.md) | | |
+| 1 | setup | Scaffolding | Monorepo, env contract, health API, frontend shell |
+| 2 | db-design | Database | MongoDB schemas, indexes, seed scripts |
+| 3 | auth | Auth | Sessions, JWT, password hashing |
+| 4 | profile | Profiles | User profile CRUD |
+| 5 | vehicles | Vehicles | Driver vehicle registry |
+| 6 | trips | Trips | Trip lifecycle |
+| 7 | maps | Maps / routing | OSRM + Nominatim integration |
+| 8 | search | Search | Ride search form + results |
+| 9 | matching | Matching | Route-aware rider/driver pairing |
+| 10 | pickup-optimization | Pickup | Minimum-detour pickup point |
+| 11 | bookings | Bookings | Booking requests |
+| 12 | cost | Cost | Fuel/mileage cost engine |
+| 13 | segments | Segments | Route segments |
+| 14 | advance-booking | Bookings | Advance booking limits |
+| 15 | recurring | Bookings | Recurring trip series |
+| 16 | ai-ranking | ML | Match ranking model |
+| 17 | tracking | Tracking | Live ride tracking |
+| 18 | safety | Safety | Safety event monitoring |
+
+| 19 | completion | Trips | Trip completion flow |
+| 20 | streaming | Live | WebSocket `/stream` |
+| 21 | admin | Admin | Admin panel |
+| 22 | ratings | Ratings | Driver/ride ratings |
+| 23 | notifications | Notifications | Notification service |
+| 24 | analytics | Analytics | Impact dashboard |
+| 25 | deploy | Deploy | Production startup guard, Docker |
+
+See `docs/module-XX-*.md` for the 9-part note per module (concept, prerequisites, rules, code map, integration, run+test, common errors, commit message, SRS/report notes).
+## Deployment
+
+- **Docker / compose**: `docker-compose.yml` wires MongoDB + backend + frontend (see also `docker-compose.prod.yml` for Mongo credentials).
+- **Production startup guard (Module 25)**: when `APP_ENV=production`, the backend refuses to boot if:
+  - `JWT_SECRET` is still the shipped development value or shorter than 32 chars, or
+  - `CORS_ORIGINS` is empty, or contains a plain-http origin outside localhost, or
+  - `MONGO_DB` is empty.
+- **Readiness probe**: `GET /api/v1/ready` returns 503 when Mongo is unreachable — this is what a load balancer or Docker healthcheck should poll.
+- **Build metadata**: `GET /api/v1/version` reports `GIT_SHA` (baked in by the Dockerfile).
+
+## Common errors & fixes
+
+| Error | Cause → fix |
+|---|---|
+| `npm.ps1 cannot be loaded` | PowerShell execution policy blocks `npm`. Use `npm.cmd`, or run with `-ExecutionPolicy Bypass` (start-dev.ps1 does this per-process). |
+| `TypeError: 'type' object is not subscriptable` | `list[str]` syntax on Python 3.8. Keep the range pins in `requirements.txt`; `config.py` already uses `typing.List`. |
+| Health reports `db: disconnected` | MongoDB not running. Expected until Module 2 starts it; start the `MongoDB` Windows service or run `mongod`. |
+| Tailwind: `The hover:bg-card-hover class does not exist` | `card`/`line` were plain-string theme tokens (no `hover`). Fixed by nesting them with `DEFAULT`/`hover` in `tailwind.config.ts`; CSS variables already existed in `globals.css`. |
+| Webpack `.next/cache … ENOENT ... 5.pack.gz` | Stale `.next` cache. Delete `frontend/.next` and rebuild (`npm run build` or `npm run dev`). |
+| `BrandMark is not defined` | `BrandMark` is a named export from `@/components/BrandMark`; ensure the page imports it before use. |
+
+## Contributing & commit conventions
+
+Commit messages follow the style used in the module notes:
+
+```
+<type>(<scope>): <short summary>
+
+- backend: …
+- frontend: …
+- tooling: …
+```
+
+Examples from the project:
+
+```
+chore(setup): scaffold monorepo, backend health API, Direction-B frontend shell
+feat(auth): add login + register routes with JWT session
+fix(ui): nest card/line Tailwind tokens so hover variants resolve in @apply
+```
+
+- Run `npm run typecheck` and `python -m pytest -q` before opening a pull request.
+- Never commit real secrets; use `.env.example` / `.env.local` templates only.
+
 
 ---
 
-## Environment contract
+**License:** Private project — see repository for distribution terms.
+---
 
-Root `.env.example` documents every variable. `backend/app/core/config.py` is the
-**only** reader (Pydantic Settings); nothing else touches `os.environ`. The
-frontend reads `NEXT_PUBLIC_*` only. **Never commit a real `.env`** — and note
-that `NEXT_PUBLIC_*` values are inlined at **build** time, so changing one
-requires a rebuild, not a restart.
-
-|---|---|
-| `python init_db.py` never ran | Duplicate phone numbers become possible, geo/TTL/unique indexes are missing. Run it. |
-| `seed.py` fails with "Document failed validation" | `init_db.py` must run first — the validators come from `database/schemas/`. |
-| Frontend shows `Could not find a declaration file for module 'next/link'` | `node_modules` is incomplete. `cd frontend; npm install`. |
-| Frontend page loads but every API call fails | Check `frontend/.env.local` has `NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1`. |
-| `db: "disconnected"` in /health | Mongo is not running or `MONGO_URI` is wrong. |
-| Live tracking never updates in the browser | The WebSocket needs the API host reachable; a reverse proxy must forward the `Upgrade` header. |
-| Port 8000 or 3000 already in use | Change `BACKEND_PORT` / the `next dev -p` flag, and the CORS origin to match. |
-| `Refusing to start with APP_ENV=production` | Expected — the deploy guard. Fix the JWT secret / CORS origins, or set `APP_ENV=development`. |
-
-├── frontend/   # Next.js App Router + React + TS + Tailwind (Direction B theme)
-├── backend/    # FastAPI + Pydantic + Motor (async MongoDB)
-├── ml/         # Rule-based baseline first, then sklearn / XGBoost (Module 16)
-├── database/   # Schema docs, geospatial index scripts, seed scripts (Module 2)
-├── docs/       # Per-module notes → feeds SRS / report
-├── docker-compose.yml  # mongo + backend + frontend (dev)
-└── .env.example
+**License:** Private project — see repository for distribution terms.
+```
+chore(setup): scaffold monorepo, backend health API, Direction-B frontend shell
+feat(auth): add login + register routes with JWT session
+fix(ui): nest card/line Tailwind tokens so hover variants resolve in @apply
 ```
 
+- Run `npm run typecheck` and `python -m pytest -q` before opening a pull request.
+- Never commit real secrets; use `.env.example` / `.env.local` templates only.
+
+---
+
+**License:** Private project — see repository for distribution terms.
+
+## Contributing & commit conventions
+
+Commit messages follow the style used in the module notes:
+
+```
+<type>(<scope>): <short summary>
+
+- backend: …
+- frontend: …
+- tooling: …
+```
+
+Examples from the project:
+
+```
+chore(setup): scaffold monorepo, backend health API, Direction-B frontend shell
+feat(auth): add login + register routes with JWT session
+fix(ui): nest card/line Tailwind tokens so hover variants resolve in @apply
+```
+
+- Run `npm run typecheck` and `python -m pytest -q` before opening a pull request.
+- Never commit real secrets; use `.env.example` / `.env.local` templates only.
+
+---
+
+**License:** Private project — see repository for distribution terms.
+
+The matching CSS variables already existed in both light and dark themes, so no new variables were required. This enables classes like `hover:bg-card-hover` and `hover:border-line-hover` used in `.card-hover`, `.panel-hover`, and `Button.tsx` / `Card.tsx`.
+
+### Theme toggle
+
+Dark/light is toggled via `data-theme` on `<html>` (default dark). Respects `prefers-reduced-motion`.
+- `components/BrandMark.tsx` — inline SVG logo (named export `BrandMark`)
+- `components/RequireAuth.tsx` — auth guard wrapper
+- `components/SessionProvider.tsx` — session context
+- `components/SiteFooter.tsx` — site footer
+- `components/ui/` — primitive UI kit: `Button`, `Card`, `Input`, `Badge`, `Avatar`, `Separator`, `TripCard`, `RideCard`, `MatchCard`, `StatusPill`, `ThemeToggle`, `LiveTrack`, `RouteMap`, `PickerMap`, `PlacePicker`, `PickupChooser`, `StarPicker`, `Stars`, `CollectionCard`, `FeatureGrid`, `LiveCorridorMap`, `SafetyBanner`, `SegmentView`, `RateRideCard`, `TripCostCard`, `TrustSignals`, `VehicleArt`, `VehicleCard`, `VehicleForm`, `BookingPanel`, `MatchPipeline`, `NotificationBell`
+| completion | (trips) | Trip completion (Module 19) |
+| deploy | (main.py) | Production startup guard (Module 25) |
+| db_admin | `db_admin.py` | Database administration |
+| fuel | `fuel.py` | Fuel price reference |
+| health | `health.py` | Health / ready / version probes |
+
+Frontend consumes these via `frontend/lib/api.ts` and per-domain modules (`auth.ts`, `trips.ts`, `bookings.ts`, `search.ts`, `analytics.ts`, …), with `http.ts` as the shared fetch wrapper.
+cd backend
+python -m uvicorn app.main:app --reload --port 8000
+```
+
+Expect `GET /api/v1/health` → `{"status":"ok","service":"Intelligent Vehicle Sharing API","db":"disconnected","routing_provider":"osrm"}` (`db` is `disconnected` until MongoDB runs).
+
+### Option 3 — manual, frontend only
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+Then visit `http://localhost:3000`. Use `npm run build` for a production build and `npm run start` to serve it.
+| `ADVANCE_MAX_DAYS` | `30` | Max days ahead a booking may be made (Module 14) |
+| `ADVANCE_MIN_NOTICE_MIN` | `60` | Minimum notice before departure (Module 14) |
+| `RECURRING_HORIZON_DAYS` | `21` | Days of recurring instances materialised (Module 15) |
+| `RECURRING_MAX_DAYS` | `90` | Hard ceiling for a recurring series (Module 15) |
+    ├── README.md                   # module-note index + 9-part template
+    └── module-01-setup.md … module-25-deploy.md
+```
+| Folder | Purpose |
+|---|---|
+| `frontend/` | Next.js 14 App Router (React 18, TypeScript, Tailwind CSS) |
+| `backend/` | FastAPI (Python), versioned `/api/v1` router, Motor MongoDB client |
+| `database/` | MongoDB collection schemas, index scripts (incl. 2dsphere), seed scripts |
+| `ml/` | ML ranking / cost models (Module 16) |
+| `docs/` | One note per module (9-part template feeding the SRS / final report) |
+
+Environment contract is defined first (`.env.example` at root + per-service), so secrets are never committed.
+Status: **25 / 25 modules complete · 121 tests passing · 92 API routes · 11 collections**
+
+A private-vehicle sharing platform that matches riders to drivers travelling the
+same corridor, picks the pickup point that costs the driver the least extra
+distance, prices the share fairly, then tracks the ride and watches for safety
+events while it happens.

@@ -31,10 +31,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     setReady(true);
   }, []);
 
-  const login = useCallback(async (phone: string, password: string) => {
+  const login = useCallback(async (identifier: string, password: string, role?: string) => {
     setError(null);
     try {
-      const r = await authApi.login({ phone, password });
+      const r = await authApi.login({ identifier, password, role });
       saveSession(r.access_token, r.user);
       setToken(r.access_token);
       setUser(r.user);
@@ -44,7 +44,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const register = useCallback(async (b: { phone: string; password: string; full_name: string; roles: ("driver" | "passenger")[] }) => {
+  const register = useCallback(async (b: { phone: string; email?: string; password: string; full_name: string; roles: ("driver" | "passenger")[] }) => {
     setError(null);
     try {
       const r = await authApi.register(b);

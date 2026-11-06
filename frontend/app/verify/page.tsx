@@ -1,90 +1,53 @@
 "use client";
-// Verify: request dev OTP → enter 6 digits → phone_verified flips.
-// Shows the dev code on screen (no paid SMS in this project).
-import { Suspense, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+// /verify: OTP phone verification.
+import { useState } from "react";
+import { motion } from "framer-motion";
+import Link from "next/link";
 import { useSession } from "@/components/SessionProvider";
-import { authApi, saveSession, loadSession } from "@/lib/auth";
 import { AuthShell, Field, inputCls } from "@/components/AuthShell";
-
-function VerifyForm() {
-  const { user, setVerified } = useSession();
-  const router = useRouter();
-  const fresh = useSearchParams().get("fresh");
-  const [phone, setPhone] = useState(user?.phone ?? "");
-  const [code, setCode] = useState("");
-  const [devCode, setDevCode] = useState<string | null>(null);
-  const [msg, setMsg] = useState(
-    fresh ? "Account created — request your code below." : "Enter the 6-digit code sent to your phone."
-  );
-  const [err, setErr] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  const request = async () => {
-    setErr(null);
-    try {
-      const r = await authApi.otpRequest(phone || user?.phone || "");
-      setDevCode(r.dev_code ?? null);
-      setMsg("Code sent — valid 10 min, 5 tries. (Dev build shows it here.)");
-    } catch (e: unknown) {
-      setErr(e instanceof Error ? e.message : "Request failed");
-    }
-  };
-
-  const verify = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setBusy(true);
-    setErr(null);
-    try {
-      const r = await authApi.otpVerify(phone || user?.phone || "", code);
-      const s = loadSession();
-      if (s.token) saveSession(r.access_token ?? s.token, r.user);
-      setVerified();
-      setMsg("Verified ✓ — taking you to your profile…");
-      setTimeout(() => router.push("/me"), 700);
-    } catch (e: unknown) {
-      setErr(e instanceof Error ? e.message : "Verify failed");
-    } finally { setBusy(false); }
-  };
-
-  return (
-    <AuthShell title="Verify phone" sub="One 6-digit code. 10 minutes. 5 tries.">
-      <div className="grid gap-4">
-        <Field label="Phone">
-          <input className={inputCls} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+919876543210" />
-        </Field>
-        <button onClick={request} className="btn btn-ghost w-full py-2.5">
-          Send code
-        </button>
-        {devCode && (
-          <p className="panel-inset border-dashed border-brand-teal/50 p-3 text-center">
-            <span className="text-xs text-muted">DEV CODE (no SMS in project): </span>
-            <span className="font-display text-xl font-bold tracking-[.3em] text-brand-teal">{devCode}</span>
-          </p>
-        )}
-        <form onSubmit={verify} className="grid gap-3">
-          <Field label="6-digit code">
-            <input
-              className={inputCls + " text-center text-2xl tracking-[.4em]"}
-              value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-              inputMode="numeric" placeholder="••••••" required
-            />
-          </Field>
-          <button disabled={busy} className="btn btn-primary w-full py-3">
-            {busy ? "Verifying…" : "Verify →"}
-          </button>
-        </form>
-        <p className="text-sm text-muted">{msg}</p>
-        {err && <p className="alert alert-err">{err}</p>}
-      </div>
-    </AuthShell>
-  );
-}
+import { Button } from "@/components/ui/Button";
+import { Alert } from "@/components/ui/Alert";
+import { Shield, Phone } from "lucide-react";
 
 export default function VerifyPage() {
+  const { verify, error } = useSession();
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      await verify(code);
+    } catch { /* context error */ } finally { setBusy(false); }
+  };
+
   return (
-    <Suspense fallback={<p className="p-10 text-sm text-muted">Loading…</p>}>
-      <VerifyForm />
-    </Suspense>
+    <AuthShell title="Verify your phone" sub="Enter the 6-digit code sent to your number.">
+      <Alert variant="danger">{error}</Alert>
+      <form onSubmit={submit} className="grid gap-4">
+        <Field label="Verification code">
+          <input
+            className={inputCls}
+            type="text"
+            maxLength="6"
+            value={code}
+            onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+            placeholder="123456"
+            required
+          />
+        </Field>
+        <div className="flex items-center gap-3 text-xs text-muted">
+          <Shield className="h-4 w-4" />
+          Didn&apos;t receive a code? <button onClick={() => {}} className="text-brand-teal font-medium hover:underline">Resend</button>
+        </div>
+        <Button variant="primary" size="md" disabled={busy || code.length !== 6} className="w-full">
+          {busy ? "Verifying…" : "Verify code →"}
+        </Button>
+        <p className="text-center text-sm text-muted">
+          Already verified? <Link href="/me" className="link-volt">Go to profile</Link>
+        </p>
+      </form>
+    </AuthShell>
   );
 }

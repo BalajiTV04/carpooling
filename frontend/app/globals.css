@@ -2,200 +2,199 @@
 @tailwind components;
 @tailwind utilities;
 
-/* --- Design Tokens (Direction B: Indigo + Lime Night Mobility, dark-first) --- */
-/* Default = dark. Light variant via [data-theme="light"] */
+/* ============================================================================
+   Neo-Mobility Design System — Dark-first glass ride-sharing UI
+   Theme: deep space indigo (#0B1030) + electric teal (#7B77FF) + safety amber
+   Grid: 8px base. Motion: framer-motion driven.
+   ============================================================================ */
 
+/* ---------------------------------------------------------------- Design Tokens */
 :root {
-  /* Dark palette (default) — Direction B: indigo #0B1030 / #7B77FF + lime #C6FF4A */
-  --color-bg: 11 16 48;
-  --color-surface: 17 22 58;
-  --color-card: 22 28 76;
+  --color-bg: 11 13 26;
+  --color-bg-glow: 15 18 38;
+  --color-surface: 17 21 41;
+  --color-card: 20 24 48;
+  --color-card-hover: 24 29 56;
   --color-brand: 123 119 255;
-  --color-brand-teal: 198 255 74;
-  --color-accent: 251 146 60;
+  --color-brand-teal: 34 211 238;
+  --color-brand-amber: 251 191 36;
   --color-on-brand: 255 255 255;
-  --color-on-brand-teal: 11 16 48;
-  --color-on-accent: 11 16 48;
-  --color-ink: 242 244 255;
-  --color-muted: 142 152 192;
-  --color-line: 31 42 77;
+  --color-on-brand-teal: 11 13 26;
+  --color-on-brand-amber: 11 13 26;
+  --color-ink: 230 236 255;
+  --color-ink-soft: 186 195 225;
+  --color-muted: 120 130 170;
+  --color-line: 34 42 70;
+  --color-line-hover: 58 68 100;
   --color-success: 34 197 94;
   --color-warn: 251 146 60;
   --color-danger: 242 84 91;
-  --color-brand-teal-hover: 178 240 90;
-  --color-brand-teal-active: 158 215 60;
+  --color-overlay: 0 0 0 / 0.55;
+  --glass-bg: rgb(20 24 48 / 0.55);
+  --glass-border: rgb(255 255 255 / 0.08);
+  --glass-border-hover: rgb(255 255 255 / 0.18);
+  --glass-shadow: 0 8px 32px 0 rgb(0 0 0 / 0.45);
+  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.5);
+  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.5), 0 1px 2px -1px rgb(0 0 0 / 0.45);
+  --shadow-md: 0 4px 20px 0 rgb(0 0 0 / 0.5);
+  --shadow-lg: 0 12px 40px -4px rgb(0 0 0 / 0.55);
+  --shadow-glow-brand: 0 0 40px rgb(123 119 255 / 0.25);
+  --shadow-glow-teal: 0 0 40px rgb(34 211 238 / 0.25);
   --radius-sm: 0.375rem;
   --radius-md: 0.5rem;
   --radius-lg: 0.75rem;
   --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
   --radius-full: 9999px;
-  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.4);
-  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.5), 0 1px 2px -1px rgb(0 0 0 / 0.4);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.5), 0 2px 4px -2px rgb(0 0 0 / 0.4);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.5), 0 4px 6px -4px rgb(0 0 0 / 0.4);
   --ring-width: 2px;
   --ring-color: rgb(var(--color-brand-teal) / 0.45);
-  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
-  --font-display: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+  --font-sans: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  --font-display: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
 }
 [data-theme="light"] {
-  /* Light palette */
   --color-bg: 248 250 252;
-  --color-surface: 241 245 249;
+  --color-bg-glow: 241 245 249;
+  --color-surface: 255 255 255;
   --color-card: 255 255 255;
+  --color-card-hover: 248 250 252;
   --color-brand: 37 99 235;
   --color-brand-teal: 14 116 144;
-  --color-accent: 20 184 166;
+  --color-brand-amber: 217 119 6;
   --color-on-brand: 255 255 255;
   --color-on-brand-teal: 255 255 255;
-  --color-on-accent: 255 255 255;
+  --color-on-brand-amber: 255 255 255;
   --color-ink: 15 23 42;
+  --color-ink-soft: 71 85 105;
   --color-muted: 100 116 139;
   --color-line: 226 232 240;
+  --color-line-hover: 203 213 225;
   --color-success: 22 134 91;
   --color-warn: 233 162 59;
   --color-danger: 220 53 69;
-  --color-brand-teal-hover: 10 83 105;
-  --color-brand-teal-active: 8 62 80;
+  --color-overlay: 0 0 0 / 0.15;
+  --glass-bg: rgb(255 255 255 / 0.7);
+  --glass-border: rgb(0 0 0 / 0.08);
+  --glass-border-hover: rgb(0 0 0 / 0.15);
+  --glass-shadow: 0 8px 32px 0 rgb(0 0 0 / 0.06);
   --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.03);
   --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.04);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.05);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.07), 0 4px 6px -4px rgb(0 0 0 / 0.05);
-  --ring-color: rgb(var(--color-brand-teal) / 0.45);
+  --shadow-md: 0 4px 20px 0 rgb(0 0 0 / 0.04);
+  --shadow-lg: 0 12px 40px -4px rgb(0 0 0 / 0.05);
+  --shadow-glow-brand: 0 0 40px rgb(37 99 235 / 0.15);
+  --shadow-glow-teal: 0 0 40px rgb(14 116 144 / 0.15);
 }
-
-html { font-family: var(--font-sans); background-color: rgb(var(--color-bg)); color: rgb(var(--color-ink)); }
-body { background-color: rgb(var(--color-bg)); color: rgb(var(--color-ink)); -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+html { font-family: var(--font-sans); background-color: rgb(var(--color-bg)); color: rgb(var(--color-ink)); line-height: 1.5; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+body { background-color: rgb(var(--color-bg)); color: rgb(var(--color-ink)); margin: 0; min-height: 100vh; }
 
 @layer base {
-  * {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-  }
-
-  body {
-    background-color: rgb(var(--color-bg));
-    color: rgb(var(--color-ink));
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    line-height: 1.5;
-  }
-
-  h1, h2, h3, h4, h5, h6 { font-family: var(--font-display); color: rgb(var(--color-ink)); }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background-color: rgb(var(--color-bg)); color: rgb(var(--color-ink)); line-height: 1.5; }
+  h1, h2, h3, h4, h5, h6 { font-family: var(--font-display); color: rgb(var(--color-ink)); letter-spacing: -0.02em; }
   a { color: inherit; text-decoration: inherit; }
   button, input, select, textarea { font-family: inherit; }
+  :focus-visible { outline: none; }
 }
 
-/* --- VoltRide component system (theme-aware, Direction B) --- */
+@layer utilities {
+  @keyframes fadeInUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes scaleIn { from { opacity: 0; transform: scale(0.94); } to { opacity: 1; transform: scale(1); } }
+  @keyframes pulseSoft { 0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 0 rgb(var(--color-brand-teal) / 0.7); } 50% { opacity: 0.6; transform: scale(1.05); box-shadow: 0 0 0 10px rgb(var(--color-brand-teal) / 0); } }
+  @keyframes pinBounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+  @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+  @keyframes toastSlide { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+  @keyframes ringDraw { to { stroke-dashoffset: 0; } }
+  .animate-fade-in-up { animation: fadeInUp 0.6s ease-out both; }
+  .animate-fade-in { animation: fadeIn 0.5s ease-out both; }
+  .animate-scale-in { animation: scaleIn 0.5s ease-out both; }
+  .animate-pulse-soft { animation: pulseSoft 2s infinite ease-in-out; }
+  .animate-pin-bounce { animation: pinBounce 2s infinite ease-in-out; }
+  .animate-shimmer { animation: shimmer 2s infinite linear; }
+  .animate-toast-slide { animation: toastSlide 0.4s ease-out both; }
+  .stagger-1 { animation-delay: 0.08s; } .stagger-2 { animation-delay: 0.16s; } .stagger-3 { animation-delay: 0.24s; } .stagger-4 { animation-delay: 0.32s; } .stagger-5 { animation-delay: 0.4s; }
+  .bg-gradient-indigo-teal { background: linear-gradient(135deg, rgb(var(--color-brand)) 0%, rgb(var(--color-brand-teal)) 100%); }
+  .bg-gradient-surface { background: linear-gradient(180deg, rgb(var(--color-bg-glow)) 0%, rgb(var(--color-bg)) 100%); }
+  .bg-gradient-card { background: linear-gradient(180deg, rgb(var(--color-card-hover)) 0%, rgb(var(--color-card)) 100%); }
+  .text-gradient-brand { background: linear-gradient(135deg, rgb(var(--color-brand)) 0%, rgb(var(--color-brand-teal)) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .glow-brand { box-shadow: var(--shadow-glow-brand); } .glow-teal { box-shadow: var(--shadow-glow-teal); }
+  .glass { background: var(--glass-bg); border: 1px solid var(--glass-border); backdrop-filter: blur(16px) saturate(180%); -webkit-backdrop-filter: blur(16px) saturate(180%); }
+  .glass:hover { border-color: var(--glass-border-hover); }
+  .glass-card { @apply glass rounded-2xl shadow-lg; transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1); }
+  .glass-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-glow-brand), var(--shadow-lg); }
+  .skeleton-bg { background: linear-gradient(90deg, rgb(var(--color-surface)) 25%, rgb(var(--color-card)) 50%, rgb(var(--color-surface)) 75%); background-size: 200% 100%; }
+}
+
 @layer components {
-  /* Buttons */
-  .btn {
-    @apply inline-flex items-center justify-center rounded-md font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-60 disabled:pointer-events-none;
-  }
-  .btn-primary {
-    @apply btn bg-brand-teal text-on-brand-teal hover:bg-brand-teal/90 focus-visible:ring-2 focus-visible:ring-brand-teal/50 shadow-sm;
-  }
-  .btn-secondary {
-    @apply btn bg-card text-ink border border-line hover:bg-surface focus-visible:ring-2 focus-visible:ring-brand-teal/50 shadow-sm;
-  }
-  .btn-ghost {
-    @apply btn bg-transparent text-muted hover:bg-surface hover:text-brand focus-visible:ring-2 focus-visible:ring-brand-teal/50;
-  }
-  .btn-danger {
-    @apply btn bg-danger text-white hover:bg-danger/90 focus-visible:ring-2 focus-visible:ring-danger/50 shadow-sm;
-  }
-  .btn-sm { @apply px-3 py-1.5 text-xs; }
-  .btn-md { @apply px-4 py-2; }
-  .btn-lg { @apply px-5 py-2.5 text-base; }
-
-  /* Inputs */
-  .input {
-    @apply w-full rounded-md border border-line bg-card px-3 py-2.5 text-sm text-ink placeholder-muted/70 focus:outline-none focus:ring-2 focus:ring-brand-teal focus:border-brand-teal;
-  }
-
-  /* Cards */
-  .card {
-    @apply rounded-xl border border-line bg-card shadow-sm px-4 py-3;
-  }
-
-  /* Panels (raised surfaces used by cards across the app) */
-  .panel {
-    @apply rounded-xl border border-line bg-card shadow-sm px-4 py-3;
-  }
-  .panel-hover {
-    @apply panel transition-all hover:border-brand-teal/40;
-  }
-  .panel-head {
-    @apply relative mt-3 overflow-hidden p-6 rounded-xl border border-line bg-card shadow-sm;
-  }
-  .panel-inset {
-    @apply p-4 border border-line bg-card rounded-xl;
-  }
-
-  /* Badges */
-  .badge {
-    @apply inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium leading-none;
-  }
-  .badge-brand { @apply badge border-brand-teal/20 bg-brand-teal/10 text-on-brand-teal; }
+  .btn { @apply inline-flex items-center justify-center gap-2 rounded-xl font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none; }
+  .btn-primary { @apply btn bg-gradient-indigo-teal text-white shadow-sm hover:shadow-glow-brand hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-brand-teal/50; }
+  .btn-secondary { @apply btn bg-card text-ink border border-line focus-visible:ring-2 focus-visible:ring-brand-teal/50; }
+  .btn-ghost { @apply btn bg-transparent text-muted hover:bg-surface hover:text-brand focus-visible:ring-2 focus-visible:ring-brand-teal/50; }
+  .btn-danger { @apply btn bg-danger text-white hover:bg-danger/90 shadow-sm focus-visible:ring-2 focus-visible:ring-danger/50; }
+  .btn-sm { @apply px-3 py-1.5 text-xs; } .btn-md { @apply px-4 py-2 text-sm; } .btn-lg { @apply px-6 py-3 text-base; }
+  .input { @apply w-full rounded-xl border border-line bg-surface px-4 py-3 text-sm text-ink placeholder-muted/60 focus:outline-none focus:ring-2 focus:ring-brand-teal focus:border-brand-teal transition-all duration-200; }
+  .input:focus { border-color: rgb(var(--color-brand-teal)); box-shadow: 0 0 0 4px rgb(var(--color-brand-teal) / 0.1); }
+  .card { @apply rounded-2xl border border-line bg-card shadow-md px-6 py-4; }
+  .card-hover { @apply card transition-all duration-300 hover:bg-card-hover hover:border-line-hover hover:shadow-lg hover:-translate-y-1; }
+  .panel { @apply rounded-2xl border border-line bg-card shadow-sm p-6; }
+  .panel-hover { @apply panel transition-all duration-300 hover:border-brand-teal/40 hover:bg-card-hover hover:shadow-md; }
+  .panel-head { @apply relative mt-4 overflow-hidden p-6 rounded-2xl border border-line bg-card shadow-sm; }
+  .panel-inset { @apply p-4 border border-line bg-card rounded-xl; }
+  .badge { @apply inline-flex items-center rounded-full border px-3 py-0.5 text-[10px] font-semibold leading-none uppercase tracking-wider; }
+  .badge-brand { @apply badge border-brand-teal/20 bg-brand-teal/10 text-brand-teal; }
   .badge-success { @apply badge border-success/20 bg-success/10 text-success; }
   .badge-warning { @apply badge border-warn/20 bg-warn/10 text-ink; }
   .badge-danger { @apply badge border-danger/20 bg-danger/10 text-danger; }
   .badge-muted { @apply badge border-line/50 bg-surface text-muted; }
-
-  /* Pills */
   .pill { @apply inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold leading-none; }
   .pill-brand { @apply pill border-brand-teal/20 bg-brand-teal/10 text-brand-teal; }
   .pill-success { @apply pill border-success/20 bg-success/10 text-success; }
   .pill-warning { @apply pill border-warn/20 bg-warn/10 text-ink; }
   .pill-danger { @apply pill border-danger/20 bg-danger/10 text-danger; }
   .pill-muted { @apply pill border-line/50 bg-surface text-muted; }
+}
 
-  /* Alerts */
-  .alert { @apply rounded-md border px-4 py-3 text-sm; }
+@layer components {
+  .alert { @apply rounded-xl border px-4 py-3 text-sm; }
   .alert-success { @apply alert border-success/20 bg-success/5 text-success; }
   .alert-warning { @apply alert border-warn/20 bg-warn/5 text-ink; }
   .alert-danger { @apply alert border-danger/20 bg-danger/5 text-danger; }
   .alert-info { @apply alert border-brand-teal/20 bg-brand-teal/5 text-brand-teal; }
-
-  /* Section header / empty state / table */
-  .section-head { @apply flex items-center justify-between mb-6; }
-  .section-title { @apply text-lg font-bold text-ink tracking-tight; }
+  .section-head { @apply flex flex-wrap items-center justify-between gap-3 mb-8; }
+  .section-title { @apply font-display text-xl font-bold text-ink tracking-tight; }
   .section-sub { @apply text-sm text-muted; }
-  .empty-state { @apply flex flex-col items-center justify-center py-12 text-center; }
-  .empty-icon { @apply mb-4 h-12 w-12 rounded-full bg-surface flex items-center justify-center text-muted; }
+  .empty-state { @apply flex flex-col items-center justify-center py-16 text-center; }
+  .empty-icon { @apply mb-5 h-14 w-14 rounded-2xl bg-surface flex items-center justify-center text-muted; }
   .table-wrap { @apply overflow-x-auto; }
   .table { @apply w-full text-left border-collapse text-sm; }
-  .table th { @apply px-4 py-3 text-xs font-semibold text-muted uppercase tracking-wider border-b border-line bg-surface; }
+  .table th { @apply px-4 py-3 text-[10px] font-semibold text-muted uppercase tracking-wider border-b border-line bg-surface; }
   .table td { @apply px-4 py-3.5 border-b border-line text-ink/90; }
   .table tr:last-child td { @apply border-b-0; }
   .table tr:hover td { @apply bg-surface/40; }
-
-  /* Toast / loader / nav link */
-  .toast { @apply fixed bottom-5 right-5 z-50 rounded-lg border border-line bg-card shadow-lg px-4 py-3 text-sm text-ink; }
+  .toast { @apply fixed bottom-6 right-6 z-50 rounded-xl border border-line bg-card shadow-lg px-4 py-3 text-sm text-ink animate-toast-slide; }
   .toast-success { @apply toast border-success/20 bg-success/5 text-success; }
   .toast-error { @apply toast border-danger/20 bg-danger/5 text-danger; }
   .loader { @apply inline-block h-5 w-5 rounded-full border-2 border-current border-t-transparent animate-spin text-brand-teal; }
-  .nav-link { @apply relative text-muted hover:text-brand transition-colors after:absolute after:bottom-0 after:left-0 after:w-0 after:h-[1px] after:bg-brand-teal after:transition-all hover:after:w-full; }
-
-  /* Token utilities */
-  .bg-token-bg { background-color: rgb(var(--color-bg)); }
-  .bg-token-surface { background-color: rgb(var(--color-surface)); }
-  .bg-token-card { background-color: rgb(var(--color-card)); }
-  .bg-token-brand { background-color: rgb(var(--color-brand)); }
-  .bg-token-brand-teal { background-color: rgb(var(--color-brand-teal)); }
-  .bg-token-accent { background-color: rgb(var(--color-accent)); }
-  .text-token-ink { color: rgb(var(--color-ink)); }
-  .text-token-muted { color: rgb(var(--color-muted)); }
-  .text-token-brand { color: rgb(var(--color-brand)); }
-  .text-token-brand-teal { color: rgb(var(--color-brand-teal)); }
-  .text-token-accent { color: rgb(var(--color-accent)); }
-  .text-on-brand { color: rgb(var(--color-on-brand)); }
-  .text-on-brand-teal { color: rgb(var(--color-on-brand-teal)); }
-  .text-on-accent { color: rgb(var(--color-on-accent)); }
+  .nav-link { @apply relative text-muted hover:text-brand transition-colors after:absolute after:bottom-[-4px] after:left-0 after:w-0 after:h-[2px] after:bg-brand-teal after:rounded-full after:transition-all duration-300 hover:after:w-full; }
+  .bg-token-bg { background-color: rgb(var(--color-bg)); } .bg-token-surface { background-color: rgb(var(--color-surface)); } .bg-token-card { background-color: rgb(var(--color-card)); }
+  .bg-token-brand { background-color: rgb(var(--color-brand)); } .bg-token-brand-teal { background-color: rgb(var(--color-brand-teal)); } .bg-token-brand-amber { background-color: rgb(var(--color-brand-amber)); }
+  .text-token-ink { color: rgb(var(--color-ink)); } .text-token-muted { color: rgb(var(--color-muted)); } .text-token-brand { color: rgb(var(--color-brand)); }
+  .text-token-brand-teal { color: rgb(var(--color-brand-teal)); } .text-token-brand-amber { color: rgb(var(--color-brand-amber)); }
+  .text-on-brand { color: rgb(var(--color-on-brand)); } .text-on-brand-teal { color: rgb(var(--color-on-brand-teal)); } .text-on-brand-amber { color: rgb(var(--color-on-brand-amber)); }
   .border-token-line { border-color: rgb(var(--color-line)); }
 }
 
-.link-volt { @apply text-brand-teal font-medium transition-colors hover:underline; }
-
-.skip-link { @apply sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:bg-brand focus:text-on-brand focus:px-4 focus:py-2 focus:rounded; }
+@layer components {
+  .link-volt { @apply text-brand-teal font-medium transition-colors hover:underline; }
+  .skip-link { @apply sr-only focus:not-sr-only focus:absolute focus:top-6 focus:left-6 focus:z-50 focus:bg-brand focus:text-on-brand focus:px-4 focus:py-2 focus:rounded-xl; }
+}
+::-webkit-scrollbar { width: 8px; height: 8px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: rgb(var(--color-line)); border-radius: 4px; } ::-webkit-scrollbar-thumb:hover { background: rgb(var(--color-muted)); }

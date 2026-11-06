@@ -46,6 +46,7 @@ def _public_user(doc: dict) -> dict:
     return {
         "id": str(doc["_id"]),
         "phone": doc["phone"],
+        "email": doc.get("email"),
         "full_name": doc.get("full_name", ""),
         "roles": doc.get("roles", []),
         "phone_verified": bool(doc.get("phone_verified", False)),
@@ -76,6 +77,8 @@ async def register(body: RegisterIn):
         "created_at": now,
         "updated_at": now,
     }
+    if body.email:
+        doc["email"] = body.email
     try:
         res = await db.users.insert_one(doc)
     except DuplicateKeyError:
@@ -110,6 +113,13 @@ async def login(body: LoginIn):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "account suspended")
     if not verify_password(body.password, user["password_hash"]):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "wrong password")
+    # Role match: if the caller selected a role, the account must hold it.
+    if body.role and body.role not in user.get("roles", []):
+        actual = ", ".join(user.get("roles", [])) or "none"
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            f"This account is registered as a {actual}.",
+        )
     public = _public_user(user)
     token = create_access_token(public["id"], public["phone"], public["roles"])
     return {"access_token": token, "token_type": "bearer", "user": public}

@@ -1,13 +1,16 @@
 "use client";
-// /garage (driver console): my cars + add/edit/deactivate. Pending banner
-// explains the publish gate enforced in Module 6.
+// /garage (driver console): my cars + add/edit/deactivate.
 import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 import { RequireAuth } from "@/components/RequireAuth";
 import { vehicleApi, badge, type Vehicle } from "@/lib/vehicles";
+import { Car } from "lucide-react";
 import { Field, inputCls } from "@/components/AuthShell";
 import { VehicleForm, EMPTY_VEHICLE, type VehicleFormState } from "@/components/VehicleForm";
 import { VehicleCard } from "@/components/VehicleCard";
 import { PageShell } from "@/components/PageShell";
+import { Button } from "@/components/ui/Button";
+import { Alert } from "@/components/ui/Alert";
 
 export default function GaragePage() {
   return (
@@ -37,8 +40,6 @@ function GarageInner() {
       color: form.color || undefined, plate_no: form.plate_no,
       seats_total: Number(form.seats_total), fuel_type: form.fuel_type,
       mileage_kmpl: form.mileage_kmpl === "" ? undefined : Number(form.mileage_kmpl),
-      // Always sent (even blank) so the backend can tell "clear the photo"
-      // apart from "leave it alone" via model_fields_set.
       image_url: form.image_url.trim() === "" ? null : form.image_url.trim()
     };
     try {
@@ -82,25 +83,50 @@ function GarageInner() {
       accent="· cars"
       subtitle={
         <>
-          Only <span className="text-brand-teal">verified</span> cars publish trips (Module 6).
+          Only <span className="text-brand-teal">verified</span> cars publish trips.
         </>
       }
     >
-      {msg && <p className="alert alert-ok mt-4">{msg}</p>}
-      {err && <p className="alert alert-err mt-4">{err}</p>}
-      <VehicleForm
-        form={form} setForm={setForm} editing={editing}
-        onSubmit={submit}
-        onCancel={() => { setEditing(null); setForm(EMPTY_VEHICLE); }}
-      />
-      <div className="mt-4 grid gap-3">
+      {msg && <Alert variant="success" className="mt-6">{msg}</Alert>}
+      {err && <Alert variant="danger" className="mt-6">{err}</Alert>}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="mt-6 glass-card p-6"
+      >
+        <VehicleForm
+          form={form} setForm={setForm} editing={editing}
+          onSubmit={submit}
+          onCancel={() => { setEditing(null); setForm(EMPTY_VEHICLE); }}
+        />
+      </motion.div>
+      <div className="mt-8 grid gap-4">
         {cars.length === 0 && (
-          <div className="empty">
-            No cars yet — add your first above. It starts as pending.
-          </div>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="empty-state"
+          >
+            <div className="empty-icon">
+              <Car className="h-6 w-6 text-muted" />
+            </div>
+            <p className="text-sm text-muted">
+              No cars yet — add your first above. It starts as pending.
+            </p>
+          </motion.div>
         )}
         {cars.map((v) => (
-          <VehicleCard key={v.id} v={v} badgeCls={badge(v.verification_status)} onEdit={() => startEdit(v)} onRemove={() => remove(v.id)} />
+          <motion.div
+            key={v.id}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: cars.indexOf(v) * 0.05 }}
+            whileHover={{ y: -2 }}
+            className="glass-card p-5"
+          >
+            <VehicleCard key={v.id} v={v} badgeCls={badge(v.verification_status)} onEdit={() => startEdit(v)} onRemove={() => remove(v.id)} />
+          </motion.div>
         ))}
       </div>
     </PageShell>

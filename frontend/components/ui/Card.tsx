@@ -1,20 +1,33 @@
 "use client";
 
-import { type HTMLAttributes, forwardRef } from "react";
+import * as React from "react";
+import { cn } from "@/lib/utils";
 
-interface CardProps extends HTMLAttributes<HTMLDivElement> {
+export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   hover?: boolean;
-  padded?: boolean;
+  padding?: "none" | "sm" | "md" | "lg";
 }
 
-export const Card = forwardRef<HTMLDivElement, CardProps>(
-  ({ className = "", hover = false, padded = true, children, ...props }, ref) => {
+const Card = React.forwardRef<HTMLDivElement, CardProps>(
+  ({ className, hover = false, padding = "md", children, ...props }, ref) => {
+    const paddings = {
+      none: "",
+      sm: "p-4",
+      md: "p-6",
+      lg: "p-8",
+    };
+
     return (
       <div
         ref={ref}
-        className={`card ${hover ? "card-hover" : ""} ${
-          padded ? "p-5" : ""
-        } ${className}`}
+        className={cn(
+          "rounded-2xl border border-line bg-card shadow-md",
+          hover
+            ? "transition-all duration-300 hover:bg-card-hover hover:border-line-hover hover:shadow-lg hover:-translate-y-1"
+            : "",
+          paddings[padding],
+          className
+        )}
         {...props}
       >
         {children}
@@ -25,16 +38,4 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
 
 Card.displayName = "Card";
 
-export const CardBody = ({ children }: { children: React.ReactNode }) => (
-  <div className="pt-4">{children}</div>
-);
-
-CardBody.displayName = "CardBody";
-
-export const CardFooter = ({ children }: { children: React.ReactNode }) => (
-  <div className="mt-4 border-t border-line pt-4 flex items-center justify-between gap-3">
-    {children}
-  </div>
-);
-
-CardFooter.displayName = "CardFooter";
+export { Card };

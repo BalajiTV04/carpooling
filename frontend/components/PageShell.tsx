@@ -1,56 +1,73 @@
 import Link from "next/link";
+import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
 
 /**
  * Shared page frame for every inner (non-landing) route.
  *
- * Before this existed each page hand-rolled its own <main> with a different
- * max-width (3xl, 4xl, 6xl, 2xl) and its own back-link, so the redesign on the
- * index page never carried through — pages looked visibly narrower than the nav
- * and each other. This gives them one consistent width, one spacing scale and
- * one header treatment, so a change here updates all of them at once.
- *
- * The header is a `panel-head` band (gradient lit surface + travelling road
- * rule) rather than a bare <h1>, so an inner page opens with the same weight as
- * the landing page instead of looking unfinished.
- *
- * `wide` opts a page into the full 7xl used by the landing page.
+ * Consistent 8px grid, one max-width, motion-revealed header, glass surface.
+ * All inner pages now share identical alignment so the nav and content line up.
  */
 export function PageShell({
-  title, accent, subtitle, children, wide = false, eyebrow, actions
+  title,
+  accent,
+  subtitle,
+  children,
+  wide = false,
+  eyebrow,
+  actions,
+  className,
 }: {
   title: React.ReactNode;
-  /** Optional coloured suffix after the title, e.g. "· trips". */
   accent?: React.ReactNode;
   subtitle?: React.ReactNode;
   children: React.ReactNode;
   wide?: boolean;
-  /** Small uppercase kicker above the title, e.g. "Passenger". */
   eyebrow?: string;
-  /** Right-aligned slot in the header (filters, status pill, primary action). */
   actions?: React.ReactNode;
+  className?: string;
 }) {
   return (
-    <main className="relative mx-auto w-full px-5 pb-20 pt-8">
-      <div className={wide ? "max-w-7xl" : "max-w-5xl"}>
-        <Link href="/" className="btn btn-ghost btn-sm">
+    <main className={cn("relative mx-auto w-full pt-10 pb-20", className)}>
+      <div className={cn("px-5", wide ? "max-w-7xl" : "max-w-6xl mx-auto")}>
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 text-sm font-medium text-brand-teal transition hover:text-brand"
+        >
           ← VoltRide
         </Link>
 
-        <header className="panel-head relative mt-3 overflow-hidden p-6">
-          <div className="glow-iris -right-16 -top-24 h-56 w-56 bg-accent/30" aria-hidden />
-          <div className="relative flex flex-wrap items-end justify-between gap-4">
+        <motion.header
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className={cn(
+            "relative mt-6 overflow-hidden p-0 rounded-2xl border border-line bg-card shadow-sm panel-head",
+            className
+          )}
+        >
+          <div className="absolute -inset-4 bg-gradient-indigo-teal/10 blur-[60px] -z-10" aria-hidden />
+          <div className="relative flex flex-wrap items-end justify-between gap-4 p-6">
             <div className="min-w-0">
-              {eyebrow ? <p className="eyebrow">{eyebrow}</p> : null}
-              <h1 className="font-display mt-1 text-3xl font-extrabold tracking-tight">
+              {eyebrow ? (
+                <p className="uppercase tracking-wider text-[10px] font-semibold text-brand-teal mb-2">
+                  {eyebrow}
+                </p>
+              ) : null}
+              <h1 className="font-display text-3xl font-extrabold tracking-tight text-ink">
                 {title}
-                {accent ? <span className="text-accent"> {accent}</span> : null}
+                {accent ? <span className="text-brand-teal"> {accent}</span> : null}
               </h1>
-              {subtitle ? <p className="mt-1.5 text-sm text-muted">{subtitle}</p> : null}
+              {subtitle ? (
+                <p className="mt-2 text-sm text-muted leading-relaxed">{subtitle}</p>
+              ) : null}
             </div>
-            {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
+            {actions ? (
+              <div className="flex flex-wrap items-center gap-3">{actions}</div>
+            ) : null}
           </div>
-          <div className="roadline relative mt-4 rounded-full opacity-60" aria-hidden />
-        </header>
+          <div className="h-[1px] bg-gradient-to-r from-transparent via-brand-teal/30 to-transparent mx-6" aria-hidden />
+        </motion.header>
 
         {children}
       </div>

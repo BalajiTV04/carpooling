@@ -95,6 +95,15 @@ async def test_register_login_otp_me_flow():
         assert (await ac.post("/api/v1/auth/login",
                 json={"phone": phone, "password": "nope"})).status_code == 401
 
+        # 5a. login with a role the account holds -> 200
+        assert (await ac.post("/api/v1/auth/login",
+                json={"phone": phone, "password": "pass1234", "role": "passenger"})).status_code == 200
+        # 5b. login with a role the account does NOT hold -> 403 role mismatch
+        r_role = await ac.post("/api/v1/auth/login",
+                json={"phone": phone, "password": "pass1234", "role": "admin"})
+        assert r_role.status_code == 403
+        assert "registered as" in r_role.json()["detail"]
+
         # 5. OTP request (dev_code echoed) + verify wrong -> 401
         otp = (await ac.post("/api/v1/auth/otp/request", json={"phone": phone})).json()
         assert otp["sent"] is True and len(otp["dev_code"]) == 6

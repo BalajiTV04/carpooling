@@ -1,45 +1,26 @@
 "use client";
 
-import { type InputHTMLAttributes, forwardRef } from "react";
+import * as React from "react";
+import { cn } from "@/lib/utils";
 
-interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
-  label?: string;
-  error?: string;
-  helper?: string;
-}
+export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {}
 
-export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, helper, className = "", id, ...props }, ref) => {
-    const inputId = id || label?.toLowerCase().replace(/\s+/g, "-");
+const Input = React.forwardRef<HTMLInputElement, InputProps>(
+  ({ className, type, ...props }, ref) => {
     return (
-      <div className="flex flex-col gap-1.5">
-        {label && (
-          <label
-            htmlFor={inputId}
-            className="text-xs font-semibold text-ink/90 uppercase tracking-wider"
-          >
-            {label}
-          </label>
+      <input
+        type={type}
+        ref={ref}
+        className={cn(
+          "w-full rounded-xl border border-line bg-surface px-4 py-3 text-sm text-ink placeholder-muted/60 focus:outline-none focus:ring-2 focus:ring-brand-teal focus:border-brand-teal transition-all duration-200",
+          className
         )}
-        <input
-          ref={ref}
-          id={inputId}
-          className={`input ${error ? "border-danger focus:ring-danger focus:border-danger" : ""} ${
-            className ? className : ""
-          }`}
-          aria-invalid={error ? true : undefined}
-          aria-describedby={helper ? inputId + "-helper" : undefined}
-          {...props}
-        />
-        {helper && (
-          <p id={inputId + "-helper"} className="text-xs text-muted">
-            {helper}
-          </p>
-        )}
-        {error && <p className="text-xs text-danger">{error}</p>}
-      </div>
+        {...props}
+      />
     );
   }
 );
 
 Input.displayName = "Input";
+
+export { Input };

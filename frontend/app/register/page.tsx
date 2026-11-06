@@ -1,10 +1,11 @@
 "use client";
 // Register: phone + name + password + role toggle (passenger/driver/both).
-// On success → straight to /verify (OTP step), token already saved.
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/components/SessionProvider";
 import { AuthShell, Field, inputCls } from "@/components/AuthShell";
+import { Button } from "@/components/ui/Button";
+import { Alert } from "@/components/ui/Alert";
 
 export default function RegisterPage() {
   const { register, error } = useSession();
@@ -33,7 +34,7 @@ export default function RegisterPage() {
           <input
             className={inputCls}
             type="tel"
-            pattern="\+[0-9]{7,15}"
+            pattern="\\+[0-9]{7,15}"
             title="Must start with +, e.g. +919876543210"
             value={form.phone}
             onChange={(e) => setForm({ ...form, phone: e.target.value })}
@@ -51,7 +52,7 @@ export default function RegisterPage() {
         <Field label="Password (min 6)">
           <input className={inputCls} type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} minLength={6} required />
         </Field>
-        <div>
+        <div className="flex flex-col gap-2">
           <span className="label">I will use VoltRide as</span>
           <div className="flex gap-2">
             {(["passenger", "driver"] as const).map((r) => (
@@ -64,10 +65,10 @@ export default function RegisterPage() {
             ))}
           </div>
         </div>
-        {error && <p className="alert alert-err">{error}</p>}
-        <button disabled={busy} className="btn btn-primary w-full py-3">
+        {error && <Alert variant="danger">{error}</Alert>}
+        <Button variant="primary" size="md" disabled={busy} className="w-full">
           {busy ? "Creating…" : "Create & verify phone →"}
-        </button>
+        </Button>
         <p className="text-center text-sm text-muted">
           Have an account? <a href="/login" className="link-volt">Log in</a>
         </p>

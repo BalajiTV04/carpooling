@@ -1,81 +1,102 @@
 "use client";
-// /database page: ER-style data map + live index stats + schema explorer.
-// Station timeline motif: collections as "stops" on the data line.
-import { useEffect, useState } from "react";
-import { fetchDbStats, initDb, type DbStats } from "@/lib/db";
-import { CollectionCard } from "@/components/CollectionCard";
+// /database (Module 23): admin data map + initialise DB tool.
+import { useCallback, useEffect, useState } from "react";
+import { motion } from "framer-motion";
+import { RequireAuth } from "@/components/RequireAuth";
 import { PageShell } from "@/components/PageShell";
-
-const BLURBS: Record<string, string> = {
-  users: "People. roles[] = driver / passenger / admin. Phone (E.164) is the login key.",
-  vehicles: "Driver cars. plate_no unique. verified before trip publishing.",
-  trips: "One drive: source → dest + LineString route, seats, UTC depart_at.",
-  bookings: "One passenger request: pickup/dropoff Points + match + share.",
-  segments: "Legs between stops. Module 13 splits cost per leg.",
-  locations: "Driver GPS pings, active trips only. TTL auto-deletes after 30d.",
-  safety_alerts: "SOS / speed / deviation events for the admin board."
-};
-
-const ORDER = ["users", "vehicles", "trips", "bookings", "segments", "locations", "safety_alerts"];
+import { Button } from "@/components/ui/Button";
+import { Alert } from "@/components/ui/Alert";
+import { MapPin, Database, Zap } from "lucide-react";
 
 export default function DatabasePage() {
-  const [stats, setStats] = useState<DbStats | null>(null);
-  const [msg, setMsg] = useState("Backend not reached — showing Module 2 contract.");
-  const load = () =>
-    fetchDbStats().then((s) => {
-      setStats(s);
-      const missing = Object.values(s.collections).filter((c) => c.missing).length;
-      setMsg(missing > 0 ? `${missing} collections missing — press Initialise.` : "Live from Mongo via /api/v1/db/stats.");
-    });
-  useEffect(() => { load(); }, []);
+  return (
+    <RequireAuth roles={["admin"]}>
+      <DatabaseInner />
+    </RequireAuth>
+  );
+}
+
+function DatabaseInner() {
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  const initDb = async () => {
+    setBusy(true);
+    setErr(null);
+    setMsg(null);
+    try {
+      const r = await fetch("/api/v1/db_admin/init", { method: "POST" });
+      if (!r.ok) throw new Error("Init failed");
+      setMsg("Database initialised ✓");
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : "Init failed");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <PageShell
       title="Data map"
-      eyebrow="Admin · Module 2"
-      accent="· 7 stops"
+      eyebrow="Admin · Module 23"
+      subtitle="Inspect and seed the platform database."
       wide
-      subtitle={<>{msg} All coordinates GeoJSON [lng, lat]. Times UTC.</>}
-      actions={
-        <button
-          onClick={async () => { setMsg("Initialising…"); await initDb(); await load(); }}
-          className="btn btn-primary"
-        >
-          Initialise DB
-        </button>
-      }
     >
-      <div className="mt-6 hidden items-center gap-0 md:flex" aria-hidden>
-        {ORDER.map((c, i) => (
-          <div key={c} className="flex flex-1 items-center last:flex-none">
-            <div className="grid h-8 w-8 place-items-center rounded-full bg-iris-500 text-xs font-bold text-white">{i + 1}</div>
-            {i < ORDER.length - 1 && <div className="roadline flex-1 rounded-full opacity-70" />}
+      {err && <Alert variant="danger" className="mt-6">{err}</Alert>}
+      {msg && <Alert variant="success" className="mt-6">{msg}</Alert>}
+
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="mt-6 grid gap-6 md:grid-cols-3"
+      >
+        <div className="glass-card p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <Database className="h-6 w-6 text-brand-teal" />
+            <h2 className="font-display font-bold text-ink">Database</h2>
           </div>
-        ))}
-      </div>
+          <p className="text-sm text-muted mb-6">
+            Seed demo users, vehicles, trips and bookings for local development.
+          </p>
+          <Button
+            variant="primary"
+            size="md"
+            disabled={busy}
+            onClick={initDb}
+            className="w-full"
+          >
+            {busy ? "Initialising…" : "Initialise DB"}
+          </Button>
+        </div>
 
-      <div className="mt-6 grid gap-4 md:grid-cols-2">
-        {ORDER.map((name) => {
-          const row = stats?.collections[name];
-          return (
-            <CollectionCard
-              key={name}
-              name={name}
-              blurb={BLURBS[name]}
-              count={row ? row.count : null}
-              indexes={row ? row.indexes : []}
-              geo={row ? row.geo : []}
-            />
-          );
-        })}
-      </div>
+        <div className="glass-card p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <MapPin className="h-6 w-6 text-brand-teal" />
+            <h2 className="font-display font-bold text-ink">Live map</h2>
+          </div>
+          <p className="text-sm text-muted mb-6">
+            View active trips and vehicle locations on the map.
+          </p>
+          <Button variant="ghost" size="md" className="w-full">
+            Open map
+          </Button>
+        </div>
 
-      <div className="panel mt-6 border-brand-teal/30 p-5 text-sm text-muted">
-        <span className="font-semibold text-brand-teal">Why this shape?</span> Trips carry the
-        LineString route so matching (Module 9) is a geo query, not string compare.
-        Bookings store pickup/dropoff as Points so detour optimisation (Module 10) can
-        rank them. Locations TTL away for privacy — tracking exists only inside active trips.
-      </div>
+        <div className="glass-card p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <Zap className="h-6 w-6 text-brand-teal" />
+            <h2 className="font-display font-bold text-ink">Stream</h2>
+          </div>
+          <p className="text-sm text-muted mb-6">
+            Monitor live location pushes and socket events.
+          </p>
+          <Button variant="ghost" size="md" className="w-full">
+            View stream
+          </Button>
+        </div>
+      </motion.div>
     </PageShell>
   );
 }

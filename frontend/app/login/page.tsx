@@ -4,6 +4,8 @@ import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "@/components/SessionProvider";
 import { AuthShell, Field, inputCls } from "@/components/AuthShell";
+import { Button } from "@/components/ui/Button";
+import { Alert } from "@/components/ui/Alert";
 
 function LoginForm() {
   const { login, error } = useSession();
@@ -30,10 +32,10 @@ function LoginForm() {
         <Field label="Password">
           <input className={inputCls} type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required />
         </Field>
-        {error && <p className="alert alert-err">{error}</p>}
-        <button disabled={busy} className="btn btn-primary w-full py-3">
+        {error && <Alert variant="danger">{error}</Alert>}
+        <Button variant="primary" size="md" disabled={busy} className="w-full">
           {busy ? "Checking…" : "Log in →"}
-        </button>
+        </Button>
         <p className="text-center text-sm text-muted">
           New here? <a href="/register" className="link-volt">Create account</a>
         </p>
@@ -44,7 +46,7 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<p className="p-10 text-sm text-muted">Loading…</p>}>
+    <Suspense fallback={<div className="p-10 text-center"><div className="loader mx-auto mb-2" /></div>}>
       <LoginForm />
     </Suspense>
   );

@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import { SessionProvider } from "@/components/SessionProvider";
 import { NavBar } from "@/components/NavBar";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { AnimatePresence } from "framer-motion";
 
 export { metadata } from "./layout.metadata";
 
@@ -20,9 +21,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="min-h-screen antialiased">
         <SessionProvider>
-          <NavBar />
-          <ThemeToggle />
-          {children}
+          <AnimatePresence>
+            <NavBar />
+            <ThemeToggle />
+            {children}
+          </AnimatePresence>
         </SessionProvider>
       </body>
     </html>

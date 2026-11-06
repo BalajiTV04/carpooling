@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { type HTMLAttributes } from "react";
+import React, { type HTMLAttributes } from "react";
 
 interface SectionHeaderProps extends HTMLAttributes<HTMLDivElement> {
   title: string;

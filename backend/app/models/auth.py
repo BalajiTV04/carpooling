@@ -13,6 +13,7 @@ from app.models.common import PHONE_RE
 
 class RegisterIn(BaseModel):
     phone: str
+    email: Optional[str] = None
     password: str = Field(min_length=6, max_length=72)
     full_name: str = Field(min_length=2, max_length=80)
     roles: List[str] = Field(default_factory=lambda: ["passenger"])
@@ -36,7 +37,9 @@ class RegisterIn(BaseModel):
 
 class LoginIn(BaseModel):
     phone: str
+    email: Optional[str] = None
     password: str = Field(min_length=1)
+    role: Optional[str] = None  # if provided, must match one of the account's roles
 
 
 class OtpRequestIn(BaseModel):

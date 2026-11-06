@@ -2,6 +2,7 @@
 // /search (Module 9 ranking + Module 10 pickup optimisation).
 import { useState } from "react";
 import Link from "next/link";
+import { motion } from "framer-motion";
 import { RequireAuth } from "@/components/RequireAuth";
 import { searchApi, type Excluded, type RideHit } from "@/lib/search";
 import type { PlaceHit } from "@/lib/geo";
@@ -9,6 +10,10 @@ import { PlacePicker } from "@/components/PlacePicker";
 import { Field, inputCls } from "@/components/AuthShell";
 import { RideCard } from "@/components/RideCard";
 import { PageShell } from "@/components/PageShell";
+import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
+import { Alert } from "@/components/ui/Alert";
+import { Car } from "lucide-react";
 
 export default function SearchPage() {
   return (
@@ -57,23 +62,28 @@ function SearchInner() {
       setBusy(false);
     }
   };
-
   return (
     <PageShell
       title="Find a ride"
       eyebrow="Passenger"
       subtitle="Published trips only · same-day · seats checked."
     >
-      <form onSubmit={submit} className="panel mt-5 grid gap-3 p-5">
-        <p className="text-[11px] text-muted">
-          Type a place — typos are fine — or tap{" "}
-          <span className="text-brand-teal">📍</span> to drop a pin on the map.
+      {/* Search form — glass panel */}
+      <motion.form
+        onSubmit={submit}
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="mt-6 glass-card p-6 grid gap-5"
+      >
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted">
+          Type a place — typos are fine — or tap 📍 to drop a pin on the map.
         </p>
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-2">
           <PlacePicker label="From" value={src} onPick={setSrc} placeholder="Hebbal… try “Man miss”" />
           <PlacePicker label="To" value={dst} onPick={setDst} placeholder="Electronic City…" />
         </div>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid gap-4 md:grid-cols-3">
           <Field label="Date">
             <input className={inputCls} type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
           </Field>
@@ -86,9 +96,11 @@ function SearchInner() {
             </select>
           </Field>
         </div>
-        <details className="panel-inset px-4 py-2 text-sm">
-          <summary className="cursor-pointer text-xs text-muted">Match tuning (defaults fit the city)</summary>
-          <div className="grid grid-cols-2 gap-3 py-2">
+        <details className="panel-inset p-4 text-sm">
+          <summary className="cursor-pointer flex items-center gap-2 text-xs text-muted">
+            <span>🔧</span> Match tuning (defaults fit the city)
+          </summary>
+          <div className="mt-3 grid gap-4 md:grid-cols-2">
             <Field label="Max pickup km">
               <input className={inputCls} value={maxPickup} onChange={(e) => setMaxPickup(e.target.value)} inputMode="decimal" />
             </Field>
@@ -97,38 +109,65 @@ function SearchInner() {
             </Field>
           </div>
         </details>
-        <button disabled={busy} className="btn btn-primary w-full py-3">
+        <Button variant="primary" size="lg" disabled={busy} className="w-full">
           {busy ? "Searching…" : "Search rides →"}
-        </button>
-        {err && <p className="alert alert-err">{err}</p>}
-      </form>
+        </Button>
+        {err && <Alert variant="danger">{err}</Alert>}
+      </motion.form>
+      {/* Results */}
       {hits !== null && (
-        <section className="mt-6">
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className="font-display text-lg font-bold">
-              {hits.length === 0 ? "No rides that day" : `${hits.length} ride${hits.length > 1 ? "s" : ""} found`}
-            </h2>
-            {aiBadge && <span className="pill pill-iris">{aiBadge} · blended = ½ rule + ½ AI</span>}
-          </div>
-          <div className="mt-3 grid gap-3">
-            {hits.length === 0 && (
-              <div className="empty">
-                Try a nearby date or fewer seats. Drivers publish in{" "}
-                <Link href="/trips" className="link-volt">/trips</Link>.
-              </div>
+        <section className="mt-8">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="font-display text-lg font-bold text-ink">
+                {hits.length === 0 ? "No rides that day" : `${hits.length} ride${hits.length > 1 ? "s" : ""} found`}
+              </h2>
+            </div>
+            {aiBadge && (
+              <Badge variant="brand" className="text-[10px]">
+                {aiBadge} · blended = ½ rule + ½ AI
+              </Badge>
             )}
-            {hits.map((t) => <RideCard key={t.id} t={t} pickupHint={src} dropHint={dst} />)}
+          </div>
+          <div className="mt-5 grid gap-4">
+            {hits.length === 0 && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="empty-state"
+              >
+                <div className="empty-icon">
+                  <Car className="h-6 w-6 text-muted" />
+                </div>
+                <p className="text-sm text-muted">
+                  Try a nearby date or fewer seats. Drivers publish in{" "}
+                  <Link href="/trips" className="link-volt">/trips</Link>.
+                </p>
+              </motion.div>
+            )}
+            {hits.map((t, i) => (
+              <motion.div
+                key={t.id}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.06 }}
+                whileHover={{ y: -2 }}
+                className="glass-card p-5"
+              >
+                <RideCard key={t.id} t={t} pickupHint={src} dropHint={dst} />
+              </motion.div>
+            ))}
           </div>
           {excluded.length > 0 && (
-            <details className="panel mt-4 p-4 text-xs">
-              <summary className="cursor-pointer text-muted">
-                {excluded.length} ride{excluded.length > 1 ? "s" : ""} skipped — why?
+            <details className="mt-6 panel-inset p-4 text-xs">
+              <summary className="cursor-pointer flex items-center gap-2 text-xs text-muted">
+                <span>🔍</span> {excluded.length} ride{excluded.length > 1 ? "s" : ""} skipped — why?
               </summary>
-              <ul className="mt-2 grid gap-1 text-muted">
+              <ul className="mt-3 grid gap-2 text-muted">
                 {excluded.map((x) => (
-                  <li key={x.id}>
+                  <li key={x.id} className="flex justify-between">
                     <span className="text-ink">{x.source_name} → {x.destination_name}</span>
-                    {" — "}{x.reason}
+                    <span className="text-muted/80">{x.reason}</span>
                   </li>
                 ))}
               </ul>

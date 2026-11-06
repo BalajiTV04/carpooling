@@ -1,3 +1,4 @@
+"use client";
 // Vehicle add/edit form (shared by /garage; admin console reuses read-only card).
 import { Field, inputCls } from "@/components/AuthShell";
 
