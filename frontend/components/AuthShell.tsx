@@ -10,9 +10,8 @@ import { cn } from "@/lib/utils";
  */
 export function AuthShell({ title, sub, children }: { title: string; sub: string; children: React.ReactNode }) {
   return (
-    <main className="relative mx-auto max-w-md px-5 pb-24 pt-16">
-      {/* Ambient glow behind the auth card */}
-      <div className="glow-brand -left-12 top-8 h-64 w-64 rounded-full mix-blend-screen" aria-hidden />
+    <main className="relative mx-auto max-w-md px-5 pb-24 pt-10">
+      <div className="h-10 rounded-full bg-gradient-indigo-teal/10 -top-5" aria-hidden />
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}

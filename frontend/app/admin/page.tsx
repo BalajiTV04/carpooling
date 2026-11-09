@@ -37,13 +37,13 @@ function AdminInner() {
     setErr(null);
     try {
       const [s, t, a] = await Promise.all([
-        (globalThis as any).fetch ? fetch("/api/v1/admin/stats").then(r => r.json()) : Promise.resolve(null),
+        fetch("/api/v1/admin/stats").then(r => r.json()),
         fetch("/api/v1/admin/trips?live_only=" + liveOnly).then(r => r.json()),
         fetch("/api/v1/admin/alerts?status=open").then(r => r.json()),
       ]);
-      setStats(s?.[0]);
-      setTrips(t?.[1]?.trips ?? []);
-      setAlerts(a?.[2]?.alerts ?? []);
+      setStats(s);
+      setTrips(t?.trips ?? []);
+      setAlerts(a?.items ?? []);
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : "Console load failed");
     }

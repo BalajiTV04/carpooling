@@ -221,57 +221,10 @@ async def main(keep: bool = False) -> None:
     db = get_client()[settings.MONGO_DB]
     if not keep:
         await _wipe(db)
-    # ensure indexes so the seed's upserts run against the real validators
+    # ensure indexes so the DB is ready for use
     await ensure_indexes(db)
-
-    admin = await _user(db, ADMIN_PHONE, "Seed Admin", ["admin"])
-    drv1 = await _user(db, DRV1, "Seed Driver One", ["driver", "passenger"])
-    drv2 = await _user(db, DRV2, "Seed Driver Two", ["driver", "passenger"])
-    pax1 = await _user(db, PAX1, "Seed Rider One", ["passenger"])
-    pax2 = await _user(db, PAX2, "Seed Rider Two", ["passenger"])
-    pax3 = await _user(db, PAX3, "Seed Rider Three", ["passenger"])
-
-    v1 = await _vehicle(db, drv1, "SEED001", "petrol", 15.0)
-    v2 = await _vehicle(db, drv2, "SEED002", "diesel", 18.0)
-
-    # a live trip to search and book right now
-    soon = (_utcnow() + timedelta(hours=6)).replace(
-        minute=0, second=0, microsecond=0)
-    await _trip(db, drv1, v1, "East", soon, "published", 3, 0)
-    await _trip(db, drv2, v2, "North", soon + timedelta(hours=1), "published", 2, 0)
-
-    # History. The completed trip gives /analytics, ratings and the admin board
-    # something real; the extra past days give the demand forecast a train/test
-    # split big enough to backtest (it needs >4 departures to split at all).
-    past = (_utcnow() - timedelta(days=6)).replace(
-        hour=9, minute=0, second=0, microsecond=0)
-    done = await _trip(db, drv1, v1, "West", past, "completed", 3, 2)
-    await _seed_history(db, done, drv1, [pax1, pax2], "petrol", 15.0)
-    # one booking that fell through, so the Module 24 evaluation has BOTH
-    # classes — with only positives the AUC is correctly reported as None
-    await _fallthrough(db, done, drv1, pax3, 12.0, 6.0)
-
-    riders_cycle = [pax1, pax2, pax3]
-    for i in range(1, 6):
-        when = (_utcnow() - timedelta(days=6 - i)).replace(
-            hour=8 + (i % 3), minute=0, second=0, microsecond=0)
-        driver, veh, fuel, mile = ((drv1, v1, "petrol", 15.0) if i % 2
-                                   else (drv2, v2, "diesel", 18.0))
-        t = await _trip(db, driver, veh, "Day" + str(i), when, "completed", 3, 1)
-        await _seed_history(db, t, driver,
-                            [riders_cycle[i % len(riders_cycle)]], fuel, mile)
-    _ = admin
-
-    print("Seed complete -> database '" + settings.MONGO_DB + "'")
-    print("Sign in at /login with any of these (all share the password below),")
-    print("then open /verify — the dev OTP is displayed on screen.")
-    print("  password: " + PASSWORD)
-    for phone, role in ((ADMIN_PHONE, "admin"), (DRV1, "driver"),
-                        (DRV2, "driver"), (PAX1, "passenger"),
-                        (PAX2, "passenger"), (PAX3, "passenger")):
-        print("    " + phone + "  " + role)
-    print("Try: log in as a passenger, /search for the SeedTest corridor, book")
-    print("the ride, then /analytics to see the seeded impact + forecast.")
+    # No demo accounts are created — register your own account at /register.
+    print("Database wiped and indexes ensured. No demo accounts created.")
 
 
 if __name__ == "__main__":

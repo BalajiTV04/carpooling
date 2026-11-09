@@ -235,6 +235,11 @@ function MeInner() {
             <Badge variant="success">Driver ✓</Badge>
             <span className="text-xs text-muted">Vehicle · publish trips · earn</span>
           </div>
+        ) : (p?.roles ?? []).includes("admin") ? (
+          <div className="mt-2 flex items-center gap-2">
+            <Badge variant="danger">Admin</Badge>
+            <span className="text-xs text-muted">Admin</span>
+          </div>
         ) : (
           <Button variant="primary" size="md" onClick={upgrade} className="w-auto">
             Become a driver →

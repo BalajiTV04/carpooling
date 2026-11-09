@@ -16,12 +16,30 @@ interface LoginFormProps {
   className?: string;
 }
 
+function parseAuthError(error: any): string {
+  if (error?.response?.status === 422) {
+    const errors = error.response?.data?.detail;
+    if (errors && Array.isArray(errors)) {
+      const fieldError = errors.find((e: any) => e?.loc?.[1] === 'phone');
+      if (fieldError) return fieldError.msg || fieldError.detail || 'Invalid phone number';
+      return errors[0]?.msg || errors[0]?.detail || 'Login failed — check your phone and password';
+    }
+  }
+  if (error?.response?.status === 401) {
+    return 'Wrong password — please try again';
+  }
+  if (error?.response?.status === 404) {
+    return 'Account not found — please register first';
+  }
+  return error?.message || 'An unexpected error occurred';
+}
+
 export function LoginForm({ role, next: nextParam = "/", className }: LoginFormProps) {
   const { login, error, ready } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get("next") ?? nextParam ?? "/";
-  const [form, setForm] = useState({ identifier: "", password: "" });
+  const [form, setForm] = useState({ phone: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -29,10 +47,10 @@ export function LoginForm({ role, next: nextParam = "/", className }: LoginFormP
     e.preventDefault();
     setBusy(true);
     try {
-      await login(form.identifier, form.password, role);
+      await login(form.phone, form.password, role);
       router.push(next);
-    } catch {
-      /* context error shown via Alert */
+    } catch (error: any) {
+      setError(parseAuthError(error));
     } finally {
       setBusy(false);
     }
@@ -58,8 +76,8 @@ export function LoginForm({ role, next: nextParam = "/", className }: LoginFormP
           className="input pl-10"
           type="text"
           autoComplete="username"
-          value={form.identifier}
-          onChange={(e) => setForm({ ...form, identifier: e.target.value })}
+          value={form.phone}
+          onChange={(e) => setForm({ ...form, phone: e.target.value })}
           placeholder="you@example.com or +919876543210"
           required
         />

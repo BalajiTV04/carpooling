@@ -34,7 +34,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const login = useCallback(async (identifier: string, password: string, role?: string) => {
     setError(null);
     try {
-      const r = await authApi.login({ identifier, password, role });
+      const r = await authApi.login({ phone: identifier, password, role });
       saveSession(r.access_token, r.user);
       setToken(r.access_token);
       setUser(r.user);

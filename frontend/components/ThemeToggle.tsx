@@ -31,7 +31,7 @@ export function ThemeToggle() {
     <button
       type="button"
       onClick={() => setIsDark((prev) => !prev)}
-      className="fixed top-4 right-4 z-50 rounded-full p-2 transition-colors hover:bg-muted/50"
+      className="inline-flex items-center justify-center rounded-full p-2 transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-brand-teal/50"
       aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
       suppressHydrationWarning
     >

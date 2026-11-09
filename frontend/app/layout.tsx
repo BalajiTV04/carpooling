@@ -22,9 +22,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-screen antialiased">
         <SessionProvider>
           <AnimatePresence>
-            <NavBar />
-            <ThemeToggle />
-            {children}
+            <NavBar key="nav-bar" />
+            <ThemeToggle key="theme-toggle" />
+            {children && <>{children}</>}
           </AnimatePresence>
         </SessionProvider>
       </body>

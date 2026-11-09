@@ -14,7 +14,7 @@ interface AuthCardProps {
 export function AuthCard({ title, sub, backLink, children }: AuthCardProps) {
   return (
     <main className="relative mx-auto max-w-md px-5 pb-24 pt-16">
-      <div className="glow-brand -left-12 top-8 h-64 w-64 rounded-full mix-blend-screen" aria-hidden />
+
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -31,7 +31,7 @@ export function AuthCard({ title, sub, backLink, children }: AuthCardProps) {
         )}
         <div className="mt-6 flex items-center gap-3">
           <BrandMark size={44} className="shadow-glow-brand" />
-          <div>
+          <div className="mt-2">
             <h1 className="font-display text-3xl font-extrabold tracking-tight text-ink">
               {title}
             </h1>

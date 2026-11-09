@@ -27,10 +27,10 @@ function LoginForm() {
     <AuthShell title="Welcome back" sub="Log in with your verified phone number.">
       <form onSubmit={submit} className="grid gap-4">
         <Field label="Phone">
-          <input className={inputCls} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+919876543210" required />
+          <input className={inputCls} name="phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+919876543210" required />
         </Field>
         <Field label="Password">
-          <input className={inputCls} type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required />
+          <input className={inputCls} name="password" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required />
         </Field>
         {error && <Alert variant="danger">{error}</Alert>}
         <Button variant="primary" size="md" disabled={busy} className="w-full">

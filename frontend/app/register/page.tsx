@@ -34,7 +34,8 @@ export default function RegisterPage() {
           <input
             className={inputCls}
             type="tel"
-            pattern="\\+[0-9]{7,15}"
+            pattern="\\+91[0-9]{10}"
+            name="phone"
             title="Must start with +, e.g. +919876543210"
             value={form.phone}
             onChange={(e) => setForm({ ...form, phone: e.target.value })}
@@ -47,10 +48,10 @@ export default function RegisterPage() {
           </span>
         </Field>
         <Field label="Full name">
-          <input className={inputCls} value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} placeholder="Asha Kumar" minLength={2} required />
+          <input className={inputCls} name="full_name" value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} placeholder="Asha Kumar" minLength={2} required />
         </Field>
         <Field label="Password (min 6)">
-          <input className={inputCls} type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} minLength={6} required />
+          <input className={inputCls} name="password" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} minLength={6} required />
         </Field>
         <div className="flex flex-col gap-2">
           <span className="label">I will use VoltRide as</span>

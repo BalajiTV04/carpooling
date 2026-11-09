@@ -5,8 +5,8 @@ from typing import List, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
-# E.164 phone, e.g. +919876543210 (Module 3 login key)
-PHONE_RE = re.compile(r"^\+[1-9][0-9]{7,14}$")
+# E.164 India phone, e.g. +919876543210 (Module 3 login key)
+PHONE_RE = re.compile(r"^\+91[0-9]{10}$")
 
 
 def utcnow() -> datetime:

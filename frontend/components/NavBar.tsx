@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "@/components/SessionProvider";
 import { NotificationBell } from "@/components/NotificationBell";
 import { BrandMark } from "@/components/BrandMark";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { AnimatePresence, motion } from "framer-motion";
 import { Menu, X } from "lucide-react";
 
@@ -255,6 +256,7 @@ export function NavBar() {
                       >
                         Create account
                       </Link>
+                      <ThemeToggle />
                     </>
                   )}
                 </div>
