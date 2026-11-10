@@ -17,6 +17,7 @@ class RegisterIn(BaseModel):
     password: str = Field(min_length=6, max_length=72)
     full_name: str = Field(min_length=2, max_length=80)
     roles: List[str] = Field(default_factory=lambda: ["passenger"])
+    mileage: Optional[float] = Field(default=None, ge=1, le=60)
 
     @field_validator("phone")
     @classmethod
@@ -30,9 +31,10 @@ class RegisterIn(BaseModel):
     def roles_ok(cls, v: List[str]) -> List[str]:
         allowed = {"driver", "passenger"}
         # admin is NEVER self-registered; seeded/promoted by an admin later.
-        if not v or any(r not in allowed for r in v):
-            raise ValueError("roles must be driver and/or passenger")
-        return sorted(set(v))
+        # EXACTLY ONE role must be chosen: driver XOR passenger
+        if not v or len(v) != 1 or v[0] not in allowed:
+            raise ValueError("roles must be exactly one of: driver or passenger")
+        return v
 
 
 class LoginIn(BaseModel):
@@ -63,6 +65,7 @@ class MeOut(BaseModel):
     full_name: str
     roles: List[str]
     phone_verified: bool
+    mileage_kmpl: Optional[float] = None
 
 
 class OtpSentOut(BaseModel):

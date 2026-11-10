@@ -42,15 +42,17 @@ export function LoginForm({ role, next: nextParam = "/", className }: LoginFormP
   const [form, setForm] = useState({ phone: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
+    setLocalError(null);
     try {
       await login(form.phone, form.password, role);
       router.push(next);
     } catch (error: any) {
-      setError(parseAuthError(error));
+      setLocalError(parseAuthError(error));
     } finally {
       setBusy(false);
     }
@@ -102,7 +104,7 @@ export function LoginForm({ role, next: nextParam = "/", className }: LoginFormP
           {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
         </button>
       </div>
-      {error && <Alert variant="danger">{error}</Alert>}
+      {(error || localError) && <Alert variant="danger">{localError || error}</Alert>}
       <Button variant="primary" size="md" disabled={busy} className="w-full">
         {busy ? "Signing in…" : "Sign in →"}
       </Button>

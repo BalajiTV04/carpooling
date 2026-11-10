@@ -9,6 +9,7 @@ export type SessionUser = {
   full_name: string;
   roles: Role[];
   phone_verified: boolean;
+  mileage_kmpl?: number | null;
 };
 
 const KEY = "voltride_token";
@@ -37,7 +38,7 @@ export function loadSession(): { token: string | null; user: SessionUser | null 
 }
 
 export const authApi = {
-  register: (b: { phone: string; email?: string; password: string; full_name: string; roles: Role[] }) =>
+  register: (b: { phone: string; email?: string; password: string; full_name: string; roles: Role[]; mileage?: number }) =>
     req("/auth/register", { method: "POST", body: JSON.stringify(b) }),
   login: (b: { phone: string; password: string; role?: string }) =>
     req("/auth/login", { method: "POST", body: JSON.stringify(b) }),

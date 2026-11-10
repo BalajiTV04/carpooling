@@ -9,8 +9,8 @@ type Ctx = {
   user: SessionUser | null;
   ready: boolean;
   error: string | null;
-  login: (phone: string, password: string) => Promise<void>;
-  register: (b: { phone: string; password: string; full_name: string; roles: ("driver" | "passenger")[] }) => Promise<void>;
+  login: (phone: string, password: string, role?: string) => Promise<void>;
+  register: (b: { phone: string; email?: string; password: string; full_name: string; roles: ("driver" | "passenger")[]; mileage?: number }) => Promise<void>;
   logout: () => void;
   refresh: () => Promise<void>;
   setVerified: () => void;
@@ -44,7 +44,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const register = useCallback(async (b: { phone: string; email?: string; password: string; full_name: string; roles: ("driver" | "passenger")[] }) => {
+  const register = useCallback(async (b: { phone: string; email?: string; password: string; full_name: string; roles: ("driver" | "passenger")[]; mileage?: number }) => {
     setError(null);
     try {
       const r = await authApi.register(b);

@@ -17,7 +17,7 @@ offline trips keep crow-flies + route_geometry=None (refresh later via
 POST /trips/{id}/route/refresh in geo.py).
 """
 from datetime import datetime, timezone
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -26,6 +26,7 @@ from app.core.database import get_db
 from app.core.deps import get_current_user, require_roles
 from app.models.trip import TripIn, TripOut, TripUpdateIn
 from app.services.booking_window import normalise_policy
+from app.services.cost import resolve_fuel_price
 from app.services.geo_math import haversine_km as _haversine_km
 from app.services.routing import osrm_route
 
@@ -67,6 +68,12 @@ def _out(doc: Dict) -> Dict:
         "advance_policy": normalise_policy(doc.get("advance_policy")),
         "recurring_group_id": (str(doc["recurring_group_id"])
                                if doc.get("recurring_group_id") else None),
+        "trip_type": doc.get("trip_type", "live"),
+        "fuel_price": doc.get("fuel_price"),
+        "fuel_type": doc.get("fuel_type"),
+        "cost_per_seat": doc.get("cost_per_seat"),
+        "total_cost": doc.get("total_cost"),
+        "monthly_cost": doc.get("monthly_cost"),
         "created_at": doc.get("created_at"),
     }
 
@@ -105,18 +112,46 @@ async def create_trip(body: TripIn, user: Dict = Depends(_driver)):
     # Module 7: best-effort OSRM route. Failure keeps crow-flies + None
     # geometry — the save MUST NOT fail because routing is down.
     routed = await osrm_route(body.source.coordinates, body.destination.coordinates)
+    distance = routed["distance_km"] if routed else round(dist, 2)
+    duration = routed["duration_min"] if routed else None
+
+    # Amount calculation based on fuel price, vehicle mileage, and distance
+    mileage = float(veh.get("mileage_kmpl") or 15.0)
+    fuel_price = float(body.fuel_price) if (body.fuel_price and body.fuel_price > 0) else resolve_fuel_price(body.fuel_type or veh.get("fuel_type", "petrol"), None)
+    litres = (distance / mileage) if mileage > 0 else 0.0
+    total_cost = round(litres * fuel_price, 2)
+    cost_per_seat = round(total_cost / body.seats_offered, 2) if body.seats_offered > 0 else total_cost
+    monthly_cost = round(total_cost * 30, 2)  # Full month calculation (30 days commute)
+
+    policy = {
+        "mode": "per_seat",
+        "fuel_price": fuel_price,
+        "fuel_type": body.fuel_type or veh.get("fuel_type", "petrol"),
+        "mileage_kmpl": mileage,
+        "total_cost": total_cost,
+        "cost_per_seat": cost_per_seat,
+        "monthly_cost": monthly_cost,
+        "trip_type": body.trip_type or "live",
+    }
+
     doc = {
         "driver_id": ObjectId(user["id"]),
         "vehicle_id": veh["_id"],
         "source": body.source.to_place(),
         "destination": body.destination.to_place(),
         "route_geometry": routed["geometry"] if routed else None,
-        "distance_km": routed["distance_km"] if routed else round(dist, 2),
-        "duration_min": routed["duration_min"] if routed else None,
+        "distance_km": distance,
+        "duration_min": duration,
         "depart_at": body.depart_at,
         "seats_offered": body.seats_offered,
         "seats_booked": 0,
-        "price_policy": None,
+        "price_policy": policy,
+        "trip_type": body.trip_type or "live",
+        "fuel_price": fuel_price,
+        "fuel_type": body.fuel_type or veh.get("fuel_type", "petrol"),
+        "cost_per_seat": cost_per_seat,
+        "total_cost": total_cost,
+        "monthly_cost": monthly_cost,
         # Module 14: normalised window policy (defaults from Settings).
         "advance_policy": normalise_policy(body.advance_policy),
         # Module 15: recurrence tag set by /recurring; standalone trips None.
@@ -128,6 +163,52 @@ async def create_trip(body: TripIn, user: Dict = Depends(_driver)):
     res = await db.trips.insert_one(doc)
     created = await db.trips.find_one({"_id": res.inserted_id})
     return _out(created)
+
+
+@router.get("/available")
+async def list_available_trips(
+    destination: Optional[str] = Query(default=None),
+    source: Optional[str] = Query(default=None),
+    trip_type: Optional[str] = Query(default=None),
+    user: Dict = Depends(get_current_user),
+):
+    """Available trips for passengers: see availability filtered by destination/type."""
+    _ = user
+    db = get_db()
+    q: Dict = {"status": "published"}
+    if trip_type and trip_type.lower() != "all":
+        q["trip_type"] = trip_type.lower()
+    if destination and destination.strip():
+        q["destination.name"] = {"$regex": destination.strip(), "$options": "i"}
+    if source and source.strip():
+        q["source.name"] = {"$regex": source.strip(), "$options": "i"}
+
+    cur = db.trips.find(q).sort("depart_at", 1).limit(60)
+    results = []
+    async for d in cur:
+        left = int(d.get("seats_offered", 1)) - int(d.get("seats_booked", 0))
+        if left <= 0:
+            continue
+        row = _out(d)
+        driver = await db.users.find_one(
+            {"_id": d["driver_id"]},
+            {"full_name": 1, "phone": 1, "rating_avg": 1, "rating_count": 1}
+        )
+        veh = await db.vehicles.find_one({"_id": d["vehicle_id"]})
+        row["driver"] = {
+            "name": (driver or {}).get("full_name") or "Driver",
+            "rating_avg": (driver or {}).get("rating_avg"),
+            "rating_count": (driver or {}).get("rating_count", 0),
+        }
+        row["vehicle"] = {
+            "make": (veh or {}).get("make"),
+            "model": (veh or {}).get("model"),
+            "plate_no": (veh or {}).get("plate_no"),
+            "fuel_type": (veh or {}).get("fuel_type", "petrol"),
+            "mileage_kmpl": (veh or {}).get("mileage_kmpl"),
+        }
+        results.append(row)
+    return results
 
 
 # Module 25: `/mine` is declared ABOVE `/{trip_id}` ON PURPOSE. FastAPI matches

@@ -27,7 +27,7 @@ from app.core.config import get_settings
 # geocode silently degraded to the empty-list fallback and the place picker
 # could never find anything. Keep this a real, contactable identifier and
 # override it per-deployment with NOMINATIM_USER_AGENT.
-_DEFAULT_UA = "VoltRide/1.0 (https://github.com/BalajiTV04/OnlineCourseRegistration)"
+_DEFAULT_UA = "carpooling/1.0 (https://github.com/BalajiTV04/carpooling; contact: dev@localhost)"
 
 
 def _user_agent() -> str:
@@ -39,6 +39,21 @@ _route_cache: Dict[str, dict] = {}
 _geocode_cache: Dict[str, list] = {}
 _CACHE_TTL = 3600  # seconds
 _cache_ts: Dict[str, float] = {}
+
+# Reuse a single httpx client across requests to avoid TCP/TLS handshake
+# overhead on every OSRM/Nominatim call. Created lazily on first use.
+_http_client: Optional[httpx.AsyncClient] = None
+
+
+def _client() -> httpx.AsyncClient:
+    """Return a shared httpx client (connect pooling + keep-alive)."""
+    global _http_client
+    if _http_client is None:
+        _http_client = httpx.AsyncClient(
+            timeout=httpx.Timeout(10.0, connect=5.0),
+            headers={"User-Agent": _user_agent()},
+        )
+    return _http_client
 
 
 def _cache_get(store: Dict, key: str):
@@ -72,8 +87,8 @@ async def osrm_route(src: List[float], dst: List[float]) -> Optional[Dict]:
     url = "{}/route/v1/driving/{},{};{},{}?overview=full&geometries=geojson".format(
         settings.OSRM_URL.rstrip("/"), src[0], src[1], dst[0], dst[1])
     try:
-        async with httpx.AsyncClient(timeout=12.0, headers={"User-Agent": _user_agent()}) as client:
-            res = await client.get(url)
+        client = _client()
+        res = await client.get(url)
         if res.status_code != 200:
             return None
         body = res.json()
@@ -118,8 +133,8 @@ async def nominatim_search(query: str, limit: int = 5,
         params["viewbox"] = ",".join(map(str, viewbox))
         params["bounded"] = 1 if bounded else 0
     try:
-        async with httpx.AsyncClient(timeout=10.0, headers={"User-Agent": _user_agent()}) as client:
-            res = await client.get(settings.NOMINATIM_URL.rstrip("/") + "/search", params=params)
+        client = _client()
+        res = await client.get(settings.NOMINATIM_URL.rstrip("/") + "/search", params=params)
         if res.status_code != 200:
             return []
         out = [{"name": (r.get("display_name") or "").split(",")[0],
@@ -136,10 +151,10 @@ async def nominatim_reverse(lat: float, lng: float) -> Optional[Dict]:
     """Reverse geocode (map click → place name)."""
     settings = get_settings()
     try:
-        async with httpx.AsyncClient(timeout=10.0, headers={"User-Agent": _user_agent()}) as client:
-            res = await client.get(
-                settings.NOMINATIM_URL.rstrip("/") + "/reverse",
-                params={"lat": lat, "lon": lng, "format": "json"})
+        client = _client()
+        res = await client.get(
+            settings.NOMINATIM_URL.rstrip("/") + "/reverse",
+            params={"lat": lat, "lon": lng, "format": "json"})
         if res.status_code != 200:
             return None
         body = res.json()

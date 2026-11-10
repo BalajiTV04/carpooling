@@ -38,16 +38,18 @@ class TripIn(BaseModel):
     destination: PlaceIn
     depart_at: datetime
     seats_offered: int = Field(ge=1, le=7)
-    # Module 14: how far ahead passengers may book, and how late they may cancel
-    # the plan; omitted -> Settings defaults.
+    trip_type: Optional[str] = "live"  # live | monthly | long
+    fuel_type: Optional[str] = "petrol"
+    fuel_price: Optional[float] = None
     advance_policy: Optional[Dict] = None
 
     @field_validator("depart_at")
     @classmethod
     def future_only(cls, v: datetime) -> datetime:
+        from datetime import timedelta
         if v.tzinfo is None:
             v = v.replace(tzinfo=timezone.utc)
-        if v <= datetime.now(timezone.utc):
+        if v < datetime.now(timezone.utc) - timedelta(minutes=1):
             raise ValueError("depart_at must be in the future")
         return v
 
@@ -88,4 +90,10 @@ class TripOut(BaseModel):
     booking_closes_at: Optional[str] = None
     advance_policy: Optional[dict] = None
     recurring_group_id: Optional[str] = None  # Module 15 series tag
+    trip_type: Optional[str] = "live"
+    fuel_price: Optional[float] = None
+    fuel_type: Optional[str] = None
+    cost_per_seat: Optional[float] = None
+    total_cost: Optional[float] = None
+    monthly_cost: Optional[float] = None
     created_at: Optional[datetime] = None

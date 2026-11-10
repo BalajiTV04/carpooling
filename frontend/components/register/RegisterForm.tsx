@@ -16,8 +16,8 @@ interface RegisterFormProps {
 }
 
 export function RegisterForm({ role, next: nextParam = "/", className }: RegisterFormProps) {
-const [busy, setBusy] = useState(false);
-  const { register, error } = useSession();
+  const [busy, setBusy] = useState(false);
+  const { register, error, ready } = useSession();
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);

@@ -8,20 +8,14 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { BrandMark } from "@/components/BrandMark";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { AnimatePresence, motion } from "framer-motion";
-import { Menu, X } from "lucide-react";
+import { LogOut, Menu, X } from "lucide-react";
 
 type Role = "driver" | "passenger" | "admin";
 type NavItem = { href: string; label: string; roles?: Role[] };
 
-const PUBLIC_LINKS: NavItem[] = [
-  { href: "/", label: "Home" },
-  { href: "/#how-it-works", label: "How it works" },
-  { href: "/#features", label: "Features" },
-  { href: "/about", label: "About" },
-  { href: "/contact", label: "Contact" },
-];
-
 const LINKS: NavItem[] = [
+  { href: "/passenger", label: "Rider Console", roles: ["passenger"] },
+  { href: "/driver", label: "Driver Console", roles: ["driver"] },
   { href: "/search", label: "Find ride" },
   { href: "/trips", label: "My trips", roles: ["driver"] },
   { href: "/garage", label: "Garage", roles: ["driver"] },
@@ -35,6 +29,12 @@ function cnNav(...classes: (string | undefined | null)[]) {
   return classes.filter(Boolean).join(" ");
 }
 
+// Helper to check if user has required role
+const hasRole = (user: any, roles: Role[]) => {
+  if (!user || !user.roles) return false;
+  return roles.some((r) => user.roles.includes(r));
+};
+
 export function NavBar() {
   const { user, ready, logout } = useSession();
   const pathname = usePathname();
@@ -46,7 +46,7 @@ export function NavBar() {
       LINKS.filter(
         (l) =>
           !!user &&
-          (!l.roles || l.roles.some((r) => (user?.roles ?? []).includes(r)))
+          (!l.roles || hasRole(user, l.roles))
       ),
     [user]
   );
@@ -56,6 +56,8 @@ export function NavBar() {
     router.push("/");
     setMobileOpen(false);
   };
+
+  if (pathname.startsWith("/admin") || pathname.startsWith("/driver") || pathname.startsWith("/passenger")) return null;
 
   return (
     <>
@@ -112,9 +114,10 @@ export function NavBar() {
                 </Link>
                 <button
                   onClick={handleLogout}
-                  className="rounded-full px-3 py-1.5 text-muted transition hover:text-danger hover:bg-surface/50"
+                  className="rounded-full px-3 py-1.5 text-muted transition hover:text-danger hover:bg-surface/50 flex items-center gap-1"
                 >
-                  Out
+                  <LogOut className="h-4 w-4" />
+                  <span className="hidden md:inline">Logout</span>
                 </button>
               </>
             ) : (

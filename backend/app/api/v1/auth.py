@@ -50,6 +50,7 @@ def _public_user(doc: dict) -> dict:
         "full_name": doc.get("full_name", ""),
         "roles": doc.get("roles", []),
         "phone_verified": bool(doc.get("phone_verified", False)),
+        "mileage_kmpl": doc.get("mileage_kmpl"),
     }
 
 
@@ -73,6 +74,7 @@ async def register(body: RegisterIn):
         "driver_approval_by": None,
         "rating_avg": None,
         "rating_count": 0,
+        "mileage_kmpl": float(body.mileage) if ("driver" in body.roles and body.mileage) else None,
         "status": "active",
         "created_at": now,
         "updated_at": now,
@@ -83,6 +85,31 @@ async def register(body: RegisterIn):
         res = await db.users.insert_one(doc)
     except DuplicateKeyError:
         raise HTTPException(status.HTTP_409_CONFLICT, "phone already registered")
+    
+    if "driver" in body.roles and body.mileage is not None:
+        # Create an initial verified vehicle for the driver so they can host trips immediately
+        drv_mileage = float(body.mileage)
+        plate_code = str(res.inserted_id)[-4:].upper()
+        veh_doc = {
+            "owner_id": res.inserted_id,
+            "make": "Primary",
+            "model": "Car",
+            "year": 2022,
+            "color": "Silver",
+            "plate_no": f"KA01DR{plate_code}",
+            "seats_total": 4,
+            "fuel_type": "petrol",
+            "mileage_kmpl": drv_mileage,
+            "verification_status": "verified",
+            "is_active": True,
+            "created_at": now,
+            "updated_at": now,
+        }
+        try:
+            await db.vehicles.insert_one(veh_doc)
+        except Exception:
+            pass
+
     created = await db.users.find_one({"_id": res.inserted_id})
     user = _public_user(created)
     token = create_access_token(user["id"], user["phone"], user["roles"])
@@ -121,6 +148,10 @@ async def login(body: LoginIn):
             f"This account is registered as a {actual}.",
         )
     public = _public_user(user)
+    if not public.get("mileage_kmpl") and "driver" in public.get("roles", []):
+        v = await db.vehicles.find_one({"owner_id": user["_id"], "is_active": True})
+        if v and v.get("mileage_kmpl"):
+            public["mileage_kmpl"] = v["mileage_kmpl"]
     token = create_access_token(public["id"], public["phone"], public["roles"])
     return {"access_token": token, "token_type": "bearer", "user": public}
 
@@ -171,13 +202,26 @@ async def otp_verify(body: OtpVerifyIn):
         return_document=True,
     )
     public = _public_user(user)
+    if not public.get("mileage_kmpl") and "driver" in public.get("roles", []):
+        v = await db.vehicles.find_one({"owner_id": user["_id"], "is_active": True})
+        if v and v.get("mileage_kmpl"):
+            public["mileage_kmpl"] = v["mileage_kmpl"]
     token = create_access_token(public["id"], public["phone"], public["roles"])
     return {"access_token": token, "token_type": "bearer", "user": public}
 
 
 @router.get("/me", response_model=MeOut)
 async def me(user: dict = Depends(get_current_user)):
-    return user
+    db = get_db()
+    u = await db.users.find_one({"_id": ObjectId(user["id"])})
+    mileage = (u or {}).get("mileage_kmpl")
+    if not mileage and "driver" in user.get("roles", []):
+        v = await db.vehicles.find_one({"owner_id": ObjectId(user["id"]), "is_active": True})
+        if v and v.get("mileage_kmpl"):
+            mileage = v["mileage_kmpl"]
+    res = dict(user)
+    res["mileage_kmpl"] = mileage
+    return res
 
 
 @router.post("/logout")

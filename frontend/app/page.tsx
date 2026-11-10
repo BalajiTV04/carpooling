@@ -86,26 +86,12 @@ export default function Home() {
               Become a driver <Car className="ml-1 h-4 w-4" />
             </Link>
             {health?.db === "connected" && (
-              <>
-                <Link
-                  href="/login?role=admin"
-                  className="btn btn-danger btn-lg flex items-center gap-2 ml-4"
-                >
-                  <Shield className="h-5 w-5" /> Login as Admin
-                </Link>
-                <Link
-                  href="/login?role=driver"
-                  className="btn btn-outline btn-lg flex items-center gap-2 ml-4"
-                >
-                  Driver
-                </Link>
-                <Link
-                  href="/login?role=passenger"
-                  className="btn btn-outline btn-lg flex items-center gap-2 ml-4"
-                >
-                  Passenger
-                </Link>
-              </>
+              <Link
+                href="/admin/login"
+                className="btn btn-danger btn-lg flex items-center gap-2"
+              >
+                <Shield className="h-5 w-5" /> Login as Admin
+              </Link>
             )}
           </motion.div>
         </div>

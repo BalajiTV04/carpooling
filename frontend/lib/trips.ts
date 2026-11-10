@@ -7,6 +7,10 @@ export type Trip = {
   depart_at: string; seats_offered: number; seats_booked: number;
   seats_left: number; vehicle_id: string; status: string;
   distance_km: number | null; duration_min?: number | null;
+  trip_type?: string; fuel_price?: number; fuel_type?: string;
+  cost_per_seat?: number; total_cost?: number; monthly_cost?: number;
+  driver?: { name?: string; rating_avg?: number | null; rating_count?: number };
+  vehicle?: { make?: string; model?: string; plate_no?: string; fuel_type?: string; mileage_kmpl?: number };
 };
 
 // Module 19: post-trip receipt (read-only, money frozen at completion).
@@ -26,6 +30,14 @@ import { req } from "@/lib/http";
 
 export const tripApi = {
   mine: (): Promise<Trip[]> => req("/trips/mine"),
+  available: (params?: { destination?: string; source?: string; trip_type?: string }): Promise<Trip[]> => {
+    const sp = new URLSearchParams();
+    if (params?.destination) sp.set("destination", params.destination);
+    if (params?.source) sp.set("source", params.source);
+    if (params?.trip_type) sp.set("trip_type", params.trip_type);
+    const qs = sp.toString();
+    return req(`/trips/available${qs ? `?${qs}` : ""}`);
+  },
   create: (b: object): Promise<Trip> =>
     req("/trips", { method: "POST", body: JSON.stringify(b) }),
   update: (id: string, b: object): Promise<Trip> =>
