@@ -15,7 +15,12 @@ export function RequireAuth({
 
   useEffect(() => {
     if (!ready) return;
-    if (!user) router.replace("/login?next=" + encodeURIComponent(window.location.pathname));
+    if (!user) {
+      const current = typeof window !== "undefined" ? window.location.pathname : "";
+      // Avoid redirect loops: if already on the login page, stay there.
+      if (current === "/login") return;
+      router.replace("/login?next=" + encodeURIComponent(current));
+    }
   }, [ready, user, router]);
 
   if (!ready) return <p className="p-10 text-sm text-muted">Checking session…</p>;

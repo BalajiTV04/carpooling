@@ -9,6 +9,7 @@ export type Trip = {
   distance_km: number | null; duration_min?: number | null;
   trip_type?: string; fuel_price?: number; fuel_type?: string;
   cost_per_seat?: number; total_cost?: number; monthly_cost?: number;
+  approval_note?: string | null; approved_at?: string | null; approved_by?: string | null;
   driver?: { name?: string; rating_avg?: number | null; rating_count?: number };
   vehicle?: { make?: string; model?: string; plate_no?: string; fuel_type?: string; mileage_kmpl?: number };
 };
@@ -44,6 +45,8 @@ export const tripApi = {
     req(`/trips/${id}`, { method: "PATCH", body: JSON.stringify(b) }),
   publish: (id: string): Promise<Trip> =>
     req(`/trips/${id}/publish`, { method: "POST" }),
+  submitForApproval: (id: string): Promise<Trip> =>
+    req(`/trips/${id}/submit-approval`, { method: "POST" }),
   cancel: (id: string): Promise<Trip> =>
     req(`/trips/${id}/cancel`, { method: "POST" }),
   remove: (id: string) => req(`/trips/${id}`, { method: "DELETE" }),
@@ -58,8 +61,12 @@ export const tripApi = {
 export function statusCls(s: string) {
   return s === "published"
     ? "bg-brand-teal text-brand-teal"
+    : s === "pending_approval"
+      ? "border border-amber-400/50 text-amber-300"
     : s === "draft"
       ? "border border-brand-teal/50 text-brand-teal"
+      : s === "rejected"
+        ? "border border-rose-400/50 text-rose-300"
       : s === "cancelled"
         ? "border border-rose-400/50 text-rose-300"
         : "border border-[rgba(154,151,255,.4)] text-accent";

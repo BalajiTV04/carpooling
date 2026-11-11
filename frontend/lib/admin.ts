@@ -41,7 +41,7 @@ export type AdminTrip = {
 export type PendingVehicle = {
   id: string; make: string; model: string; year: number | null;
   plate_no: string; seats_total: number; fuel_type: string;
-  verification_status: string; is_active: boolean;
+  verification_status: string; is_active: boolean; owner_name: string | null; owner_phone: string | null;
 };
 
 export type AdminDriverVehicle = {
@@ -61,6 +61,16 @@ export type AdminDriver = {
   status: string; rating_avg: number | null; rating_count: number;
   created_at: string | null;
   vehicle: AdminDriverVehicle | null;
+};
+
+export type AdminTripRequest = {
+  id: string; status: string; trip_type: string;
+  source_name: string | null; destination_name: string | null;
+  depart_at: string; seats_offered: number; distance_km: number | null;
+  total_cost: number | null; cost_per_seat: number | null;
+  driver: { id: string; full_name: string; phone: string | null };
+  vehicle: { make: string | null; model: string | null; plate_no: string | null };
+  approval_note: string | null; approved_at: string | null; created_at: string | null;
 };
 
 import { req } from "@/lib/http";
@@ -90,6 +100,15 @@ export const adminApi = {
       `/admin/drivers?status=${encodeURIComponent(status)}&approval=${encodeURIComponent(approval)}&limit=${limit}`),
   approveDriver: (id: string, decision: "approved" | "rejected", note = "") =>
     req(`/admin/drivers/${id}/approve`, {
+      method: "POST",
+      body: JSON.stringify({ decision, note }),
+    }),
+
+  tripRequests: (status = "pending_approval", limit = 50) =>
+    req<{ count: number; trips: AdminTripRequest[] }>(
+      `/admin/trip-requests?status=${encodeURIComponent(status)}&limit=${limit}`),
+  reviewTripRequest: (id: string, decision: "approved" | "rejected", note = "") =>
+    req(`/admin/trip-requests/${id}/review`, {
       method: "POST",
       body: JSON.stringify({ decision, note }),
     }),

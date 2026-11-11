@@ -14,6 +14,7 @@ export default function RegisterPage() {
   const [form, setForm] = useState({ phone: "+91", full_name: "", password: "" });
   const [role, setRole] = useState<"passenger" | "driver">("passenger");
   const [mileage, setMileage] = useState("15.0");
+  const [availableSeats, setAvailableSeats] = useState("1");
   const [busy, setBusy] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
@@ -21,10 +22,12 @@ export default function RegisterPage() {
     setBusy(true);
     try {
       const parsedMileage = role === "driver" ? parseFloat(mileage) || 15.0 : undefined;
+      const parsedAvailableSeats = role === "driver" ? parseInt(availableSeats, 10) || 1 : undefined;
       await register({
         ...form,
         roles: [role],
         mileage: parsedMileage,
+        available_seats: parsedAvailableSeats,
       });
       router.push("/verify?fresh=1");
     } catch {
@@ -139,6 +142,24 @@ export default function RegisterPage() {
               </div>
               <span className="mt-1.5 block text-[11px] text-muted">
                 Used to calculate fair fuel costs: <b>(Distance / Mileage) × Fuel Price</b>.
+              </span>
+            </Field>
+
+            <Field label="Available Passenger Seats (excludes your driver seat)">
+              <select
+                className={inputCls}
+                value={availableSeats}
+                onChange={(e) => setAvailableSeats(e.target.value)}
+                required
+              >
+                {[1, 2, 3, 4, 5, 6, 7].map((n) => (
+                  <option key={n} value={String(n)}>
+                    {n} passenger seat{n > 1 ? "s" : ""} (vehicle total {n + 1})
+                  </option>
+                ))}
+              </select>
+              <span className="mt-1.5 block text-[11px] text-muted">
+                One seat is reserved for you (the driver). Bike → 1 passenger seat; 5-seater car → 4.
               </span>
             </Field>
           </div>

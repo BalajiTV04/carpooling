@@ -27,6 +27,8 @@ import {
 } from "lucide-react";
 import { useSession } from "@/components/SessionProvider";
 import { RequireAuth } from "@/components/RequireAuth";
+import { NotificationBell } from "@/components/NotificationBell";
+import { ProfileSection } from "@/components/ProfileSection";
 import { tripApi, type Trip } from "@/lib/trips";
 import { vehicleApi, type Vehicle } from "@/lib/vehicles";
 import { geoApi, type PlaceHit } from "@/lib/geo";
@@ -35,7 +37,7 @@ import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
 
-type Section = "host" | "my-trips" | "tracking" | "garage";
+type Section = "host" | "my-trips" | "tracking" | "garage" | "profile";
 type TripType = "live" | "monthly" | "long";
 
 const NAV_ITEMS: { id: Section; label: string; icon: React.ElementType }[] = [
@@ -43,6 +45,7 @@ const NAV_ITEMS: { id: Section; label: string; icon: React.ElementType }[] = [
   { id: "my-trips", label: "My Trips", icon: Clock },
   { id: "tracking", label: "Live Tracking & Safety", icon: Compass },
   { id: "garage", label: "Garage & Mileage", icon: Gauge },
+  { id: "profile", label: "Profile", icon: Users },
 ];
 
 const PRESET_PLACES: PlaceHit[] = [
@@ -63,7 +66,7 @@ export default function DriverDashboardPage() {
 }
 
 function DriverConsoleInner() {
-  const { user, logout } = useSession();
+  const { user, logout, refresh } = useSession();
   const router = useRouter();
 
   const [section, setSection] = React.useState<Section>("host");
@@ -81,7 +84,7 @@ function DriverConsoleInner() {
   const [src, setSrc] = React.useState<PlaceHit | null>(PRESET_PLACES[0]);
   const [dst, setDst] = React.useState<PlaceHit | null>(PRESET_PLACES[1]);
   const [vehicleId, setVehicleId] = React.useState("");
-  const [seats, setSeats] = React.useState(3);
+  const [availableSeats, setAvailableSeats] = React.useState(1);
 
   // Departure timing based on trip type
   const [departDate, setDepartDate] = React.useState(() => {
@@ -99,6 +102,9 @@ function DriverConsoleInner() {
   const [fuelPrice, setFuelPrice] = React.useState<number>(102.8);
   const [estimatedDistance, setEstimatedDistance] = React.useState<number>(25.0);
   const [busyHosting, setBusyHosting] = React.useState(false);
+
+  // Selected vehicle (for capacity hints in the host form)
+  const selectedVehicle = cars.find((c) => c.id === vehicleId);
 
   // Live tracking toggle state
   const [isLiveTracking, setIsLiveTracking] = React.useState(false);
@@ -143,6 +149,9 @@ function DriverConsoleInner() {
       setCars(currentCars);
       if (currentCars.length > 0) {
         setVehicleId(currentCars[0].id);
+        // Default available seats to vehicle capacity minus 1 (driver seat reserved)
+        const defaultSeats = Math.max(1, (currentCars[0].seats_total || 4) - 1);
+        setAvailableSeats(defaultSeats);
         if (currentCars[0].mileage_kmpl) {
           setMileage(currentCars[0].mileage_kmpl);
         }
@@ -208,14 +217,14 @@ function DriverConsoleInner() {
   // Formula: Litres = Distance / Mileage; Total = Litres * Fuel Price; Per Seat = Total / Seats
   const singleTripLitres = mileage > 0 ? estimatedDistance / mileage : 0;
   const singleTripCost = Math.round(singleTripLitres * fuelPrice * 100) / 100;
-  const singleTripPerSeat = seats > 0 ? Math.round((singleTripCost / seats) * 100) / 100 : singleTripCost;
+  const singleTripPerSeat = availableSeats > 0 ? Math.round((singleTripCost / availableSeats) * 100) / 100 : singleTripCost;
 
   // Monthly Calculation: Full Month (30 days daily commute)
   const monthDays = 30;
   const monthlyTotalDistance = estimatedDistance * monthDays;
   const monthlyLitres = mileage > 0 ? monthlyTotalDistance / mileage : 0;
   const monthlyTotalCost = Math.round(monthlyLitres * fuelPrice * 100) / 100;
-  const monthlyPerSeat = seats > 0 ? Math.round((monthlyTotalCost / seats) * 100) / 100 : monthlyTotalCost;
+  const monthlyPerSeat = availableSeats > 0 ? Math.round((monthlyTotalCost / availableSeats) * 100) / 100 : monthlyTotalCost;
 
   // Host Trip Submission
   const handleHostTrip = async (e: React.FormEvent) => {
@@ -228,12 +237,17 @@ function DriverConsoleInner() {
       setError("No verified vehicle available. Please check the Garage tab.");
       return;
     }
+    if (!user?.phone_verified) {
+      setError("Please verify your phone before hosting a trip.");
+      return;
+    }
 
     const activeVehicleId = vehicleId || cars[0]?.id;
     setBusyHosting(true);
     setError(null);
     setNotice(null);
 
+    let createdTrip: Trip | null = null;
     try {
       const departureDateTime = new Date(`${departDate}T${departTime}:00`);
       if (Number.isNaN(departureDateTime.getTime())) {
@@ -259,35 +273,42 @@ function DriverConsoleInner() {
           coordinates: [dst.lng, dst.lat],
         },
         depart_at: departureDateTime.toISOString(),
-        seats_offered: seats,
+        seats_offered: availableSeats,
         trip_type: tripType,
         fuel_type: fuelType,
         fuel_price: fuelPrice,
       };
 
-      const created = await tripApi.create(payload);
-
-      // 2. Immediately publish so it is live for passengers!
-      let publishedTrip = created;
-      try {
-        publishedTrip = await tripApi.publish(created.id);
-      } catch {
-        // If already published or verified
-      }
-
-      setTrips((prev) => [publishedTrip, ...prev]);
+      createdTrip = await tripApi.create(payload);
+      // 2. Every dashboard-hosted trip waits for an administrator's decision.
+      // It remains invisible to passengers until the admin changes it to published.
+      const submitted = await tripApi.submitForApproval(createdTrip.id);
+      setTrips((prev) => [submitted, ...prev]);
       setNotice(
-        `✓ ${
-          tripType === "live"
-            ? "Live trip hosted for right now!"
-            : tripType === "monthly"
-            ? "Monthly commute plan hosted successfully!"
-            : "Long trip scheduled 1 week ahead!"
-        } Passengers can now see availability and book.`
+        `Trip submitted for admin approval. You will receive a notification when ${
+          tripType === "live" ? "the live trip" : "the trip"
+        } is approved.`,
       );
       setSection("my-trips");
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Failed to host trip");
+      const message = cause instanceof Error ? cause.message : "Failed to host trip";
+      if (createdTrip) {
+        const draftTrip = createdTrip;
+        // Creation and submission are separate requests. Preserve a created
+        // draft locally if the follow-up request fails so the driver can see
+        // it instead of assuming the entire operation was rolled back.
+        setTrips((prev) =>
+          prev.some((trip) => trip.id === draftTrip.id)
+            ? prev
+            : [draftTrip, ...prev],
+        );
+        setSection("my-trips");
+        setError(
+          `Trip was created as a draft, but it could not be submitted for admin approval: ${message}`,
+        );
+      } else {
+        setError(message);
+      }
     } finally {
       setBusyHosting(false);
     }
@@ -338,6 +359,7 @@ function DriverConsoleInner() {
             </div>
 
             <div className="flex items-center gap-3">
+              <NotificationBell enabled={!!user} />
               <div className="hidden sm:flex items-center gap-2 rounded-full border border-line bg-card px-3 py-1 text-xs">
                 <span className="h-2 w-2 rounded-full bg-brand-teal animate-pulse" />
                 <span className="text-muted">Status:</span>
@@ -541,17 +563,26 @@ function DriverConsoleInner() {
                       <div>
                         <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1">
                           Seats Available
+                          {selectedVehicle && (
+                            <span className="text-[10px] font-normal ml-2">
+                              (max {selectedVehicle.seats_total - 1} — 1 driver seat reserved)
+                            </span>
+                          )}
                         </label>
                         <select
-                          value={seats}
-                          onChange={(e) => setSeats(Number(e.target.value))}
+                          value={availableSeats}
+                          onChange={(e) => setAvailableSeats(Number(e.target.value))}
                           className="w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-brand-teal"
                         >
-                          {[1, 2, 3, 4, 5, 6].map((n) => (
-                            <option key={n} value={n}>
-                              {n} passenger seat{n > 1 ? "s" : ""}
-                            </option>
-                          ))}
+                          {[1, 2, 3, 4, 5, 6].map((n) => {
+                            const maxSeats = selectedVehicle ? Math.max(1, selectedVehicle.seats_total - 1) : 6;
+                            if (n > maxSeats) return null;
+                            return (
+                              <option key={n} value={n}>
+                                {n} passenger seat{n > 1 ? "s" : ""}
+                              </option>
+                            );
+                          })}
                         </select>
                       </div>
                     </div>
@@ -567,12 +598,16 @@ function DriverConsoleInner() {
                           setVehicleId(e.target.value);
                           const sel = cars.find((c) => c.id === e.target.value);
                           if (sel?.mileage_kmpl) setMileage(sel.mileage_kmpl);
+                          // Reset available seats to vehicle capacity minus 1 (driver seat reserved)
+                          if (sel?.seats_total) {
+                            setAvailableSeats(Math.max(1, sel.seats_total - 1));
+                          }
                         }}
                         className="w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-brand-teal"
                       >
                         {cars.map((c) => (
                           <option key={c.id} value={c.id}>
-                            {c.make} {c.model} · {c.plate_no} ({c.mileage_kmpl || 15} km/L)
+                            {c.make} {c.model} · {c.plate_no} ({c.mileage_kmpl || 15} km/L · {c.seats_total} seats)
                           </option>
                         ))}
                       </select>
@@ -716,6 +751,39 @@ function DriverConsoleInner() {
                           </>
                         )}
                       </div>
+                      {/* Split-Equal Share Breakdown (driver + passengers share fuel equally) */}
+                      <div className="mt-3 rounded-xl border border-brand-teal/30 bg-brand-teal/5 p-3.5 space-y-1.5">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-brand-teal">
+                          Cost Sharing Policy: Split Equal (driver included)
+                        </p>
+                        {tripType === "monthly" ? (
+                          <div className="text-xs space-y-1">
+                            <div className="flex justify-between">
+                              <span className="text-muted">Per Rider / Month:</span>
+                              <span className="font-semibold text-ink">₹{monthlyPerSeat.toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted">Your Share (Driver):</span>
+                              <span className="font-semibold text-ink">₹{monthlyPerSeat.toFixed(2)} (not collected)</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-xs space-y-1">
+                            <div className="flex justify-between">
+                              <span className="text-muted">Per Passenger Seat:</span>
+                              <span className="font-semibold text-ink">₹{singleTripPerSeat.toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted">Your Share (Driver):</span>
+                              <span className="font-semibold text-ink">₹{singleTripPerSeat.toFixed(2)} (not collected)</span>
+                            </div>
+                          </div>
+                        )}
+                        <p className="text-[10px] text-muted">
+                          Driver and each passenger pay an equal slice of fuel.{" "}
+                          <b>More passengers → less each.</b> Shares recalculate automatically if someone joins mid-trip.
+                        </p>
+                      </div>
                     </div>
 
                     <div className="mt-5">
@@ -744,7 +812,10 @@ function DriverConsoleInner() {
               </div>
             )}
 
-            {/* SECTION 2: MY TRIPS */}
+            {/* SECTION 2: PROFILE */}
+            {section === "profile" && <ProfileSection user={user} refreshSession={refresh} />}
+
+            {/* SECTION 3: MY TRIPS */}
             {section === "my-trips" && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
@@ -804,7 +875,7 @@ function DriverConsoleInner() {
                                 ? "🗓️ Long Trip"
                                 : "⚡ Live Trip"}
                             </span>
-                            <Badge variant={t.status === "published" ? "success" : "muted"}>
+                            <Badge variant={t.status === "published" ? "success" : t.status === "rejected" ? "danger" : "muted"}>
                               {t.status}
                             </Badge>
                           </div>
@@ -825,6 +896,16 @@ function DriverConsoleInner() {
                               })}
                             </p>
                           </div>
+                          {t.status === "pending_approval" && (
+                            <p className="mb-3 rounded-lg bg-warn/10 px-3 py-2 text-xs text-warn">
+                              Awaiting admin approval. Passengers cannot book this trip yet.
+                            </p>
+                          )}
+                          {t.status === "rejected" && (
+                            <p className="mb-3 rounded-lg bg-danger/10 px-3 py-2 text-xs text-danger">
+                              Not approved{t.approval_note ? `: ${t.approval_note}` : "."}
+                            </p>
+                          )}
 
                           <div className="rounded-xl bg-card p-3 grid grid-cols-3 gap-2 text-center text-xs">
                             <div>

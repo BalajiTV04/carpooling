@@ -25,21 +25,24 @@ import {
 } from "lucide-react";
 import { useSession } from "@/components/SessionProvider";
 import { RequireAuth } from "@/components/RequireAuth";
+import { ProfileSection } from "@/components/ProfileSection";
 import { tripApi, type Trip } from "@/lib/trips";
 import { bookingApi, type Booking } from "@/lib/bookings";
+import { authApi } from "@/lib/auth";
 import { type PlaceHit } from "@/lib/geo";
 import { PlacePicker } from "@/components/PlacePicker";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
 
-type Section = "find" | "my-rides" | "upcoming";
+type Section = "find" | "my-rides" | "upcoming" | "profile";
 type TripFilter = "all" | "live" | "monthly" | "long";
 
 const NAV_ITEMS: { id: Section; label: string; icon: React.ElementType }[] = [
   { id: "find", label: "Find & Check Availability", icon: Search },
   { id: "my-rides", label: "My Bookings & Rides", icon: Car },
   { id: "upcoming", label: "Upcoming Trips", icon: Clock },
+  { id: "profile", label: "Profile", icon: Users },
 ];
 
 const POPULAR_DESTINATIONS: PlaceHit[] = [
@@ -60,7 +63,7 @@ export default function PassengerDashboardPage() {
 }
 
 function PassengerConsoleInner() {
-  const { user, logout } = useSession();
+  const { user, logout, refresh } = useSession();
   const router = useRouter();
 
   const [section, setSection] = React.useState<Section>("find");
@@ -163,9 +166,15 @@ function PassengerConsoleInner() {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    // Invalidate the session on the backend (best effort; clear local state regardless).
+    try {
+      await authApi.logout();
+    } catch {
+      /* backend unreachable — still clear local session below */
+    }
     logout();
-    router.push("/");
+    router.replace("/login");
   };
 
   const upcomingBookings = myBookings.filter(
@@ -516,6 +525,26 @@ function PassengerConsoleInner() {
                                 </span>
                                 <span>{trip.distance_km || "—"} km</span>
                               </div>
+                              {trip.distance_km && trip.cost_per_seat && trip.seats_offered && (
+                                <div className="flex items-center justify-between text-xs text-muted mt-1 px-1">
+                                  <span>
+                                    Total Trip Cost:
+                                  </span>
+                                  <span className="font-semibold text-ink">
+                                    ₹{(trip.cost_per_seat * trip.seats_offered).toFixed(0)}
+                                  </span>
+                                </div>
+                              )}
+                              {trip.distance_km && trip.cost_per_seat && trip.seats_offered && (
+                                <div className="flex items-center justify-between text-xs text-muted mt-1 px-1">
+                                  <span>
+                                    Price per km:
+                                  </span>
+                                  <span className="font-semibold text-brand-teal">
+                                    ₹{(((trip.cost_per_seat * trip.seats_offered) / trip.distance_km) * 100) / 100}/km
+                                  </span>
+                                </div>
+                              )}
                             </div>
 
                             {/* Price Breakdown & Book Action */}
@@ -568,7 +597,10 @@ function PassengerConsoleInner() {
               </div>
             )}
 
-            {/* SECTION 2: MY BOOKINGS & RIDES */}
+            {/* SECTION 2: PROFILE */}
+            {section === "profile" && <ProfileSection user={user} refreshSession={refresh} />}
+
+            {/* SECTION 3: MY BOOKINGS & RIDES */}
             {section === "my-rides" && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
@@ -761,77 +793,6 @@ function PassengerConsoleInner() {
     </div>
   );
 }
-
-function PassengerSidebar({
-  active,
-  userName,
-  onSelect,
-  onLogout,
-  close,
-}: {
-  active: Section;
-  userName: string;
-  onSelect: (section: Section) => void;
-  onLogout: () => void;
-  close?: () => void;
-}) {
-  return (
-    <>
-      <div className="flex items-center justify-between border-b border-line px-6 py-5">
-        <div className="flex items-center gap-3">
-          <div className="rounded-xl bg-brand-teal/15 p-2 text-brand-teal">
-            <UserCheck className="h-5 w-5" />
-          </div>
-          <div>
-            <p className="font-display font-bold">VoltRide</p>
-            <p className="text-xs text-muted">Passenger Console</p>
-          </div>
-        </div>
-        {close && (
-          <button onClick={close} className="rounded-lg p-2 text-muted hover:bg-card">
-            <X className="h-5 w-5" />
-          </button>
-        )}
-      </div>
-
-      <nav className="flex-1 space-y-1.5 px-4 py-5">
-        {NAV_ITEMS.map((item) => {
-          const Icon = item.icon;
-          const selected = active === item.id;
-          return (
-            <button
-              key={item.id}
-              onClick={() => onSelect(item.id)}
-              className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium transition ${
-                selected
-                  ? "bg-brand text-white shadow-sm"
-                  : "text-muted hover:bg-card hover:text-ink"
-              }`}
-            >
-              <Icon className="h-5 w-5" />
-              <span>{item.label}</span>
-            </button>
-          );
-        })}
-      </nav>
-
-      <div className="border-t border-line p-4">
-        <div className="mb-3 rounded-xl bg-card px-4 py-3">
-          <p className="truncate text-sm font-semibold text-ink">{userName}</p>
-          <p className="text-xs text-muted">Registered Rider</p>
-        </div>
-        <button
-          onClick={onLogout}
-          className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium text-muted transition hover:bg-danger/10 hover:text-danger"
-        >
-          <LogOut className="h-5 w-5" />
-          Logout
-        </button>
-      </div>
-    </>
-  );
-}
-
 
 function PassengerSidebar({
   active,
