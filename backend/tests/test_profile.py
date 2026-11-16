@@ -60,6 +60,10 @@ async def test_profile_flow():
         assert p.status_code == 200, p.text
         assert p.json()["full_name"] == "Renamed User"
         assert p.json()["email"] == "driver@example.com"
+        refreshed = await ac.get("/api/v1/auth/me", headers=_h(tok))
+        assert refreshed.status_code == 200, refreshed.text
+        assert refreshed.json()["full_name"] == "Renamed User"
+        assert refreshed.json()["email"] == "driver@example.com"
 
         # 3. bad email -> 422; bad avatar scheme -> 422; empty patch -> 422
         assert (await ac.patch("/api/v1/users/me", headers=_h(tok),
@@ -108,6 +112,9 @@ async def test_profile_flow():
         good = await ac.post("/api/v1/users/me/password", headers=_h(tok), json={
             "current_password": "pass1234", "new_password": "newpass123"})
         assert good.status_code == 200
+        old_login = await ac.post("/api/v1/auth/login", json={
+            "phone": phone_a, "password": "pass1234"})
+        assert old_login.status_code == 401
         tok2 = await _login(ac, phone_a, password="newpass123")
         assert (await ac.get("/api/v1/users/me", headers=_h(tok2))).status_code == 200
 

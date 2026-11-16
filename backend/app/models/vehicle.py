@@ -110,5 +110,7 @@ class VehicleOut(BaseModel):
     verification_status: str
     is_active: bool
     image_url: Optional[str] = None
+    owner_name: Optional[str] = None  # populated for the admin pending-verification queue
+    owner_phone: Optional[str] = None  # populated for the admin pending-verification queue
     trips_as_vehicle: int = 0  # filled on detail (Module 6 counts usage)
     created_at: Optional[datetime] = None

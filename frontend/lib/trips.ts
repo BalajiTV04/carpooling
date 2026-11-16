@@ -9,9 +9,16 @@ export type Trip = {
   distance_km: number | null; duration_min?: number | null;
   trip_type?: string; fuel_price?: number; fuel_type?: string;
   cost_per_seat?: number; total_cost?: number; monthly_cost?: number;
-  approval_note?: string | null; approved_at?: string | null; approved_by?: string | null;
+  approval_note?: string | null;
   driver?: { name?: string; rating_avg?: number | null; rating_count?: number };
   vehicle?: { make?: string; model?: string; plate_no?: string; fuel_type?: string; mileage_kmpl?: number };
+  passenger_distance_km?: number | null;
+  detour_km?: number | null;
+  extra_time_min?: number | null;
+  estimated_contribution?: number | null;
+  pickup?: { label?: string; coordinates?: [number, number]; walk_km?: number; detour_km?: number } | null;
+  drop?: { coordinates?: [number, number]; dist_km?: number } | null;
+  match_score?: number | null;
 };
 
 // Module 19: post-trip receipt (read-only, money frozen at completion).
@@ -22,8 +29,10 @@ export type TripSummary = {
   occupancy_pct: number; passengers: number; collected_total: number;
   auto_rejected: number; depart_at: string | null;
   completed_at: string | null; duration_min: number | null;
-  bookings: { booking_id: string; passenger_id: string; seats: number;
-              cost_share: number }[];
+  bookings: {
+    booking_id: string; passenger_id: string; seats: number;
+    cost_share: number
+  }[];
   note: string;
 };
 
@@ -31,11 +40,25 @@ import { req } from "@/lib/http";
 
 export const tripApi = {
   mine: (): Promise<Trip[]> => req("/trips/mine"),
-  available: (params?: { destination?: string; source?: string; trip_type?: string }): Promise<Trip[]> => {
+  available: (params?: {
+    destination?: string;
+    source?: string;
+    trip_type?: string;
+    src_lat?: number;
+    src_lng?: number;
+    dst_lat?: number;
+    dst_lng?: number;
+    radius_km?: number;
+  }): Promise<Trip[]> => {
     const sp = new URLSearchParams();
     if (params?.destination) sp.set("destination", params.destination);
     if (params?.source) sp.set("source", params.source);
     if (params?.trip_type) sp.set("trip_type", params.trip_type);
+    if (params?.src_lat != null) sp.set("src_lat", String(params.src_lat));
+    if (params?.src_lng != null) sp.set("src_lng", String(params.src_lng));
+    if (params?.dst_lat != null) sp.set("dst_lat", String(params.dst_lat));
+    if (params?.dst_lng != null) sp.set("dst_lng", String(params.dst_lng));
+    if (params?.radius_km != null) sp.set("radius_km", String(params.radius_km));
     const qs = sp.toString();
     return req(`/trips/available${qs ? `?${qs}` : ""}`);
   },
@@ -45,10 +68,11 @@ export const tripApi = {
     req(`/trips/${id}`, { method: "PATCH", body: JSON.stringify(b) }),
   publish: (id: string): Promise<Trip> =>
     req(`/trips/${id}/publish`, { method: "POST" }),
-  submitForApproval: (id: string): Promise<Trip> =>
-    req(`/trips/${id}/submit-approval`, { method: "POST" }),
   cancel: (id: string): Promise<Trip> =>
     req(`/trips/${id}/cancel`, { method: "POST" }),
+  // Module 20: submit draft trip to admin approval queue.
+  submitForApproval: (id: string): Promise<Trip> =>
+    req(`/trips/${id}/submit-approval`, { method: "POST" }),
   remove: (id: string) => req(`/trips/${id}`, { method: "DELETE" }),
   // Module 19: explicit lifecycle close.
   start: (id: string): Promise<Trip> =>
@@ -61,12 +85,8 @@ export const tripApi = {
 export function statusCls(s: string) {
   return s === "published"
     ? "bg-brand-teal text-brand-teal"
-    : s === "pending_approval"
-      ? "border border-amber-400/50 text-amber-300"
     : s === "draft"
       ? "border border-brand-teal/50 text-brand-teal"
-      : s === "rejected"
-        ? "border border-rose-400/50 text-rose-300"
       : s === "cancelled"
         ? "border border-rose-400/50 text-rose-300"
         : "border border-[rgba(154,151,255,.4)] text-accent";

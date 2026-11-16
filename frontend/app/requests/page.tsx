@@ -4,10 +4,11 @@ import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { RequireAuth } from "@/components/RequireAuth";
 import { PageShell } from "@/components/PageShell";
+import { bookingApi, type Booking } from "@/lib/bookings";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Alert } from "@/components/ui/Alert";
-import { Car, Clock, Check, X } from "lucide-react";
+import { Car, Clock, Check, X, MapPin } from "lucide-react";
 
 export default function RequestsPage() {
   return (
@@ -18,16 +19,15 @@ export default function RequestsPage() {
 }
 
 function RequestsInner() {
-  const [requests, setRequests] = useState<any[]>([]);
+  const [requests, setRequests] = useState<Booking[]>([]);
   const [err, setErr] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setErr(null);
     try {
-      const r = await fetch("/api/v1/bookings/requests");
-      if (!r.ok) throw new Error("Load failed");
-      const data = await r.json();
-      setRequests(data.requests ?? []);
+      const data = await bookingApi.incoming();
+      setRequests(Array.isArray(data) ? data : []);
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : "Load failed");
     }
@@ -36,14 +36,19 @@ function RequestsInner() {
   useEffect(() => { load(); }, [load]);
 
   const respond = async (id: string, decision: "accepted" | "rejected") => {
+    setBusyId(id);
+    setErr(null);
     try {
-      await fetch(`/api/v1/bookings/${id}/respond`, {
-        method: "POST",
-        body: JSON.stringify({ decision }),
-      });
-      setRequests(requests.filter((r) => r.id !== id));
+      if (decision === "accepted") {
+        await bookingApi.accept(id);
+      } else {
+        await bookingApi.reject(id);
+      }
+      setRequests((prev) => prev.filter((r) => r.id !== id));
     } catch (e: unknown) {
-      setErr(e instanceof Error ? e.message : "Respond failed");
+      setErr(e instanceof Error ? e.message : "Action failed");
+    } finally {
+      setBusyId(null);
     }
   };
 
@@ -88,18 +93,36 @@ function RequestsInner() {
                   <p className="truncate font-medium text-ink">{r.passenger_name ?? "A rider"}</p>
                 </div>
                 <p className="text-xs text-muted">
-                  {r.trip_source ?? "—"} → {r.trip_destination ?? "—"} · {r.seats ?? 1} seat{r.seats !== 1 ? "s" : ""}
+                  {r.trip?.source_name ?? "—"} → {r.trip?.destination_name ?? "—"} · {r.seats ?? 1} seat{r.seats !== 1 ? "s" : ""}
                 </p>
               </div>
-              <div className="flex gap-2">
-                <Button variant="primary" size="sm" onClick={() => respond(r.id, "accepted")}>
-                  <Check className="mr-1 h-3 w-3" />
-                  Accept
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => respond(r.id, "rejected")}>
-                  <X className="mr-1 h-3 w-3" />
-                  Reject
-                </Button>
+              <div className="flex items-center gap-2">
+                {r.status === "requested" ? (
+                  <>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      disabled={busyId === r.id}
+                      onClick={() => respond(r.id, "accepted")}
+                    >
+                      <Check className="mr-1 h-3 w-3" />
+                      {busyId === r.id ? "Approving…" : "Approve / Accept"}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={busyId === r.id}
+                      onClick={() => respond(r.id, "rejected")}
+                    >
+                      <X className="mr-1 h-3 w-3" />
+                      Reject
+                    </Button>
+                  </>
+                ) : (
+                  <Badge variant={r.status === "accepted" || r.status === "confirmed" ? "success" : "muted"}>
+                    {r.status}
+                  </Badge>
+                )}
               </div>
             </div>
           </motion.div>

@@ -55,6 +55,19 @@ class Settings(BaseSettings):
     DEFAULT_MILEAGE_KMPL: float = 15.0
     DEFAULT_COST_POLICY: str = "split_equal"
 
+    # Minimum-Detour Pickup optimisation — env overridable, defaults match spec.
+    PICKUP_SNAP_KM: float = 0.5
+    MAX_PICKUP_DISTANCE_KM: float = 3.0
+    MAX_PICKUP_KM: float = 3.0
+    MAX_DROP_KM: float = 2.0
+    DEST_TOLERANCE_KM: float = 2.0
+    MIN_SHARED_KM: float = 0.5
+    MAX_DETOUR_KM: float = 3.0
+    MAX_EXTRA_MIN: float = 10.0
+    FUEL_PRICE_PER_LITRE: float = 100.0
+    COST_SPLIT_POLICY: str = "EQUAL_SPLIT"
+    INCLUDE_DETOUR_COST: bool = False
+
     # Advance booking + recurring (Modules 14-15)
     ADVANCE_MAX_DAYS: int = 30        # how far ahead a passenger may book
     ADVANCE_MIN_NOTICE_MIN: int = 60  # latest a booking may be made before departure

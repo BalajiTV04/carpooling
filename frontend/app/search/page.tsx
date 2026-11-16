@@ -4,16 +4,17 @@ import { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { RequireAuth } from "@/components/RequireAuth";
-import { searchApi, type Excluded, type RideHit } from "@/lib/search";
+import { searchApi, type Excluded, type RideHit, type DetourSearchBody, type DetourRideResult } from "@/lib/search";
 import type { PlaceHit } from "@/lib/geo";
 import { PlacePicker } from "@/components/PlacePicker";
 import { Field, inputCls } from "@/components/AuthShell";
 import { RideCard } from "@/components/RideCard";
+import { DetourRideCard } from "@/components/DetourRideCard";
 import { PageShell } from "@/components/PageShell";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Alert } from "@/components/ui/Alert";
-import { Car } from "lucide-react";
+import { Car, MapPin } from "lucide-react";
 
 export default function SearchPage() {
   return (
@@ -36,6 +37,10 @@ function SearchInner() {
   const [minOverlap, setMinOverlap] = useState("20");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  // Minimum-detour search state.
+  const [detourHits, setDetourHits] = useState<DetourRideResult[] | null>(null);
+  const [detourBusy, setDetourBusy] = useState(false);
+  const [detourErr, setDetourErr] = useState<string | null>(null);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,6 +65,29 @@ function SearchInner() {
       setErr(e instanceof Error ? e.message : "Search failed");
     } finally {
       setBusy(false);
+    }
+  };
+
+  const submitDetour = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setDetourErr(null);
+    setDetourBusy(true);
+    try {
+      if (!src || !dst) throw new Error("Search and pick both places");
+      if (!date) throw new Error("Pick a travel date");
+      const body: DetourSearchBody = {
+        source: { lat: src.lat, lng: src.lng, address: src.address ?? undefined },
+        destination: { lat: dst.lat, lng: dst.lng, address: dst.address ?? undefined },
+        date,
+        time: time || undefined,
+        seats,
+      };
+      const r = await searchApi.ridesWithDetour(body);
+      setDetourHits(r.results);
+    } catch (e: unknown) {
+      setDetourErr(e instanceof Error ? e.message : "Detour search failed");
+    } finally {
+      setDetourBusy(false);
     }
   };
   return (
@@ -112,9 +140,13 @@ function SearchInner() {
         <Button variant="primary" size="lg" disabled={busy} className="w-full">
           {busy ? "Searching…" : "Search rides →"}
         </Button>
+        <Button variant="secondary" size="lg" disabled={detourBusy} className="w-full mt-2" onClick={submitDetour}>
+          {detourBusy ? "Finding detours…" : "Search with detour optimization →"}
+        </Button>
         {err && <Alert variant="danger">{err}</Alert>}
+        {detourErr && <Alert variant="danger">{detourErr}</Alert>}
       </motion.form>
-      {/* Results */}
+      {/* Results: standard search */}
       {hits !== null && (
         <section className="mt-8">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -173,6 +205,73 @@ function SearchInner() {
               </ul>
             </details>
           )}
+        </section>
+      )}
+      {/* Results: minimum-detour pickup optimisation */}
+      {detourBusy || detourHits !== null && (
+        <section className="mt-8">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="font-display text-lg font-bold text-ink">
+                {(detourHits ?? []).length === 0
+                  ? "No compatible rides"
+                  : `${(detourHits ?? []).length} detour-compatible ride${
+                      (detourHits ?? []).length > 1 ? "s" : ""
+                    } found`}
+              </h2>
+              <p className="text-xs text-muted">
+                Driver route in purple · your shared segment in amber ·{" "}
+                <span className="text-brand-teal">▲</span> pickup ·{" "}
+                <span className="text-brand-amber">▼</span> drop
+              </p>
+            </div>
+            {(detourHits ?? []).length > 0 && (
+              <Badge variant="brand" className="text-[10px]">
+                sorted by lowest detour → pickup distance → time
+              </Badge>
+            )}
+          </div>
+          <div className="mt-5 grid gap-4">
+            {!detourBusy && (detourHits ?? []).length === 0 && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="empty-state"
+              >
+                <div className="empty-icon">
+                  <MapPin className="h-6 w-6 text-muted" />
+                </div>
+                <p className="text-sm text-muted">
+                  No driver route can pick you up within the allowed detour.{" "}
+                  Try a different date, time, or wider radius.
+                </p>
+              </motion.div>
+            )}
+            {detourBusy && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="empty-state"
+              >
+                <div className="empty-icon">
+                  <Car className="h-6 w-6 text-muted" />
+                </div>
+                <p className="text-sm text-muted">Finding detour-compatible rides…</p>
+              </motion.div>
+            )}
+            {(detourHits ?? []).map((t, i) => (
+              <motion.div
+                key={t.trip_id}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.06 }}
+                whileHover={{ y: -2 }}
+                className="glass-card p-5"
+              >
+                <DetourRideCard key={t.trip_id} t={t} />
+              </motion.div>
+            ))}
+          </div>
         </section>
       )}
     </PageShell>

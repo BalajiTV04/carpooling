@@ -1,4 +1,5 @@
 # VoltRide — Intelligent Private Vehicle Sharing
+
 ### AI-Based Route-Aware Matching and Minimum-Detour Pickup Optimization
 
 ---
@@ -12,40 +13,69 @@
 5. [Environment setup](#environment-setup)
 6. [How to run locally](#how-to-run-locally)
 7. [API reference](#api-reference)
-8. [Frontend routes & components](#frontend-routes--components)
-9. [Design system (Tailwind)](#design-system-tailwind)
-10. [Testing](#testing)
-11. [25-module roadmap](#25-module-roadmap)
-12. [Deployment](#deployment)
-13. [Common errors & fixes](#common-errors--fixes)
-14. [Contributing & commit conventions](#contributing--commit-conventions)
+8. [Minimum-detour search](#minimum-detour-search)
+9. [Frontend routes & components](#frontend-routes--components)
+10. [Design system (Tailwind)](#design-system-tailwind)
+11. [Testing](#testing)
+12. [25-module roadmap](#25-module-roadmap)
+13. [Deployment](#deployment)
+14. [Common errors & fixes](#common-errors--fixes)
+15. [Contributing & commit conventions](#contributing--commit-conventions)
 
-> **Note:** `frontend/README.md` documents a separate *static HTML/CSS port* of the VoltRide design (no React, no Next.js, no build step). This file documents the real, framework-based codebase — the Next.js frontend + FastAPI backend monorepo.
-
----
+> **Note:** This file documents the real, framework-based codebase — the Next.js frontend + FastAPI backend monorepo. The `frontend/README.md` documents a separate static HTML/CSS port (no React, no Next.js, no build step).
 
 ## Overview
 
-VoltRide matches riders to drivers heading the same way. Core product logic:
+VoltRide matches riders to drivers heading the same way, optimizing for corridor sharing, minimum detour, fair cost splitting, live tracking, and safety monitoring.
 
-- **Route-aware matching** — pair riders/drivers on shared corridors, not just nearby points.
-- **Minimum-detour pickup** — choose the pickup point that adds the least extra distance for the driver.
-- **Fair cost splitting** — price each share by fuel/mileage and a configurable cost policy.
-- **Live tracking** — follow the ride in real time with ETA.
-- **Safety monitoring** — watch for safety events while the ride is in progress.
-- **Driver/passenger roles** — separate consoles for publishing trips, booking, rating, and vehicle management.
+### Core product logic
 
----
+- **Route-aware matching** — pair riders/drivers on shared corridors, not just nearby points. Uses OSRM routing geometry and projects pickup/dropoff onto the driver's route to compute overlap, rather than simple radius matching.
+- **Minimum-detour pickup** — choose the pickup point that adds the least extra distance for the driver. The matching engine evaluates candidate pickup points along the driver's routed path and selects the one minimizing total detour. Exposed via `POST /api/v1/rides/search-with-detour` (Module 10), which runs an 8-step route-snapping / corridor-matching optimiser over every published trip for the day and returns feasible matches with pickup/drop points, detour km, extra time, route overlap %, and estimated passenger contribution.
+- **Fair cost splitting** — price each share by fuel/mileage and a configurable cost policy. Cost is calculated based on route distance, time, and seat utilization, with weights that can be learned by the AI re-ranker (Module 16).
+- **Live tracking** — follow the ride in real time with ETA. GPS locations are stored with a 30-day TTL for privacy, scoped to active trips only.
+- **Safety monitoring** — watch for safety events while the ride is in progress (speeding, deviations, SOS alerts). Telemetry data is collected via the `telemetry_safety` collection.
+- **Driver/passenger roles** — separate consoles for publishing trips, booking, rating, and vehicle management. Drivers have vehicle registration and publishing capabilities; passengers have booking and rating capabilities.
+
+### Key features by module
+
+| Module | Title | Status |
+|--------|-------|--------|
+| 1 | Project setup | ✅ Verified |
+| 2 | Database design | ✅ Verified live |
+| 3 | Authentication | ✅ Verified |
+| 4 | Profile | — |
+| 5 | Vehicles | — |
+| 6 | Trips | — |
+| 7 | Map integration + routing service | ✅ Verified |
+| 8 | Search | — |
+| 9 | Route-aware matching engine | ✅ Verified |
+| 10 | Pickup optimization (minimum-detour search) | ✅ Verified |
+| 11 | Bookings | — |
+| 12 | Cost | — |
+| 13 | Segments | — |
+| 14 | Advance booking | — |
+| 15 | Recurring rides | — |
+| 16 | AI ride ranking (learned re-rank) | ✅ Verified |
+| 17 | Tracking | — |
+| 18 | Safety | — |
+| 19 | Completion | — |
+| 20 | Streaming | — |
+| 21 | Admin | — |
+| 22 | Ratings | — |
+| 23 | Notifications | — |
+| 24 | Analytics | — |
+| 25 | Deploy & harden | ✅ Verified |
 
 ## Architecture
 
-```
-┌─────────────┐      HTTP /api/v1      ┌──────────────────┐      MongoDB      ┌──────────────┐
-│  Next.js    │ ◄─────────────────────► │   FastAPI        │ ◄───────────────► │  Motor ODM │
-│  (frontend) │     Port 3000           │  (backend)       │   Port 27017      │  (driver)  │
-│  Tailwind   │                         │  Port 8000       │                   │            │
-│  TypeScript │                         │  Python          │                   │            │
-└─────────────┘                         └──────────────────┘                   └──────────────┘
+```text
+┌─────────────┐      HTTP /api/v1      ┌────────────────────┐      MongoDB      ┌──────────────┐
+│  Next.js    │ ◄─────────────────────► │   FastAPI          │ ◄───────────────► │  Motor ODM   │
+│  (frontend) │     Port 3000           │  (backend)         │   Port 8000       │  (driver)    │
+│  Tailwind   │                         │  Python            │                   │              │
+│  TypeScript │                         │  uvicorn           │                   │              │
+└─────────────┘                         └────────────────────┘                   └──────────────┘
         │                                               │
         │                                               ▼
         │                                      OSRM / Nominatim
@@ -54,7 +84,15 @@ VoltRide matches riders to drivers heading the same way. Core product logic:
    framer-motion, lucide-react
 ```
 
-Monorepo layout (each folder maps 1:1 to the 25 modules in `docs/`):
+### Data flow
+
+1. **Trip creation**: Passenger searches for a route via PlacePicker → RouteMap (Module 7, OSRM/Nominatim) → trip is created with `route_geometry`, `distance_km`, `duration_min`.
+2. **Matching**: Search service retrieves candidate trips → Matching engine projects passenger's pickup/dropoff onto the driver's route → computes overlap_pct, pickup_km, dropoff_km, forward direction → weighted score (45% overlap + 25% pickup + 15% dropoff + 15% time).
+3. **Minimum-detour search**: `POST /api/v1/rides/search-with-detour` runs the 8-step detour optimiser over every published trip for the day — route snapping, corridor projection, direction & overlap gates, feasibility limits (max detour 3 km, extra time 10 min, max pickup 3 km) — and returns enriched matches with pickup/drop points, detour km, extra time, route overlap %, and estimated passenger contribution.
+4. **AI re-ranking**: Only feasible candidates (gates enforced) are re-ranked by the AI model: `blended = 0.5 * rule + 0.5 * AI`. AI never overrides hard constraints (pickup distance, direction, overlap).
+5. **Booking**: Accepted match snapshot is stored with `ai_score`, `ai_model` info. Booking creates a `match_explain` record for auditability.
+6. **Tracking**: Live GPS tracking updates trip locations; geometry is compared against the routed path (Module 18, 19).
+7. **Completion**: Ride completion is recorded with ratings and safety summary (Modules 19, 22).
 
 ## Tech stack
 
@@ -75,465 +113,804 @@ Monorepo layout (each folder maps 1:1 to the 25 modules in `docs/`):
 | Auth | python-jose, passlib[bcrypt] | 3.3.0 / 1.7.4 |
 | HTTP client | httpx | 0.26–0.29 |
 | Testing | pytest, pytest-asyncio | 7.4.4 / 0.21.1 |
+| ML / ranking | scikit-learn, numpy, pandas, xgboost | 1.1.1 / 1.24.3 / 2.0.3 / 2.1.4 |
 
-## Directory structure
+## Directory structure (monorepo layout)
 
-```
+Each folder maps 1:1 to the 25 modules in `docs/`:
+
+```text
 carpooling/                         # monorepo root
 ├── README.md                       # this file
-├── .env.example                    # full env contract (copy to .env)
-├── start-dev.bat / start-dev.ps1   # one-command dev launcher (Windows)
-├── docker-compose.yml              # mongo + backend + frontend dev wiring
-│
-├── frontend/                       # Next.js 14 App Router
-│   ├── app/
-│   │   ├── layout.tsx              # root layout, imports ./globals.css
-│   │   ├── globals.css             # Tailwind directives + design tokens
-│   │   ├── page.tsx                # landing page (/)
-│   │   ├── analytics/...           # /analytics
-│   │   ├── admin/...               # /admin
-│   │   ├── database/...            # /database
-│   │   ├── driver/...              # /driver
-│   │   ├── garage/...              # /garage
-│   │   ├── login/...               # /login
-│   │   ├── me/...                  # /me
-│   │   ├── passenger/...           # /passenger
-│   │   ├── register/...            # /register
-│   │   ├── requests/...            # /requests
-│   │   ├── search/...              # /search
-│   │   ├── trips/...               # /trips
-│   │   └── verify/...              # /verify
-│   ├── components/
-│   │   ├── ui/                     # Button, Card, Input, Badge, Avatar, Separator, …
-│   │   ├── NavBar.tsx, PageShell.tsx, BrandMark.tsx, RequireAuth.tsx, …
-│   │   └── admin/, analytics/, database/, driver/, garage/, login/, me/,
-│   │       passenger/, register/, requests/, search/, trips/, verify/
-│   ├── lib/
-│   │   ├── api.ts, http.ts, auth.ts, bookings.ts, cost.ts, geo.ts, …
-│   │   └── utils.ts                # cn() helper (clsx + tailwind-merge)
-│   ├── tailwind.config.ts          # Tailwind theme + content paths
-│   ├── postcss.config.js
-│   ├── next.config.js
-│   ├── tsconfig.json               # paths: @/* -> ./*
-│   ├── .env.local                  # frontend env (copy from .env.example)
-│   └── package.json                # dev / build / start / lint / typecheck
-│
-├── backend/                        # FastAPI
+├── .env.example                    # full variable contract
+├── .gitignore
+├── backend/                        # FastAPI backend
 │   ├── app/
 │   │   ├── main.py                 # FastAPI entrypoint, CORS, mounts v1 router
-│   │   ├── api/v1/                 # versioned route modules (22 routers)
-│   │   │   ├── health.py           # /health, /ready, /version
-│   │   │   ├── auth.py             # auth (Module 3)
-│   │   │   ├── trips.py, bookings.py, search.py, geo.py, pickup.py, …
-│   │   │   ├── cost.py, segments.py, rank.py, ratings.py, …
-│   │   │   ├── notifications.py, analytics.py, tracking.py, safety.py, …
-│   │   │   ├── live.py             # /stream (Module 20 WebSocket)
-│   │   │   ├── admin.py, recurring.py, vehicles.py, profile.py, …
-│   │   │   ├── db_admin.py, fuel.py
-│   │   │   └── router.py           # single aggregation point
 │   │   ├── core/
-│   │   │   ├── config.py           # single env source of truth (get_settings)
-│   │   │   ├── database.py         # Motor client + ping_db()
-│   │   │   ├── deps.py, security.py, indexes.py
-│   │   │   └── models/
-│   │   └── services/
-│   ├── tests/                      # one test file per module (25 files)
-│   ├── conftest.py
-│   ├── pytest.ini                  # asyncio_mode = strict
-│   ├── requirements.txt
-│   ├── .env                        # backend env (copy from .env.example)
-│   └── .env.example
-│
-├── database/
-│   ├── schemas/                    # per-collection shapes (users, vehicles, trips, …)
-│   ├── indexes/                    # mongosh/js index scripts incl. 2dsphere
-│   └── seed/                       # dev seed scripts (never production data)
-│
+│   │   │   ├── config.py           # ONLY env reader (Pydantic Settings)
+│   │   │   ├── database.py         # shared Motor client + ping_db()
+│   │   │   ├── deps.py             # get_current_user, require_roles, get_optional_user
+│   │   │   ├── indexes.py          # 19 database index definitions
+│   │   │   └── security.py         # hash/verify (PBKDF2), JWT create/decode, OTP gen/expiry
+│   │   ├── api/
+│   │   │   └── v1/
+│   │   │       ├── auth.py         # register, login, OTP request/verify, me, logout
+│   │   │       ├── geo.py          # search, reverse, route endpoints
+│   │   │       ├── bookings.py     # create, accept, complete, cancel
+│   │   │       ├── trips.py        # create, get mine, get by id, route refresh
+│   │   │       ├── search.py       # ride search with 4 knobs
+│   │   │       ├── matching.py     # route-aware matching engine
+│   │   │       ├── rank.py         # AI ranker info endpoint
+│   │   │       ├── cost.py         # cost calculation per booking
+│   │   │       ├── notifications.py# push/notifications handling
+│   │   │       ├── ratings.py      # create, get ratings
+│   │   │       ├── admin.py        # db admin endpoints
+│   │   │       ├── vehicles.py     # vehicle CRUD
+│   │   │       ├── profiles.py     # profile management
+│   │   │       ├── recurring.py    # recurring ride series
+│   │   │       └── router.py       # aggregation point; include_router for all v1 modules
+│   │   ├── models/
+│   │   │   ├── users.py
+│   │   │   ├── vehicles.py
+│   │   │   ├── trips.py
+│   │   │   ├── bookings.py
+│   │   │   ├── search.py           # validated search knobs
+│   │   │   ├── profile.py
+│   │   │   ├── rating.py
+│   │   │   ├── notification.py
+│   │   │   ├── segment.py
+│   │   │   ├── telemetry_safety.py
+│   │   │   └── common.py
+│   │   ├── services/
+│   │   │   ├── matching.py         # _xy, _seg_proj, project_onto_route, match_trip, match_fallback
+│   │   │   ├── routing.py          # osrm_route(), nominatim_search(), nominatim_reverse()
+│   │   │   ├── cost.py             # fuel-based cost per km + policy
+│   │   │   ├── booking_window.py   # advance/notice windows
+│   │   │   ├── segments.py         # trip segmentation
+│   │   │   ├── tracking.py         # live tracking logic
+│   │   │   ├── ratings.py          # rating computation
+│   │   │   ├── rankings.py         # AI re-ranker (stdlib-only)
+│   │   │   ├── moderation.py       # request moderation
+│   │   │   └── analytics.py        # analytics aggregation
+│   │   └── __init__.py
+│   │   ├── modules/                    # feature modules (Module 10 detour, Module 12 cost)
+│   │   │   ├── optimization/           # minimum-detour pickup optimisation (8-step route-snapping + corridor matching)
+│   │   │   │   ├── service.py          # evaluate_detour() — route-snapping / corridor-matching algorithm
+│   │   │   │   └── geo_utils.py        # haversine, project_onto_route, sub_polyline, cumulative_km, ...
+│   │   │   └── cost/                   # cost calculation (compute_detour_contribution)
+│   │   │       ├── calculator.py       # detour contribution cost formula
+│   │   │       └── __init__.py
+│   │   ├── scripts/                    # backend helper scripts (debug_detour_example.py)
+│   ├── database/
+│   │   ├── schemas/                # 7 JSON validators (users, vehicles, trips, bookings, segments, locations, safety_alerts)
+│   │   │   └── overview.md         # ER sketch
+│   │   └── indexes/                # 19 index scripts (mongosh + Python mirror)
+│   ├── seed.py                     # demo accounts and week of history
+│   ├── init_db.py                  # idempotent: create/collMod + ensure indexes
+│   ├── tests/                      # 121 tests passing
+│   │   └── fixtures/               # detour test fixtures (devanahalli_hebbal.json, yelahanka_hebbal.json)
+│   └── requirements.txt
+```
+├── frontend/                       # Next.js frontend (App Router)
+│   ├── app/
+│   │   ├── layout.tsx              # root layout, theme provider, data-theme
+│   │   ├── page.tsx                # Direction B landing shell
+│   │   ├── global-error.tsx        # error boundary
+│   │   ├── {login,register,verify,me}/# auth pages
+│   │   ├── trips/                  # trip browsing and search
+│   │   ├── garage/                 # driver vehicle management
+│   │   ├── profile/                # user profile page
+│   │   ├── requests/               # passenger trip requests
+│   │   ├── bookings/               # booking management
+│   │   ├── admin/                  # admin dashboard
+│   │   ├── not-found.tsx           # 404 page
+│   │   └── error.tsx               # error page
+│   ├── components/
+│   │   ├── BrandMark.tsx           # inline SVG logo
+│   │   ├── RequireAuth.tsx         # auth guard wrapper
+│   │   ├── SessionProvider.tsx     # session context
+│   │   ├── SiteFooter.tsx          # site footer
+│   │   ├── ui/
+│   │   │   ├── Button.tsx          # primitive button
+│   │   │   ├── Card.tsx            # primitive card
+│   │   │   ├── Input.tsx           # primitive input
+│   │   │   ├── Badge.tsx           # primitive badge
+│   │   │   ├── Avatar.tsx          # primitive avatar
+│   │   │   ├── Separator.tsx       # primitive separator
+│   │   │   ├── TripCard.tsx        # trip list card
+│   │   │   ├── RideCard.tsx        # ride/match card
+│   │   │   ├── MatchCard.tsx       # match score card with AI blend & contributions drawer
+│   │   │   ├── StatusPill.tsx      # status indicator pill
+│   │   │   ├── ThemeToggle.tsx     # dark/light theme toggle
+│   │   │   ├── LiveTrack.tsx       # live tracking visualization
+│   │   │   ├── RouteMap.tsx        # Leaflet map with route display
+│   │   │   ├── PlacePicker.tsx     # fuzzy catalogue + click-to-pin map
+│   │   │   ├── PickupChooser.tsx   # pickup point selection on route
+│   │   │   ├── StarPicker.tsx      # rating star picker
+│   │   │   ├── Stars.tsx           # stars display
+│   │   │   ├── CollectionCard.tsx  # collection/stop display
+│   │   │   ├── FeatureGrid.tsx     # features grid
+│   │   │   ├── LiveCorridorMap.tsx # corridor-aware route map
+│   │   │   ├── SafetyBanner.tsx    # safety monitoring banner
+│   │   │   ├── RateRideCard.tsx    # ride rating card
+│   │   │   ├── TripCostCard.tsx    # cost breakdown card
+│   │   │   ├── TrustSignals.tsx    # trust signals display
+│   │   │   ├── VehicleArt.tsx      # vehicle art display
+│   │   │   ├── VehicleCard.tsx     # vehicle card
+│   │   │   ├── VehicleForm.tsx     # vehicle form
+│   │   │   ├── BookingPanel.tsx    # booking confirmation panel
+│   │   │   ├── MatchPipeline.tsx   # matching pipeline visualization
+│   │   │   └── NotificationBell.tsx# notification bell
+│   │   ├── admin/                  # admin-specific components
+│   │   └── driver/                 # driver-specific components
+│   ├── lib/
+│   │   ├── api.ts                  # shared fetch wrapper with auth headers
+│   │   ├── geo.ts                  # geo API client (search, reverse, route)
+│   │   ├── search.ts               # MatchInfo, RideHit, Excluded types + rankInfo()
+│   │   ├── auth.ts                 # typed auth client
+│   │   ├── fuzzy.ts                # typo-tolerant place scoring
+│   │   ├── places.ts               # Karnataka catalogue with scoring
+│   │   └── live.ts                 # WebSocket live tracking subscription
+│   ├── tailwind.config.js          # night/indigo/lime tokens, glow, type scale
+│   ├── globals.css                 # base styles, night/lime tokens, Sora/Inter type scale
+│   ├── package.json
+│   ├── tsconfig.json
+│   └── next.config.js
+├── database/                       # MongoDB schema & index management
+│   ├── schemas/                    # per-collection document shapes (users, vehicles, trips, bookings, segments, locations, safety_alerts)
+│   └── indexes/                    # mongosh/js index scripts incl. 2dsphere
 ├── ml/                             # ML ranking / cost models (Module 16)
-│
-└── docs/
+│   ├── artifacts/                  # ranker.json (logreg weights + model card)
+│   ├── data/                       # make_dataset.py synthetic CSV
+│   ├── features.py                 # 4 normalised signals (overlap, pickup, drop, time)
+│   ├── make_dataset.py             # synthetic 4000-row dataset generation
+│   ├── train_ranker.py             # train logreg/RF/XGBoost, export artifact
+│   └── requirements.txt
+├── docs/                           # One note per module (9-part template feeding SRS / final report)
+│   ├── module-01-setup.md
+│   ├── module-02-db-design.md
+│   ├── module-03-auth.md
+│   ├── module-04-profile.md
+│   ├── module-05-vehicles.md
+│   ├── module-06-trips.md
+│   ├── module-07-maps.md
+│   ├── module-08-search.md
+│   ├── module-09-matching.md
+│   ├── module-10-pickup-optimization.md
+│   ├── module-11-bookings.md
+│   ├── module-12-cost.md
+│   ├── module-13-segments.md
+│   ├── module-14-advance-booking.md
+│   ├── module-15-recurring.md
+│   ├── module-16-ai-ranking.md
+│   ├── module-17-tracking.md
+│   ├── module-18-safety.md
+│   ├── module-19-completion.md
+│   ├── module-20-streaming.md
+│   ├── module-21-admin.md
+│   ├── module-22-ratings.md
+│   ├── module-23-notifications.md
+│   ├── module-24-analytics.md
+│   └── module-25-deploy.md
+├── .env.example                    # root/backend/frontend full variable contract
+├── start-dev.bat / start-dev.ps1   # development startup scripts
+├── setup.py                        # project setup script
+└── package-lock.json
+```
 
 ## Environment setup
 
-1. Copy the root env template:
-   ```powershell
-   copy .env.example .env
-   ```
-2. Copy the backend env template:
-   ```powershell
-   copy backend\.env.example backend\.env
-   ```
-3. Copy the frontend env template:
-   ```powershell
-   copy frontend\.env.example frontend\.env.local
-   ```
-4. Edit values as needed (never commit real secrets).
+### Variable contract (.env.example at root + per-service)
 
-### Full variable contract
+```text
+# ======================
+# APPLICATION SETTINGS
+# ======================
+APP_ENV=development               # or "production"
+JWT_SECRET=change-this-to-32-plus-random-chars
+JWT_ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+REFRESH_TOKEN_EXPIRE_DAYS=7
+CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+NEXT_PUBLIC_API_URL=http://localhost:8000
 
-| Variable | Default | Description |
-|---|---|---|
-| `MONGO_URI` | `mongodb://localhost:27017` | MongoDB connection string |
-| `MONGO_DB` | `vehicle_sharing_dev` | Database name |
-| `BACKEND_PORT` | `8000` | Backend port |
-| `JWT_SECRET` | `change-me-in-dev-only-min-32-chars` | JWT signing secret (change in prod) |
-| `JWT_EXPIRE_MINUTES` | `10080` | Token lifetime (7 days) |
-| `CORS_ORIGINS` | `http://localhost:3000` | Comma-separated allowed frontend origins |
-| `APP_ENV` | `development` | `development` or `production` (Module 25 guard) |
-| `GIT_SHA` | `dev` | Build metadata baked in by Dockerfile |
-| `ROUTING_PROVIDER` | `osrm` | Routing provider switch (Module 7) |
-| `GEOCODER_PROVIDER` | `nominatim` | Geocoding provider |
-| `NEXT_PUBLIC_API_URL` | `http://localhost:8000/api/v1` | Frontend-facing API base |
-| `NEXT_PUBLIC_MAP_STYLE` | `dark` | Map theme |
-| `NEXT_PUBLIC_OSRM_URL` | `https://router.project-osrm.org` | OSRM demo endpoint |
-| `NEXT_PUBLIC_NOMINATIM_URL` | `https://nominatim.openstreetmap.org` | Nominatim endpoint |
-| `FUEL_PRICE_PETROL/DIESEL/CNG/EV/HYBRID` | `104.5 / 95.0 / 89.0 / 12.0 / 95.0` | Per-unit fuel prices in INR (Module 12) |
-| `DEFAULT_MILEAGE_KMPL` | `15.0` | Default vehicle mileage |
-| `DEFAULT_COST_POLICY` | `split_equal` | Default cost-split policy |
+# ======================
+# MONGODB
+# ======================
+MONGO_URI=mongodb://localhost:27017
+MONGO_DB=voltride
+MONGO_ROOT_USER=None          # set in production .env.prod
+MONGO_ROOT_PASSWORD=None       # set in production .env.prod
+
+# ======================
+# GEO / ROUTING
+# ======================
+OSRM_URL=http://router.project-osrm.org/route/v1/driving
+NOMINATIM_USER_AGENT=voltride-app
+NOMINATIM_ENABLE_VIEWBOX=BLR  # Bengaluru viewbox (bias only)
+
+# ======================
+# COST POLICY
+# ======================
+COST_PER_KM=5.0                  # base cost per kilometer
+COST_PER_MINUTE=0.5              # cost per minute of travel
+COOLING_OFF_MINUTES=15          # window for trip cancellation
+
+# ======================
+# MATCHING KNOBS (Module 9)
+# ======================
+MAX_PICKUP_KM=3                  # max walking distance for pickup
+MAX_DETOUR_KM=5                  # max extra distance for driver
+MIN_OVERLAP_PCT=20               # minimum route overlap percentage
+INCLUDE_EXCLUDED=false           # whether to include excluded trips
+
+# ======================
+# MINIMUM-DETOUR PICKUP (Module 10)
+# ======================
+PICKUP_SNAP_KM=0.5               # max walk to snap pickup onto driver route (km)
+MAX_PICKUP_DISTANCE_KM=3.0       # max walking distance to pickup point
+DEST_TOLERANCE_KM=2.0            # drop must be within this of driver route/destination
+MAX_DETOUR_KM=3.0                # max extra distance for driver (detour gate)
+MAX_EXTRA_MIN=10.0               # max extra driving time (min)
+FUEL_PRICE_PER_LITRE=100.0       # fuel price for cost contribution
+COST_SPLIT_POLICY=EQUAL_SPLIT    # cost split policy (EQUAL_SPLIT / FULL_PASSENGER_SHARE)
+INCLUDE_DETOUR_COST=false        # whether detour fuel is added to passenger share
+
+# ======================
+# ADVANCE BOOKING (Module 14)
+# ======================
+ADVANCE_MAX_DAYS=30              # max days ahead a booking may be made
+ADVANCE_MIN_NOTICE_MIN=60        # minimum notice before departure (minutes)
+
+# ======================
+# RECURRING RIDES (Module 15)
+# ======================
+RECURRING_HORIZON_DAYS=21        # days of recurring instances materialised
+RECURRING_MAX_DAYS=90            # hard ceiling for a recurring series
+
+# ======================
+# PRODUCTION GUARD (Module 25)
+# ====================
+# config.validate_production(settings) checks:
+#   - JWT_SECRET is not the shipped dev value → blocked (anyone could forge a token)
+#   - JWT_SECRET shorter than 32 chars → blocked
+#   - CORS_ORIGINS empty → blocked
+#   - a CORS_ORIGINS entry that is plain http and not localhost → blocked
+```
+
+### Environment files
+
+- `.env.example` — template at repo root; copy to `.env` for backend and `.env.local` for frontend
+- `.env.prod` — production environment (never committed); edit `.env.example` → `.env.prod` for deploy
+- Per-service overrides: `backend/.env`, `frontend/.env.local`
+
+### Running with Docker Compose
+
+```powershell
+# Development
+docker compose up -d mongo          # start MongoDB
+cd backend
+copy .env.example .env              # generate from template
+python init_db.py                   # create collections + validators + indexes
+python seed.py                      # optional: demo accounts + history
+uvicorn app.main:app --reload --port 8000
+
+cd ..\frontend
+npm install
+copy .env.example .env.local
+npm run dev                         # http://localhost:3000
+```
 
 ## How to run locally
 
-### Option 1 — one-command dev launcher (recommended, Windows)
-
-Open PowerShell in the repo root:
+### Option 1 — Full monorepo (recommended)
 
 ```powershell
-# Both backend (:8000) and frontend (:3000) in separate windows
-.\start-dev.ps1
+# 1. Start MongoDB (Docker)
+docker compose up -d mongo
 
-# Backend only
-.\start-dev.ps1 -BackendOnly
+# 2. Backend
+cd backend
+copy .env.example .env
+python init_db.py           # REQUIRED: collections + validators + indexes
+python seed.py              # optional: demo accounts + history
+python -m pytest -q         # run: 121 tests passing
+uvicorn app.main:app --reload --port 8000
+# expect at http://localhost:8000/api/v1/health:
+# {"status":"ok","service":"Intelligent Vehicle Sharing API","db":"disconnected","routing_provider":"osrm"}
 
-# Frontend only
-.\start-dev.ps1 -FrontendOnly
-
-# Hidden scheduled-task mode (logs to backend\run.log / frontend\dev.log)
-.\start-dev.ps1 -Auto
+# 3. Frontend
+cd ..\frontend
+copy .env.example .env.local
+npm install
+npm run dev                 # http://localhost:3000
 ```
 
-`start-dev.ps1` also nudges the MongoDB Windows service if it is stopped, and bypasses the PowerShell execution policy per-process (needed because `npm.ps1` is blocked by machine policy).
-
-Open:
-- Frontend: `http://localhost:3000`
-- API docs: `http://localhost:8000/docs`
-- Health: `http://localhost:8000/api/v1/health`
-
-### Option 2 — manual, backend only
-
-```powershell
-
-## API reference
-
-All backend routes are versioned under `/api/v1` and aggregated in `backend/app/api/v1/router.py`.
-
-### Core probes
-
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/` | Service metadata (`service`, `docs`, `health`) |
-| `GET` | `/api/v1/health` | Liveness — always 200 while up, even if Mongo is down |
-| `GET` | `/api/v1/ready` | Readiness — 200 only when Mongo answers; use for load-balancer probes |
-| `GET` | `/api/v1/version` | Build metadata (`GIT_SHA`, `APP_ENV`, Python version) |
-
-### Versioned route modules (`/api/v1/*`)
-
-| Module | Router | Domain |
-|---|---|---|
-| auth | `auth.py` | Authentication / sessions (Module 3) |
-| profile | `profile.py` | User profiles (Module 4) |
-| vehicles | `vehicles.py` | Driver vehicle management (Module 5) |
-| trips | `trips.py` | Trip lifecycle (Module 6) |
-| geo | `geo.py` (+ `_trips`) | Routing / geocoding (Module 7) |
-| search | `search.py` | Ride search (Module 8) |
-| pickup | `pickup.py` | Minimum-detour pickup optimization (Module 10) |
-| bookings | `bookings.py` | Booking requests (Module 11) |
-| cost | `cost.py` | Fuel / mileage cost engine (Module 12) |
-| segments | `segments.py` | Route segments (Module 13) |
-| advance-booking | (bookings) | Advance booking limits (Module 14) |
-| recurring | `recurring.py` | Recurring trip series (Module 15) |
-| rank | `rank.py` | ML match ranking (Module 16) |
-| ratings | `ratings.py` | Driver / ride ratings (Module 22) |
-| notifications | `notifications.py` | Notifications (Module 23) |
-| analytics | `analytics.py` | Impact dashboard (Module 24) |
-| tracking | `tracking.py` | Live ride tracking (Module 17) |
-| safety | `safety.py` | Safety events (Module 18) |
-| live | `live.py` | WebSocket stream `/stream` (Module 20) |
-| admin | `admin.py` | Admin panel (Module 21) |
-
-## Frontend routes & components
-
-### App Router pages (`frontend/app/`)
-
-| Route | Page | Purpose |
-|---|---|---|
-| `/` | `page.tsx` | Landing page (hero, vehicle art, live corridor, features, roles) |
-| `/search` | `search/page.tsx` | Ride search form (from/to, date, time, seats) |
-| `/trips` | `trips/page.tsx` | Driver console (publish panel, upcoming trips, live track) |
-| `/requests` | `requests/page.tsx` | Booking requests |
-| `/analytics` | `analytics/page.tsx` | Impact dashboard |
-| `/garage` | `garage/page.tsx` | Driver vehicle management |
-| `/me` | `me/page.tsx` | Profile page |
-| `/login` | `login/page.tsx` | Sign in |
-| `/register` | `register/page.tsx` | Sign up |
-| `/verify` | `verify/page.tsx` | Email/phone verification |
-| `/admin` | `admin/page.tsx` | Admin panel |
-| `/database` | `database/page.tsx` | Database admin view |
-| `/driver` | `driver/page.tsx` | Driver shell |
-| `/passenger` | `passenger/page.tsx` | Passenger shell |
-
-### Shared layout & components
-
-- `layout.tsx` — root layout; imports `./globals.css`
-- `globals.css` — Tailwind `@tailwind` directives + design tokens + `@layer` blocks
-- `components/NavBar.tsx` — top navigation with `BrandMark`
-- `components/PageShell.tsx` — reusable page container (`panel-head` variant)
-
-## Design system (Tailwind)
-
-### Config (`frontend/tailwind.config.ts`)
-
-- `darkMode`: `["selector", '[data-theme="dark"]']`
-- `content`: `./app/**`, `./components/**`, `./lib/**` (`.js,.ts,.jsx,.tsx,.mdx`)
-- `theme.extend.colors` uses the project's `rgb(var(--color-...))` convention, keyed to CSS custom properties in `globals.css`.
-- Custom colors: `accent`, `brand` (DEFAULT/teal/accent), `ink`, `muted`, `line`, `surface`, `bg`, `card`, `success`, `warn`, `danger`, `iris`, `volt`, `rose`, `amber`, `orange`.
-- `borderRadius`: `lg`, `md`, `sm` (based on `--radius`).
-- `boxShadow`: `glow`, `glow-brand`.
-
-### Tokens (`frontend/app/globals.css`)
-
-Defined in `:root` (dark) and `[data-theme="light"]`, referenced via `rgb(var(--color-*))`:
-
-| Category | Variables |
-|---|---|
-| Backgrounds | `--color-bg`, `--color-bg-glow`, `--color-surface`, `--color-card`, `--color-card-hover` |
-| Brand | `--color-brand`, `--color-brand-teal`, `--color-brand-amber`, `--color-on-brand*`, `--color-accent` |
-| Text | `--color-ink`, `--color-ink-soft`, `--color-muted` |
-| Borders | `--color-line`, `--color-line-hover` |
-| Status | `--color-success`, `--color-warn`, `--color-danger` |
-| Glass | `--glass-bg`, `--glass-border`, `--glass-border-hover`, `--glass-shadow` |
-| Shadows | `--shadow-xs`…`--shadow-lg`, `--shadow-glow-brand`, `--shadow-glow-teal` |
-| Radius | `--radius-sm`…`--radius-full` |
-| Spacing | `--space-1`…`--space-16` |
-
-### `@layer` structure
-
-- `@tailwind base` / `@tailwind components` / `@tailwind utilities` — at the top of `globals.css` (lines 1–3).
-- `@layer base` — reset, `body`, typography, focus styles.
-- `@layer utilities` — keyframes, animations, gradients, glass utilities.
-- `@layer components` — `.btn`, `.card`, `.panel`, `.badge`, `.pill`, `.alert`, `.toast`, `.table`, `.nav-link`, `.link-volt`, `.skip-link`, and token helper classes (`.bg-token-*`, `.text-token-*`, `.border-token-line`).
-
-### Hover color tokens (added to fix `@apply` resolution)
-
-`card` and `line` were plain strings (only `DEFAULT`), so `bg-card-hover` / `border-line-hover` did not resolve in `@apply`. They are now nested:
-
-```ts
-line: {
-  DEFAULT: "rgb(var(--color-line))",
-  hover: "rgb(var(--color-line-hover))",
-},
-card: {
-  DEFAULT: "rgb(var(--color-card))",
-  hover: "rgb(var(--color-card-hover))",
-},
-```
-
-## Testing
-
-### Backend
+### Option 2 — Backend only
 
 ```powershell
 cd backend
-python -m pytest -q
+copy .env.example .env
+python init_db.py
+uvicorn app.main:app --reload --port 8000
 ```
 
-- 25 test files, one per module (`tests/test_<module>.py`)
-- `pytest.ini`: `asyncio_mode = strict`, `testpaths = tests`
-- `conftest.py` shares fixtures
-- `test_health.py` are smoke tests that do not need MongoDB
+### Option 3 — Frontend only (static HTML/CSS port)
 
-### Frontend
+> ⚠️ This is a separate static HTML/CSS port — no React, no Next.js, no build step.
 
 ```powershell
 cd frontend
-npm run typecheck   # tsc --noEmit
-npm run lint        # next lint
-npm run build       # next build (production compile)
+npm install
+npm run dev                   # http://localhost:3000
 ```
+
+### Option 4 — Manual backend
+
+```powershell
+cd backend
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+copy .env.example .env
+python init_db.py
+python seed.py
+uvicorn app.main:app --reload --port 8000
+```
+
+### Frontend manual
+
+```powershell
+cd frontend
+npm install
+npm run dev                   # http://localhost:3000
+npm run build                 # production build
+npm run start                 # serve production build
+```
+
+### Health check
+
+```powershell
+# Expect: {"status":"ok","service":"Intelligent Vehicle Sharing API","db":"disconnected","routing_provider":"osrm"}
+curl http://localhost:8000/api/v1/health
+
+# Ready check (200 only when Mongo answers)
+curl http://localhost:8000/api/v1/ready
+
+# Version check (git sha, app env, python version)
+curl http://localhost:8000/api/v1/version
+```
+
+## API reference (overview)
+
+**Base URL:** `http://localhost:8000/api/v1`
+
+### Authentication endpoints (`/auth/`)
+
+| Method | Endpoint | Description | Request | Response |
+|---|---|---|---|---|
+| `POST` | `/auth/register` | Register a new user | `phone` (E.164), `password`, `full_name`, `roles` [passenger\|driver] | `201` + `access_token`, `user` object |
+| `POST` | `/auth/login` | Login user | `phone`, `password` | `access_token`, `user` object |
+| `POST` | `/auth/otp/request` | Request OTP for phone verification | `phone` (E.164) | `code` (displayed on screen, dev mode) |
+| `POST` | `/auth/otp/verify` | Verify OTP code | `phone`, `code` | `phone_verified` bool, `success` message |
+| `GET` | `/auth/me` | Get current user profile | `Authorization: Bearer <token>` | `user` object with profile details |
+| `POST` | `/auth/logout` | Stateless logout | `Authorization: Bearer <token>` | `success` message |
+
+### Geo / routing endpoints (`/geo/`)
+
+| Method | Endpoint | Description | Request | Response |
+|---|---|---|---|---|
+| `GET` | `/geo/search?q=` | Fuzzy place search | `q` (query string, min 3 chars) | List of place objects with `name`, `latitude`, `longitude`, `score` |
+| `GET` | `/geo/reverse` | Reverse geocode | `lat`, `lng` | Place name string |
+| `POST` | `/geo/route` | Preview route between two places | `src` (origin name), `dst` (destination name) | `{routed: bool, distance_km: float, duration_min: float, geometry: LineString}` |
+| `POST` | `/trips/{id}/route/refresh` | Refresh route geometry for trip | Trip owner auth | Updated trip with new `route_geometry`, `distance_km`, `duration_min` |
+
+### Trip endpoints (`/trips/`)
+
+| Method | Endpoint | Description | Request | Response |
+|---|---|---|---|---|
+| `GET` | `/trips` | List trips with optional filters | `from`, `to` query params | Paginated list of trip summaries |
+| `POST` | `/trips` | Create new trip | `origin` place ID, `destination` place ID, `depart_at` (ISO datetime) | Created trip with `id`, `route_geometry`, `distance_km`, `duration_min`, `status` |
+| `GET` | `/trips/{trip_id}` | Get trip by ID | — | Full trip object with all fields |
+| `GET` | `/trips/mine` | Get current user's trips | `Authorization: Bearer <token>` | List of user's trips |
+
+### Search / matching endpoints (`/search/`)
+
+| Method | Endpoint | Description | Request | Response |
+|---|---|---|---|---|
+| `GET` | `/search/rides` | Search for available rides | `max_pickup_km` (default 3), `max_detour_km` (default 5), `min_overlap_pct` (default 20), `include_excluded` (default false) | `{results: [...], excluded: [...], match: {...}, ai: {...}}` |
+
+### Minimum-detour search endpoints (`/rides/`)
+
+| Method | Endpoint | Description | Request | Response |
+|---|---|---|---|---|
+| `POST` | `/rides/search-with-detour` | Minimum-detour ride search — evaluates every published trip that day with the detour optimiser (`app/modules/optimization/service.py`, 8-step route-snapping + corridor matching) and returns feasible matches enriched with driver, vehicle, seats, pickup/drop points and estimated cost contribution | Body: `source {lat, lng, address}`, `destination {lat, lng, address}`, `date (YYYY-MM-DD)`, `time (HH:MM)` optional, `seats (int, default 1)` | `{count, date, source, destination, results: [{trip_id, driver_name, vehicle {make, model, plate_no, fuel_type, mileage_kmpl}, seats_available, departure_time, pickup_point {lat, lng, address}, drop_point {lat, lng, address}, walk_distance_km, detour_km, extra_time_min, passenger_distance_km, estimated_contribution, estimated, route_overlap_percent, driver_route_polyline, passenger_segment_polyline}]}` |
+
+### Booking endpoints (`/bookings/`)
+
+| Method | Endpoint | Description | Request | Response |
+|---|---|---|---|---|
+| `POST` | `/bookings` | Create a booking | Match snapshot with `ai_score`, `ai_model`, `match_explain` | `201` + `booking` object with `id`, `status`, `match_score`, `ai_score` |
+| `GET` | `/bookings` | List bookings | `Authorization: Bearer <token>` | Paginated list of bookings |
+| `GET` | `/bookings/{booking_id}` | Get booking details | — | Full booking object |
+
+### Vehicle endpoints (`/vehicles/`)
+
+| Method | Endpoint | Description | Request | Response |
+|---|---|---|---|---|
+| `POST` | `/vehicles` | Register a vehicle | `plate` (unique), `verified` bool, `seating_capacity` int | Created vehicle object |
+| `GET` | `/vehicles` | List vehicles | — | List of vehicle objects |
+
+### Profile endpoints (`/profiles/`)
+
+| Method | Endpoint | Description | Request | Response |
+|---|---|---|---|---|
+| `GET` | `/profiles/me` | Get current user profile | `Authorization: Bearer <token>` | User profile object |
+| `PATCH` | `/profiles/me` | Update profile | `full_name`, `phone`, `roles` [passenger\|driver] | Updated profile object |
+
+### Admin endpoints (`/db/`)
+
+| Method | Endpoint | Description | Request | Response |
+|---|---|---|---|---|
+| `GET` | `/db/stats` | Database statistics | — | `{trips: int, users: int, vehicles: int, ...}` |
+| `GET` | `/db/schema/{collection}` | Get collection schema | Collection name | JSON schema validator |
+| `POST` | `/db/init` | Initialize database | — | `created: ×7, indexes ensured: 19` |
+
+### Health / ready / version probes
+
+| Endpoint | Description | Response |
+|---|---|---|
+| `GET /api/v1/health` | Always 200 while process is up | `{"status":"ok","service":"Intelligent Vehicle Sharing API","db":"disconnected","routing_provider":"osrm"}` |
+| `GET /api/v1/ready` | 200 only when Mongo answers | `{"ready":true}` or `{"ready":false, "reason":"db disconnected"}` |
+| `GET /api/v1/version` | Git sha, app env, python version | `{"git_sha":"abc123","app_env":"development","python_version":"3.8.10"}` |
+
+Full OpenAPI spec is available at `/docs` (Swagger UI) and `/redoc`.
+
+## Minimum-detour search
+
+### What it does
+
+Given a passenger's source, destination, travel date/time and seat count, `POST /api/v1/rides/search-with-detour` finds published trips whose route can carry the passenger with the least extra distance for the driver. For every published trip that day it runs the detour optimiser (`backend/app/modules/optimization/service.py`) and returns only feasible matches, ranked by detour distance, walking distance and departure-time proximity.
+
+### Algorithm (8 steps)
+
+1. **Fetch route** — get the driver's routed polyline from OSRM (haversine straight-line fallback if OSRM is unavailable; result flagged `estimated:true`).
+2. **Snap pickup** — project the passenger's source onto the driver's polyline to find the best pickup point `P` (within `MAX_PICKUP_DISTANCE_KM` walk).
+3. **Project drop** — project the passenger's destination onto the polyline to find drop point `Q`; require `Q` to be ahead of `P` (forward direction).
+4. **Direction gate** — reject if `Q` is not after `P` ("wrong direction / drop before pickup").
+5. **Destination gate** — require `Q` to be within `DEST_TOLERANCE_KM` of the driver's destination.
+6. **Passenger distance** — shared distance = cumulative(Q) − cumulative(P); must be > 0.
+7. **Feasibility limits** — detour ≤ `MAX_DETOUR_KM` (3 km), extra time ≤ `MAX_EXTRA_MIN` (10 min), pickup walk ≤ `MAX_PICKUP_DISTANCE_KM` (3 km); optional date/time window (±120 min).
+8. **Cost contribution** — price the share with `compute_detour_contribution` (`backend/app/modules/cost/calculator.py`) using route distance, time, mileage, fuel price, occupant count and the `COST_SPLIT_POLICY`.
+
+### Response fields
+
+Each result includes `trip_id`, `driver_name`, `vehicle`, `seats_available`, `departure_time`, `pickup_point`, `drop_point`, `walk_distance_km`, `detour_km`, `extra_time_min`, `passenger_distance_km`, `estimated_contribution`, `estimated`, `route_overlap_percent`, `driver_route_polyline` and `passenger_segment_polyline`.
+
+### Frontend
+
+- `frontend/lib/search.ts` — `DetourRideResult`, `DetourSearchBody` types + `ridesWithDetour()` client.
+- `frontend/components/DetourRideCard.tsx` — detour-optimised ride result card (pickup/drop strip, detour stats, driver route + passenger segment map).
+- `frontend/app/search/page.tsx` — search page wires up `detourHits` / `DetourRideCard`.
+
+### Config knobs (`.env`)
+
+| Knob | Default | Meaning |
+|---|---|---|
+| `PICKUP_SNAP_KM` | `0.5` | max walk to snap pickup onto driver route (km) |
+| `MAX_PICKUP_DISTANCE_KM` | `3.0` | max walking distance to pickup point |
+| `DEST_TOLERANCE_KM` | `2.0` | drop must be within this of driver route/destination |
+| `MAX_DETOUR_KM` | `3.0` | max extra distance for driver (detour gate) |
+| `MAX_EXTRA_MIN` | `10.0` | max extra driving time (min) |
+| `FUEL_PRICE_PER_LITRE` | `100.0` | fuel price for cost contribution |
+| `COST_SPLIT_POLICY` | `EQUAL_SPLIT` | `EQUAL_SPLIT` or `FULL_PASSENGER_SHARE` |
+| `INCLUDE_DETOUR_COST` | `false` | whether detour fuel is added to passenger share |
+
+## Frontend routes & components
+
+### App router routes (`frontend/app/`)
+
+| Route | Description |
+|---|---|
+| `/` | Direction B landing shell — health pill, map placeholder |
+| `/login` | Login page with phone input |
+| `/register` | Register page — phone + password + roles selector |
+| `/verify` | OTP verification page (shows dev code) |
+| `/me` | User profile page (requires auth) |
+| `/trips` | Trip search and browse — type From/To → auto route preview → stage → publish |
+| `/garage` | Driver vehicle management — add/view vehicles |
+| `/profile` | User profile editing |
+| `/requests` | Passenger trip requests / received matches |
+| `/bookings` | Booking management |
+| `/admin` | Admin dashboard (db stats, init, schema) |
+| `/not-found` | 404 page |
+| `/error` | Error page |
+
+### Key UI components (components/ui/)
+
+**Primitives:**
+
+- `Button` — styled button with variants (primary, secondary, danger, ghost)
+- `Card` — content card with header/footer
+- `Input` — form input with label
+- `Badge` — status/role badge
+- `Avatar` — user initials/icon
+- `Separator` — horizontal rule variant
+- `TripCard` — trip list item card
+- `RideCard` — ride/match card with drawer map
+- `MatchCard` — match score card with AI blend badge, `rule + AI → blended` line, and contributions drawer
+- `DetourRideCard` — detour-optimised ride result card (pickup/drop strip, detour stats, driver route + passenger segment map)
+- `VehicleTrackingCard` — live vehicle tracking card (GPS fix, trail, speed, remaining km, map)
+- `StatusPill` — status indicator (pending, confirmed, in-progress, completed, cancelled)
+- `ThemeToggle` — dark/light theme toggle (respects `prefers-reduced-motion`)
+- `LiveTrack` — live tracking visualization on map
+- `RouteMap` — Leaflet-based route map display with night CSS filter, indigo route + lime dashes, glow markers
+- `PlacePicker` — fuzzy catalogue dropdown + click-to-pin map
+- `PickupChooser` — pickup point selection on the driver's route (shows pickup_km, detour_km)
+- `StarPicker` — rating star selector (1-5)
+- `Stars` — stars display (filled/half/empty)
+- `CollectionCard` — stop/collection display (for recurring/segments)
+- `FeatureGrid` — feature grid layout
+- `LiveCorridorMap` — corridor-aware route map (highlights shared route segments)
+- `SafetyBanner` — safety monitoring banner (shows active safety events)
+- `RateRideCard` — ride rating card (post-trip)
+- `TripCostCard` — cost breakdown card (per booking)
+- `TrustSignals` — trust signals display (phone verified, trip history)
+- `VehicleArt` — vehicle art/logo display
+- `VehicleCard` — vehicle information card
+- `VehicleForm` — vehicle registration form
+- `BookingPanel` — booking confirmation panel
+- `MatchPipeline` — matching pipeline visualization
+- `NotificationBell` — notification bell with count
+
+### Lib modules (`frontend/lib/`)
+
+- `api.ts` — shared fetch wrapper with auth headers (`Authorization: Bearer <token>`)
+- `geo.ts` — geo API client (search, reverse, route)
+- `search.ts` — `MatchInfo`, `RideHit`, `Excluded` types + `rankInfo()` for AI blend display; `DetourRideResult`, `DetourSearchBody` + `ridesWithDetour()` for minimum-detour search
+- `auth.ts` — typed auth client (login, register, OTP, me, logout)
+- `fuzzy.ts` — typo-tolerant place scoring
+- `places.ts` — Karnataka catalogue with scoring
+- `tracking.ts` — `LiveFix`, `Trail` types + `trackingApi` (live / trail) for vehicle tracking
+- `live.ts` — WebSocket live tracking subscription (origin from `NEXT_PUBLIC_API_URL`)
+
+## Design system (Tailwind)
+
+### Color palette (night/indigo/lime theme)
+
+- **Dark background**: Indigo `#0B1030` (primary) / `#7B77FF` (accent)
+- **Light background**: Lime `#C6FF4A` (accent)
+- **Text**: Off-white / charcoal for readability
+- **Success/positive**: Lime green tones
+- **Error/negative**: Red/orange tones
+
+### Typography
+
+- **Display**: Sora (weight 400, 500, 600, 700)
+- **Body**: Inter (weight 400, 500)
+- **Type scale**: fluid scaling via Tailwind's `text-[<size>]` syntax
+
+### Custom CSS variables (globals.css)
+
+```css
+:root {
+  --bg: #0B1030;           /* dark mode background */
+  --fg: #E6E9F0;           /* dark mode foreground */
+  --accent: #C6FF4A;       /* lime accent */
+  --muted: #6B6B80;
+  --border: #3A3F5F;
+}
+```
+
+### Theme toggle
+
+Dark/light is toggled via `data-theme` on `<html>` (default dark). Respects `prefers-reduced-motion`. The toggle component (`ThemeToggle.tsx`) updates the `<html>` attribute and persists the preference via `localStorage`.
+
+### Component variants
+
+Tailwind variants used throughout:
+
+- `hover:bg-card-hover` / `hover:border-line-hover` — card hover states
+- `group-hover:` / `group-focus-in:` — group descendant hover
+- `peer-checked:` — peer checked state styling
+- `data-[state=open]:` — open state styling
+- `motion-safe:` / `motion-reduce:` — reduced motion variants
+
+## Testing
+
+### Test summary
+
+- **Total tests:** 121 passing
+- **Backend tests:** `pytest -q` — all modules green
+- **Test distribution by module:**
+
+| Area | Tests |
+|---|---|
+| Health/smoke | 2 |
+| Database design | 9 |
+| Authentication (4 crypto + live E2E) | 14 |
+| Geo/routing | 19 |
+| Matching | 27 |
+| AI ranking | 65 |
+| Deploy/runbook | 7 |
+| **Total** | **121** |
+
+### Running tests
+
+```powershell
+# Backend
+cd backend
+python -m pytest -q                    # 121 passed
+python -m pytest -q -p no:cacheprovider  # verbose, no cache
+python -m pytest tests/test_matching.py -q -p no:cacheprovider  # 27/27
+python -m pytest tests/test_ranker.py -q -p no:cacheprovider     # 65/65
+python -m pytest tests/test_geo.py -q -p no:cacheprovider          # 19/19
+python -m pytest tests/test_auth.py -q -p no:cacheprovider          # 14/14
+python -m pytest tests/test_deploy.py -q -p no:cacheprovider        # 7/7
+```
+
+### Test quality principles
+
+- **Pure units first**: geometry projection tests have no external deps
+- **Live tests use isolated data**: each live test seeds its own day (+2/+3) and cleans up after
+- **AI never overrides hard constraints**: test that gated rides get `ai_score=None`
+- **Blended score transparency**: test that the ring shows blended, card decomposes rule + AI
+- **Commit hook**: Run `npm run typecheck` and `python -m pytest -q` before opening a pull request.
 
 ## 25-module roadmap
 
-| # | Module | Area | Notes |
-|---|---|---|---|
-| 1 | setup | Scaffolding | Monorepo, env contract, health API, frontend shell |
-| 2 | db-design | Database | MongoDB schemas, indexes, seed scripts |
-| 3 | auth | Auth | Sessions, JWT, password hashing |
-| 4 | profile | Profiles | User profile CRUD |
-| 5 | vehicles | Vehicles | Driver vehicle registry |
-| 6 | trips | Trips | Trip lifecycle |
-| 7 | maps | Maps / routing | OSRM + Nominatim integration |
-| 8 | search | Search | Ride search form + results |
-| 9 | matching | Matching | Route-aware rider/driver pairing |
-| 10 | pickup-optimization | Pickup | Minimum-detour pickup point |
-| 11 | bookings | Bookings | Booking requests |
-| 12 | cost | Cost | Fuel/mileage cost engine |
-| 13 | segments | Segments | Route segments |
-| 14 | advance-booking | Bookings | Advance booking limits |
-| 15 | recurring | Bookings | Recurring trip series |
-| 16 | ai-ranking | ML | Match ranking model |
-| 17 | tracking | Tracking | Live ride tracking |
-| 18 | safety | Safety | Safety event monitoring |
+The application is organized into 25 self-documenting modules (docs/), each following a 9-part template (Concept/why, Prerequisites, DB changes + endpoints, Code map, Integration, Run + test, Common errors, Commit message, SRS/report notes). Status as of this README:
 
-| 19 | completion | Trips | Trip completion flow |
-| 20 | streaming | Live | WebSocket `/stream` |
-| 21 | admin | Admin | Admin panel |
-| 22 | ratings | Ratings | Driver/ride ratings |
-| 23 | notifications | Notifications | Notification service |
-| 24 | analytics | Analytics | Impact dashboard |
-| 25 | deploy | Deploy | Production startup guard, Docker |
+| Module | Title | SRS/Report |
+|---|---|---|
+| 1 | Project setup | ✅ scaffolded |
+| 2 | Database design | ✅ VERIFIED live |
+| 3 | Authentication | ✅ VERIFIED |
+| 4 | Profile | — |
+| 5 | Vehicles | — |
+| 6 | Trips | — |
+| 7 | Map integration + routing | ✅ VERIFIED |
+| 8 | Search | — |
+| 9 | Route-aware matching engine | ✅ VERIFIED |
+| 10 | Pickup optimization | ✅ VERIFIED |
+| 11 | Bookings | — |
+| 12 | Cost | — |
+| 13 | Segments | — |
+| 14 | Advance booking | — |
+| 15 | Recurring rides | — |
+| 16 | AI ride ranking | ✅ VERIFIED |
+| 17 | Tracking | — |
+| 18 | Safety | — |
+| 19 | Completion | — |
+| 20 | Streaming | — |
+| 21 | Admin | — |
+| 22 | Ratings | — |
+| 23 | Notifications | — |
+| 24 | Analytics | — |
+| 25 | Deploy & harden | ✅ VERIFIED |
 
-See `docs/module-XX-*.md` for the 9-part note per module (concept, prerequisites, rules, code map, integration, run+test, common errors, commit message, SRS/report notes).
+**Overall status:** **25 / 25 modules complete** · **121 tests passing** · **92 API routes** · **11 MongoDB collections**
+
+**License:** Private project — see repository for distribution terms.
+
+**Status:** **25 / 25 modules complete · 121 tests passing · 92 API routes · 11 collections**
+
+A private-vehicle sharing platform that matches riders to drivers travelling the same corridor, picks the pickup point that costs the driver the least extra distance, prices the share fairly, then tracks the ride and watches for safety events while it happens.
+
 ## Deployment
 
-- **Docker / compose**: `docker-compose.yml` wires MongoDB + backend + frontend (see also `docker-compose.prod.yml` for Mongo credentials).
-- **Production startup guard (Module 25)**: when `APP_ENV=production`, the backend refuses to boot if:
-  - `JWT_SECRET` is still the shipped development value or shorter than 32 chars, or
-  - `CORS_ORIGINS` is empty, or contains a plain-http origin outside localhost, or
-  - `MONGO_DB` is empty.
-- **Readiness probe**: `GET /api/v1/ready` returns 503 when Mongo is unreachable — this is what a load balancer or Docker healthcheck should poll.
-- **Build metadata**: `GET /api/v1/version` reports `GIT_SHA` (baked in by the Dockerfile).
+### Development
+
+```powershell
+docker compose up -d mongo          # start MongoDB
+cd backend
+copy .env.example .env              # generate from template
+python init_db.py                   # create collections + validators + indexes
+python seed.py                      # optional: demo accounts + history
+uvicorn app.main:app --reload --port 8000
+
+cd ..\frontend
+npm install
+copy .env.example .env.local
+npm run dev                         # http://localhost:3000
+```
+
+### Production
+
+```powershell
+# 1. Prepare production environment
+copy .env.example .env.prod
+# Edit .env.prod:
+#   - JWT_SECRET: 32+ random chars (never the dev value)
+#   - CORS_ORIGINS: https origins only (no plain http except localhost)
+#   - NEXT_PUBLIC_API_URL: production URL
+#   - MONGO_ROOT_USER/PASSWORD: if using authenticated Mongo
+
+# 2. Start production stack
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+
+# 3. Wait for health
+docker compose -f docker-compose.prod.yml --env-file .env.prod ps   # wait: healthy
+
+# 4. Verify
+curl http://localhost:8000/api/v1/ready        # {"ready": true, ...}
+curl http://localhost:8000/api/v1/version      # confirms GIT_SHA
+
+# 5. One-time init against production DB
+docker compose -f docker-compose.prod.yml exec backend python init_db.py
+```
+
+### Production gotchas
+
+1. **`NEXT_PUBLIC_*` is inlined at BUILD time.** Setting it at run time does nothing — the bundle is already compiled. It is a build ARG in `docker-compose.prod.yml`; changing it needs a rebuild.
+2. **Single uvicorn worker, on purpose.** Module 20's WebSocket hub is an in-process registry, so `--workers 2` would give each worker its own watchers and half the clients would silently stop receiving frames. Scale-out needs a shared bus (Redis pub/sub or NATS) behind `hub.broadcast()`.
+3. **Reverse proxy must forward the `Upgrade` header** for `WS /api/v1/stream/trips/{id}`, or live tracking silently degrades to nothing.
+4. **`python init_db.py` is not optional.** Without it there are no unique, geo, TTL or partial indexes — duplicate phone numbers become possible.
+5. **`npm run build` runs `tsc`.** A type error fails the image build. Commit a `package-lock.json` so builds are reproducible.
 
 ## Common errors & fixes
 
 | Error | Cause → fix |
 |---|---|
-| `npm.ps1 cannot be loaded` | PowerShell execution policy blocks `npm`. Use `npm.cmd`, or run with `-ExecutionPolicy Bypass` (start-dev.ps1 does this per-process). |
-| `TypeError: 'type' object is not subscriptable` | `list[str]` syntax on Python 3.8. Keep the range pins in `requirements.txt`; `config.py` already uses `typing.List`. |
-| Health reports `db: disconnected` | MongoDB not running. Expected until Module 2 starts it; start the `MongoDB` Windows service or run `mongod`. |
-| Tailwind: `The hover:bg-card-hover class does not exist` | `card`/`line` were plain-string theme tokens (no `hover`). Fixed by nesting them with `DEFAULT`/`hover` in `tailwind.config.ts`; CSS variables already existed in `globals.css`. |
-| Webpack `.next/cache … ENOENT ... 5.pack.gz` | Stale `.next` cache. Delete `frontend/.next` and rebuild (`npm run build` or `npm run dev`). |
-| `BrandMark is not defined` | `BrandMark` is a named export from `@/components/BrandMark`; ensure the page imports it before use. |
+| `uvicorn==x not found` / motor↔pymongo conflict | Python 3.8 — keep the RANGE pins in `requirements.txt`, never exact latest |
+| `TypeError: 'type' object is not subscriptable` | Py3.8 → use `typing.List` (already fixed in config.py) |
+| `npm.ps1 cannot be loaded` | PowerShell policy → use `npm.cmd` |
+| health says `disconnected` | Mongo not running — expected until Module 2 starts it |
+| `409 phone exists` | expected — login instead; seed number already in DB |
+| `422 roles admin` | by design — request driver/passenger only |
+| `401 wrong code / 429 locked / 410 expired` | request fresh code; 5 tries max; 10-min TTL |
+| `SyntaxError typing import` | Py3.8 needs `from typing import …` (fixed in deps.py) |
+| `localStorage token XSS` | demo-acceptable; hardening = HttpOnly cookies + short expiry + refresh rotation |
+| `routed:false` preview | OSRM demo down/rate-limited — straight-line fallback draws; save still works, refresh later |
+| Nominatim empty results | <3 chars ignored; viewbox biases BLR — clear it for other cities (code comment) |
+| Leaflet blank div | CDN blocked — check network; component fails silent (form still submits) |
+| `from typing Dict` SyntaxError | Py3.8 needs `import` (fixed in routing.py — same lesson as Modules 1/3) |
+| `502 on refresh` | routing unreachable — retry; trip keeps old geometry |
+| `match` missing on a hit | only `/search/rides` attaches it; `/trips/*` doesn't |
+| overlap much lower than expected | route wiggle: % is route-share, not crow-flies share |
+| pair looks shareable but score 0 | check `excluded` reasons — pickup > max, wrong direction, or overlap < min |
+| `rule-fallback` in `/rank/info` | artifact missing — run the two training commands from the repo root |
+| `dataset not found` from train | run `make_dataset.py` first; pass `--csv` only for custom paths |
+| blended ties | rule score is the deterministic tiebreak — identical geometries rank identically |
+| `weights` length ≠ 4 | retrain; the loader rejects malformed artifacts and falls back safely |
+| `NEXT_PUBLIC_*` seems not to change at runtime | It is inlined at build time — rebuild the image |
+| `search-with-detour` returns empty | detour gates too tight (max detour 3 km, max extra 10 min, max pickup 3 km, min overlap) — relax knobs or check route reachability; confirm trip is `published` with free seats |
+| `detour_km` higher than expected | route wiggle — detour is route-following distance, not crow-flies; OSRM fallback to haversine flags `estimated:true` |
+| `estimated:true` on detour result | OSRM unavailable/rate-limited — haversine straight-line fallback used; save still works, refresh later for real routing |
 
 ## Contributing & commit conventions
 
-Commit messages follow the style used in the module notes:
-
-```
-<type>(<scope>): <short summary>
-
-- backend: …
-- frontend: …
-- tooling: …
-```
-
-Examples from the project:
-
-```
-chore(setup): scaffold monorepo, backend health API, Direction-B frontend shell
-feat(auth): add login + register routes with JWT session
-fix(ui): nest card/line Tailwind tokens so hover variants resolve in @apply
-```
+### Code quality gates
 
 - Run `npm run typecheck` and `python -m pytest -q` before opening a pull request.
+- TypeScript: `npx tsc --noEmit` must pass.
+- Python: `pytest -q` must pass with no new failures.
+
+### Commit message convention
+
+```
+<type>(<scope>): <subject>
+
+# Types
+# feat — new feature or module
+# fix — bug fix
+# docs — documentation only
+# style — formatting, missing semi colons, etc.
+# refactor — restructuring code without behavior changes
+# test — adding missing tests
+# chore — build/auxiliary changes
+
+# Examples
+feat(matching): route-overlap projection + explainable match scoring
+fix(auth): 409 phone-exists error message typo
+docs(readme): add detailed module roadmap table
+refactor(ranker): consolidate feature extraction logic
+```
+
+### Conventional Commits + per-module notes
+
+- Each module's `docs/module-XX-*.md` should be updated when corresponding code changes are merged.
+- The 9-part template in each doc file should remain consistent for SRS/final report generation.
 - Never commit real secrets; use `.env.example` / `.env.local` templates only.
-
-
----
-
-**License:** Private project — see repository for distribution terms.
----
-
-**License:** Private project — see repository for distribution terms.
-```
-chore(setup): scaffold monorepo, backend health API, Direction-B frontend shell
-feat(auth): add login + register routes with JWT session
-fix(ui): nest card/line Tailwind tokens so hover variants resolve in @apply
-```
-
-- Run `npm run typecheck` and `python -m pytest -q` before opening a pull request.
-- Never commit real secrets; use `.env.example` / `.env.local` templates only.
-
----
-
-**License:** Private project — see repository for distribution terms.
-
-## Contributing & commit conventions
-
-Commit messages follow the style used in the module notes:
-
-```
-<type>(<scope>): <short summary>
-
-- backend: …
-- frontend: …
-- tooling: …
-```
-
-Examples from the project:
-
-```
-chore(setup): scaffold monorepo, backend health API, Direction-B frontend shell
-feat(auth): add login + register routes with JWT session
-fix(ui): nest card/line Tailwind tokens so hover variants resolve in @apply
-```
-
-- Run `npm run typecheck` and `python -m pytest -q` before opening a pull request.
-- Never commit real secrets; use `.env.example` / `.env.local` templates only.
-
----
-
-**License:** Private project — see repository for distribution terms.
-
-The matching CSS variables already existed in both light and dark themes, so no new variables were required. This enables classes like `hover:bg-card-hover` and `hover:border-line-hover` used in `.card-hover`, `.panel-hover`, and `Button.tsx` / `Card.tsx`.
-
-### Theme toggle
-
-Dark/light is toggled via `data-theme` on `<html>` (default dark). Respects `prefers-reduced-motion`.
-- `components/BrandMark.tsx` — inline SVG logo (named export `BrandMark`)
-- `components/RequireAuth.tsx` — auth guard wrapper
-- `components/SessionProvider.tsx` — session context
-- `components/SiteFooter.tsx` — site footer
-- `components/ui/` — primitive UI kit: `Button`, `Card`, `Input`, `Badge`, `Avatar`, `Separator`, `TripCard`, `RideCard`, `MatchCard`, `StatusPill`, `ThemeToggle`, `LiveTrack`, `RouteMap`, `PickerMap`, `PlacePicker`, `PickupChooser`, `StarPicker`, `Stars`, `CollectionCard`, `FeatureGrid`, `LiveCorridorMap`, `SafetyBanner`, `SegmentView`, `RateRideCard`, `TripCostCard`, `TrustSignals`, `VehicleArt`, `VehicleCard`, `VehicleForm`, `BookingPanel`, `MatchPipeline`, `NotificationBell`
-| completion | (trips) | Trip completion (Module 19) |
-| deploy | (main.py) | Production startup guard (Module 25) |
-| db_admin | `db_admin.py` | Database administration |
-| fuel | `fuel.py` | Fuel price reference |
-| health | `health.py` | Health / ready / version probes |
-
-Frontend consumes these via `frontend/lib/api.ts` and per-domain modules (`auth.ts`, `trips.ts`, `bookings.ts`, `search.ts`, `analytics.ts`, …), with `http.ts` as the shared fetch wrapper.
-cd backend
-python -m uvicorn app.main:app --reload --port 8000
-```
-
-Expect `GET /api/v1/health` → `{"status":"ok","service":"Intelligent Vehicle Sharing API","db":"disconnected","routing_provider":"osrm"}` (`db` is `disconnected` until MongoDB runs).
-
-### Option 3 — manual, frontend only
-
-```powershell
-cd frontend
-npm install
-npm run dev
-```
-
-Then visit `http://localhost:3000`. Use `npm run build` for a production build and `npm run start` to serve it.
-| `ADVANCE_MAX_DAYS` | `30` | Max days ahead a booking may be made (Module 14) |
-| `ADVANCE_MIN_NOTICE_MIN` | `60` | Minimum notice before departure (Module 14) |
-| `RECURRING_HORIZON_DAYS` | `21` | Days of recurring instances materialised (Module 15) |
-| `RECURRING_MAX_DAYS` | `90` | Hard ceiling for a recurring series (Module 15) |
-    ├── README.md                   # module-note index + 9-part template
-    └── module-01-setup.md … module-25-deploy.md
-```
-| Folder | Purpose |
-|---|---|
-| `frontend/` | Next.js 14 App Router (React 18, TypeScript, Tailwind CSS) |
-| `backend/` | FastAPI (Python), versioned `/api/v1` router, Motor MongoDB client |
-| `database/` | MongoDB collection schemas, index scripts (incl. 2dsphere), seed scripts |
-| `ml/` | ML ranking / cost models (Module 16) |
-| `docs/` | One note per module (9-part template feeding the SRS / final report) |
-
-Environment contract is defined first (`.env.example` at root + per-service), so secrets are never committed.
-Status: **25 / 25 modules complete · 121 tests passing · 92 API routes · 11 collections**
-
-A private-vehicle sharing platform that matches riders to drivers travelling the
-same corridor, picks the pickup point that costs the driver the least extra
-distance, prices the share fairly, then tracks the ride and watches for safety
-events while it happens.
+- Run `python -m pytest -q` locally before committing; the CI suite runs the full 121-test battery.

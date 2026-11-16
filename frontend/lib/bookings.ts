@@ -12,8 +12,14 @@ export type Booking = {
   overlap_pct: number | null; cost_share: number | null;
   closed_at?: string | null; closure_note?: string | null;
   trip?: {
+    id?: string;
     source_name: string; destination_name: string; depart_at: string;
+    source?: { name: string; point: { type: "Point"; coordinates: [number, number] } };
+    destination?: { name: string; point: { type: "Point"; coordinates: [number, number] } };
+    route_geometry?: { type: string; coordinates: [number, number][] } | null;
     status: string; vehicle: string | null; seats_offered: number;
+    seats_booked?: number; seats_left?: number;
+    vehicle_details?: { make?: string; model?: string; plate_no?: string; fuel_type?: string; mileage_kmpl?: number } | null;
   } | null;
   passenger_name?: string | null; driver_name?: string | null;
 };

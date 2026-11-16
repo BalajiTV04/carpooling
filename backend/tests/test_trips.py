@@ -98,26 +98,38 @@ async def test_trip_flow():
         assert c.json()["seats_left"] == 2
         assert c.json()["distance_km"] and c.json()["distance_km"] > 20
 
-        # 4. passenger blocked from create (403) but can view (200)
+        # 4. dashboard approval flow: draft -> pending_approval; repeat blocked.
+        approval = await ac.post("/api/v1/trips", json=dict(base, depart_at=future),
+                                 headers=_h(t_drv))
+        assert approval.status_code == 201, approval.text
+        approval_tid = approval.json()["id"]
+        submitted = await ac.post("/api/v1/trips/" + approval_tid + "/submit-approval",
+                                  headers=_h(t_drv))
+        assert submitted.status_code == 200, submitted.text
+        assert submitted.json()["status"] == "pending_approval"
+        assert (await ac.post("/api/v1/trips/" + approval_tid + "/submit-approval",
+                              headers=_h(t_drv))).status_code == 422
+
+        # 5. passenger blocked from create (403) but can view (200)
         assert (await ac.post("/api/v1/trips", json=dict(base, depart_at=future),
                 headers=_h(t_pax))).status_code == 403
         assert (await ac.get("/api/v1/trips/" + tid,
                 headers=_h(t_pax))).status_code == 200
 
-        # 5. publish -> published; double publish -> 422
+        # 6. publish -> published; double publish -> 422
         assert (await ac.post("/api/v1/trips/" + tid + "/publish",
                 headers=_h(t_drv))).json()["status"] == "published"
         assert (await ac.post("/api/v1/trips/" + tid + "/publish",
                 headers=_h(t_drv))).status_code == 422
 
-        # 6. lowering seats below booked rejected; raising ok
+        # 7. lowering seats below booked rejected; raising ok
         await db.trips.update_one({"_id": ObjectId(tid)}, {"$set": {"seats_booked": 2}})
         assert (await ac.patch("/api/v1/trips/" + tid, json={"seats_offered": 1},
                 headers=_h(t_drv))).status_code == 422
         assert (await ac.patch("/api/v1/trips/" + tid, json={"seats_offered": 3},
                 headers=_h(t_drv))).status_code == 200
 
-        # 7. cancel -> cancelled; edit after cancel -> 422; delete ok
+        # 8. cancel -> cancelled; edit after cancel -> 422; delete ok
         assert (await ac.post("/api/v1/trips/" + tid + "/cancel",
                 headers=_h(t_drv))).json()["status"] == "cancelled"
         assert (await ac.patch("/api/v1/trips/" + tid, json={"seats_offered": 2},

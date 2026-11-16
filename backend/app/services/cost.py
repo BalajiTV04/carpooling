@@ -97,6 +97,9 @@ def passenger_share(mode: str, total_cost: float, seats_offered: int,
     return round(min(share, round(total_cost, 2)), 2)
 
 
+from app.modules.cost.calculator import compute_detour_contribution
+
+
 def distribute(mode: str, total_cost: float, seats_offered: int,
                confirmed: List[Dict]) -> Dict[str, float]:
     """Shares for every confirmed booking {booking_id: share}, with the last

@@ -96,4 +96,7 @@ class TripOut(BaseModel):
     cost_per_seat: Optional[float] = None
     total_cost: Optional[float] = None
     monthly_cost: Optional[float] = None
+    approval_note: Optional[str] = None
+    approved_at: Optional[datetime] = None
+    approved_by: Optional[str] = None
     created_at: Optional[datetime] = None

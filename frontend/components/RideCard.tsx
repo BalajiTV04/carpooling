@@ -48,7 +48,7 @@ export function RideCard({ t, pickupHint = null, dropHint = null }: {
           {open ? "Hide" : "View"}
         </button>
       </div>
-      {t.match && <MatchCard m={t.match} />}
+      {t.match && <MatchCard m={t.match} hit={t} />}
       {open && (
         <div className="mt-3">
           <RouteMap

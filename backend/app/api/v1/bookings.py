@@ -24,6 +24,7 @@ from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.models.booking import BookingIn, BookingOut
 from app.services.booking_window import check_window
+from app.services.cost import compute_detour_contribution, resolve_fuel_price
 from app.services.geo_math import (
     haversine_km,
     point_at_km,
@@ -88,6 +89,8 @@ async def _out(db, doc: Dict, expand: bool = True) -> Dict:
         "dropoff": doc.get("dropoff", {}),
         "pickup_distance_m": doc.get("pickup_distance_m"),
         "detour_km": doc.get("detour_km"),
+        "passenger_distance_km": doc.get("passenger_distance_km"),
+        "estimated_contribution": doc.get("estimated_contribution"),
         "overlap_pct": doc.get("overlap_pct"),
         "match_score": doc.get("match_score"),
         "ai_score": doc.get("ai_score"),
@@ -103,13 +106,26 @@ async def _out(db, doc: Dict, expand: bool = True) -> Dict:
     if trip:
         veh = await db.vehicles.find_one({"_id": trip["vehicle_id"]})
         row["trip"] = {
+            "id": str(trip["_id"]),
             "source_name": trip["source"]["name"],
             "destination_name": trip["destination"]["name"],
+            "source": trip.get("source"),
+            "destination": trip.get("destination"),
+            "route_geometry": trip.get("route_geometry"),
             "depart_at": trip["depart_at"],
             "status": trip["status"],
             "vehicle": ("{} {}".format(veh["make"], veh["model"])
                         + (" · " + veh["plate_no"] if veh else "")) if veh else None,
+            "vehicle_details": {
+                "make": (veh or {}).get("make"),
+                "model": (veh or {}).get("model"),
+                "plate_no": (veh or {}).get("plate_no"),
+                "fuel_type": (veh or {}).get("fuel_type", "petrol"),
+                "mileage_kmpl": (veh or {}).get("mileage_kmpl"),
+            } if veh else None,
             "seats_offered": trip.get("seats_offered"),
+            "seats_booked": trip.get("seats_booked", 0),
+            "seats_left": max(0, int(trip.get("seats_offered", 1)) - int(trip.get("seats_booked", 0))),
         }
     for key, uid in (("passenger_name", doc["passenger_id"]),
                      ("driver_name", doc["driver_id"])):
@@ -214,6 +230,22 @@ async def create_booking(body: BookingIn, user: Dict = Depends(get_current_user)
                             "not enough seats left for this request")
 
     now = _utcnow()
+    p_dist = match.get("passenger_distance_km")
+    detour_val = match.get("detour_km", detour_km)
+    est_contrib = None
+    if p_dist is not None:
+        veh = await db.vehicles.find_one({"_id": trip.get("vehicle_id")})
+        mileage = float((veh or {}).get("mileage_kmpl") or 15.0)
+        fuel_price = resolve_fuel_price((veh or {}).get("fuel_type", "petrol"), trip.get("price_policy"))
+        cost_res = compute_detour_contribution(
+            passenger_distance_km=p_dist,
+            detour_km=detour_val or 0.0,
+            mileage_kmpl=mileage,
+            fuel_price_per_litre=fuel_price,
+            occupants=1 + int(trip.get("seats_booked", 0) or 0) + body.seats,
+        )
+        est_contrib = cost_res.get("estimated_contribution")
+
     doc = {
         "trip_id": trip["_id"],
         "passenger_id": ObjectId(user["id"]),
@@ -222,7 +254,9 @@ async def create_booking(body: BookingIn, user: Dict = Depends(get_current_user)
         "pickup": {"name": pickup_name, "point": pickup_point},
         "dropoff": {"name": None, "point": dropoff_point},
         "pickup_distance_m": pickup_distance_m,
-        "detour_km": detour_km,
+        "detour_km": detour_val,
+        "passenger_distance_km": p_dist,
+        "estimated_contribution": est_contrib,
         "overlap_pct": match.get("overlap_pct"),
         "match_score": match.get("score"),
         "match_explain": match,

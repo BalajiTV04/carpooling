@@ -67,10 +67,30 @@ EVENT_CATALOG: Dict[str, Dict] = {
         "body": "{driver} is driving {route}. Live tracking is now available.",
         "action": "live",
     },
+    "trip_approval_requested": {
+        "priority": "high", "audience": ADMINS, "dedupe": KEY,
+        "title": "Live trip approval requested",
+        "body": "A driver submitted {route} for approval.",
+    },
+    "trip_approved": {
+        "priority": "normal", "audience": DRIVER, "dedupe": KEY,
+        "title": "Your trip was approved",
+        "body": "Your trip {route} is now available for passengers to book.",
+    },
+    "trip_rejected": {
+        "priority": "high", "audience": DRIVER, "dedupe": KEY,
+        "title": "Your trip was not approved",
+        "body": "Your trip {route} was not approved. {detail}",
+    },
     "safety_alert": {
         "priority": "high", "audience": DRIVER_ADMINS, "dedupe": KEY,
         "title": "Safety alert: {kind}",
         "body": "{kind} alert on {route}. {detail}",
+    },
+    "passenger_sos": {
+        "priority": "critical", "audience": DRIVER_ADMINS, "dedupe": KEY,
+        "title": "SOS alert from passenger",
+        "body": "{passenger} has triggered SOS on {route}. Driver notification required.",
     },
     "sos": {
         "priority": "critical", "audience": DRIVER_ADMINS, "dedupe": NEVER,

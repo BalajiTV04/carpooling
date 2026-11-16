@@ -33,6 +33,7 @@ export const CATALOG: CatalogPlace[] = [
   { name: "Malleswaram", area: "Bengaluru", coordinates: [77.5700, 13.0035], aliases: ["malleshwaram"] },
   { name: "Vidhana Soudha", area: "Bengaluru", coordinates: [77.5599, 12.9794] },
   { name: "Kempegowda Airport", area: "Bengaluru", coordinates: [77.7094, 13.1986], aliases: ["blr", "kia", "airport"] },
+  { name: "Devanahalli", area: "Bengaluru Rural", coordinates: [77.7120, 13.2437], aliases: ["devanahalli", "devanahalli junction"] },
   { name: "Nelamangala", area: "Bengaluru", coordinates: [77.3926, 13.0993] },
   { name: "Yelahanka", area: "Bengaluru", coordinates: [77.5969, 13.1007] },
   { name: "Banashankari Bus Stand", area: "Bengaluru", coordinates: [77.5600, 12.9290] },

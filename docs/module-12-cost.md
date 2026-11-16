@@ -97,3 +97,12 @@ feat(cost): fuel-based totals + three share policies, priced end-to-end
 - Handover: Module 13 keeps policy + `cost_share` but splits by segment
   occupancy; state that limitation explicitly ("whole-trip splits ignore
   who rides which leg").
+
+### Module 10 Update: Passenger-Segment Travel Contribution
+- For shared corridor rides with minimum-detour pickup optimization, contribution is computed strictly from passenger_distance_km (pickup -> drop), NOT the driver's full trip distance.
+- Formula:
+  fuel_litres = passenger_distance_km / vehicle.mileage_kmpl
+  fuel_cost = fuel_litres * fuel_price_per_litre
+  contribution = fuel_cost / occupants (EQUAL_SPLIT)
+- Labeled strictly as 'Estimated Travel Contribution' (never taxi fare).
+- Snapshot stored in bookings: passenger_distance_km, detour_km, estimated_contribution.

@@ -44,6 +44,8 @@ class BookingOut(BaseModel):
     dropoff: dict
     pickup_distance_m: Optional[float] = None
     detour_km: Optional[float] = None
+    passenger_distance_km: Optional[float] = None
+    estimated_contribution: Optional[float] = None
     overlap_pct: Optional[float] = None
     match_score: Optional[float] = None
     ai_score: Optional[float] = None

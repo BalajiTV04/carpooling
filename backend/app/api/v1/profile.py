@@ -122,6 +122,8 @@ async def change_my_password(body: ChangePasswordIn, user: dict = Depends(get_cu
     doc = await db.users.find_one({"_id": ObjectId(user["id"])})
     if doc is None or not verify_password(body.current_password, doc.get("password_hash", "")):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "current password is wrong")
+    if body.current_password == body.new_password:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "new password must differ from current password")
     await db.users.update_one(
         {"_id": ObjectId(user["id"])},
         {"$set": {"password_hash": hash_password(body.new_password), "updated_at": _utcnow()}},

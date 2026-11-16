@@ -11,6 +11,7 @@ from app.api.v1 import (
     bookings,
     cost,
     db_admin,
+    detour,
     fuel,
     geo,
     health,
@@ -41,6 +42,7 @@ router.include_router(trips.router)
 router.include_router(geo.router)
 router.include_router(geo._trips)
 router.include_router(search.router)
+router.include_router(detour.router)
 router.include_router(pickup.router)
 router.include_router(bookings.router)
 router.include_router(cost.router)

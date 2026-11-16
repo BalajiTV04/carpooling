@@ -258,3 +258,64 @@ async def test_admin_console_live():
     await db.safety_alerts.delete_many({})
 
 
+@pytest.mark.asyncio
+async def test_trip_approval_queue_publishes_and_notifies_driver():
+    """A hosted trip stays private until an admin reviews it, then becomes bookable."""
+    from datetime import datetime, timedelta, timezone
+    from bson import ObjectId
+    from app.core.database import get_db, ping_db
+
+    if not await ping_db():
+        pytest.skip("Mongo down")
+    db = get_db()
+    adm, drv, pax = "+919000002201", "+919000002202", "+919000002203"
+    for phone in (adm, drv, pax):
+        await db.users.delete_many({"phone": phone})
+    await db.trips.delete_many({"source.name": "AdminApprovalTest Source"})
+    await db.notifications.delete_many({})
+
+    async with _client() as ac:
+        for phone, roles in ((adm, ["passenger"]), (drv, ["driver"]), (pax, ["passenger"])):
+            registered = await ac.post("/api/v1/auth/register", json={
+                "phone": phone, "password": "pass1234", "full_name": "Approval " + phone[-3:],
+                "roles": roles})
+            assert registered.status_code == 201, registered.text
+        await db.users.update_one({"phone": adm}, {"$set": {"roles": ["admin"]}})
+        t_adm = (await ac.post("/api/v1/auth/login", json={
+            "phone": adm, "password": "pass1234"})).json()["access_token"]
+        t_drv = (await ac.post("/api/v1/auth/login", json={
+            "phone": drv, "password": "pass1234"})).json()["access_token"]
+        t_pax = (await ac.post("/api/v1/auth/login", json={
+            "phone": pax, "password": "pass1234"})).json()["access_token"]
+        driver_id = (await ac.get("/api/v1/auth/me", headers=_h(t_drv))).json()["id"]
+        now = datetime.now(timezone.utc)
+        trip_id = (await db.trips.insert_one({
+            "driver_id": ObjectId(driver_id), "vehicle_id": ObjectId(),
+            "source": {"name": "AdminApprovalTest Source", "point": {"type": "Point", "coordinates": [77.5946, 13.0358]}},
+            "destination": {"name": "AdminApprovalTest Destination", "point": {"type": "Point", "coordinates": [77.67, 12.8452]}},
+            "distance_km": 30.0, "depart_at": now + timedelta(days=1),
+            "seats_offered": 2, "seats_booked": 0, "trip_type": "live",
+            "total_cost": 240.0, "cost_per_seat": 120.0,
+            "status": "pending_approval", "approval_note": None,
+            "approved_at": None, "approved_by": None,
+            "created_at": now, "updated_at": now})).inserted_id
+
+        assert (await ac.get("/api/v1/admin/trip-requests", headers=_h(t_drv))).status_code == 403
+        queue = (await ac.get("/api/v1/admin/trip-requests", headers=_h(t_adm))).json()
+        assert [row["id"] for row in queue["trips"]].count(str(trip_id)) == 1
+        assert (await ac.get("/api/v1/trips/available", headers=_h(t_pax))).json() == []
+
+        reviewed = await ac.post("/api/v1/admin/trip-requests/{}/review".format(trip_id),
+                                 headers=_h(t_adm), json={"decision": "approved"})
+        assert reviewed.status_code == 200, reviewed.text
+        assert reviewed.json()["trip"]["status"] == "published"
+        driver_feed = (await ac.get("/api/v1/notifications", headers=_h(t_drv))).json()
+        assert any(item["type"] == "trip_approved" for item in driver_feed["items"])
+        available = (await ac.get("/api/v1/trips/available", headers=_h(t_pax))).json()
+        assert any(row["id"] == str(trip_id) for row in available)
+
+    for phone in (adm, drv, pax):
+        await db.users.delete_many({"phone": phone})
+    await db.trips.delete_many({"source.name": "AdminApprovalTest Source"})
+    await db.notifications.delete_many({})
+

@@ -4,7 +4,7 @@
     "required": ["user_id", "type", "title", "body", "priority", "created_at"],
     "properties": {
       "user_id": {"bsonType": "objectId", "description": "the single recipient — Module 23 resolves audiences server-side, never client-side"},
-      "type": {"enum": ["booking_requested", "booking_accepted", "booking_rejected", "booking_cancelled", "trip_completed", "trip_started", "safety_alert", "sos", "alert_acknowledged", "alert_resolved", "recurring_created"]},
+      "type": {"enum": ["booking_requested", "booking_accepted", "booking_rejected", "booking_cancelled", "trip_completed", "trip_started", "trip_approval_requested", "trip_approved", "trip_rejected", "safety_alert", "sos", "alert_acknowledged", "alert_resolved", "recurring_created"]},
       "title": {"bsonType": "string", "description": "rendered from services.notify.EVENT_CATALOG"},
       "body": {"bsonType": "string"},
       "priority": {"enum": ["low", "normal", "high", "critical"]},

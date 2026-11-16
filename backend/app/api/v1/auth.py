@@ -51,6 +51,7 @@ def _public_user(doc: dict) -> dict:
         "roles": doc.get("roles", []),
         "phone_verified": bool(doc.get("phone_verified", False)),
         "mileage_kmpl": doc.get("mileage_kmpl"),
+        "available_seats": doc.get("available_seats"),
     }
 
 
@@ -75,6 +76,7 @@ async def register(body: RegisterIn):
         "rating_avg": None,
         "rating_count": 0,
         "mileage_kmpl": float(body.mileage) if ("driver" in body.roles and body.mileage) else None,
+        "available_seats": body.available_seats if ("driver" in body.roles and body.available_seats is not None) else None,
         "status": "active",
         "created_at": now,
         "updated_at": now,
@@ -97,7 +99,7 @@ async def register(body: RegisterIn):
             "year": 2022,
             "color": "Silver",
             "plate_no": f"KA01DR{plate_code}",
-            "seats_total": 4,
+            "seats_total": (int(body.available_seats) + 1) if ("driver" in body.roles and body.available_seats is not None) else 4,
             "fuel_type": "petrol",
             "mileage_kmpl": drv_mileage,
             "verification_status": "verified",
@@ -214,14 +216,14 @@ async def otp_verify(body: OtpVerifyIn):
 async def me(user: dict = Depends(get_current_user)):
     db = get_db()
     u = await db.users.find_one({"_id": ObjectId(user["id"])})
-    mileage = (u or {}).get("mileage_kmpl")
-    if not mileage and "driver" in user.get("roles", []):
+    if u is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "account not found")
+    public = _public_user(u)
+    if not public.get("mileage_kmpl") and "driver" in public.get("roles", []):
         v = await db.vehicles.find_one({"owner_id": ObjectId(user["id"]), "is_active": True})
         if v and v.get("mileage_kmpl"):
-            mileage = v["mileage_kmpl"]
-    res = dict(user)
-    res["mileage_kmpl"] = mileage
-    return res
+            public["mileage_kmpl"] = v["mileage_kmpl"]
+    return public
 
 
 @router.post("/logout")

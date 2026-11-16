@@ -76,6 +76,37 @@ def _alert_row(doc: Dict) -> Dict:
     }
 
 
+def _trip_request_row(doc: Dict, driver: Optional[Dict] = None,
+                      vehicle: Optional[Dict] = None) -> Dict:
+    """Approval-queue representation: keep driver/private data server-side."""
+    policy = doc.get("price_policy") or {}
+    return {
+        "id": str(doc["_id"]),
+        "status": doc.get("status"),
+        "trip_type": doc.get("trip_type", "live"),
+        "source_name": (doc.get("source") or {}).get("name"),
+        "destination_name": (doc.get("destination") or {}).get("name"),
+        "depart_at": doc.get("depart_at"),
+        "seats_offered": int(doc.get("seats_offered", 0)),
+        "distance_km": doc.get("distance_km"),
+        "total_cost": doc.get("total_cost") or policy.get("total_cost"),
+        "cost_per_seat": doc.get("cost_per_seat") or policy.get("cost_per_seat"),
+        "driver": {
+            "id": str(doc.get("driver_id")),
+            "full_name": (driver or {}).get("full_name") or "Driver",
+            "phone": (driver or {}).get("phone"),
+        },
+        "vehicle": {
+            "make": (vehicle or {}).get("make"),
+            "model": (vehicle or {}).get("model"),
+            "plate_no": (vehicle or {}).get("plate_no"),
+        },
+        "approval_note": doc.get("approval_note"),
+        "approved_at": doc.get("approved_at"),
+        "created_at": doc.get("created_at"),
+    }
+
+
 class RoleChangeIn(BaseModel):
     role: str
     action: str = Field(default="add")
@@ -124,7 +155,8 @@ async def admin_stats(user: Dict = Depends(_admin)):
         "phone_verified": await db.users.count_documents({"phone_verified": True}),
     }
     trips_by_status = {}
-    for st in ("draft", "published", "ongoing", "completed", "cancelled"):
+    for st in ("draft", "pending_approval", "published", "ongoing",
+               "completed", "rejected", "cancelled"):
         trips_by_status[st] = await db.trips.count_documents({"status": st})
     trips = {"total": await db.trips.count_documents({}),
              "by_status": trips_by_status}
@@ -261,8 +293,8 @@ async def admin_trips(
     if live_only:
         query["status"] = "ongoing"
     elif status_:
-        if status_ not in ("draft", "published", "ongoing", "completed",
-                           "cancelled"):
+        if status_ not in ("draft", "pending_approval", "published", "ongoing",
+                           "completed", "rejected", "cancelled"):
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY,
                                 "bad status filter")
         query["status"] = status_
@@ -355,6 +387,84 @@ async def resolve_alert(alert_id: str, user: Dict = Depends(_admin)):
 # ---------------------------------------------------------------------------
 # Driver approval (admin gates whether a driver may publish trips/plans)
 # ---------------------------------------------------------------------------
+
+class TripDecisionIn(BaseModel):
+    decision: str  # approved | rejected
+    note: Optional[str] = Field(default=None, max_length=500)
+
+    @field_validator("decision")
+    @classmethod
+    def decision_known(cls, value: str) -> str:
+        if value not in ("approved", "rejected"):
+            raise ValueError("decision must be approved|rejected")
+        return value
+
+
+@router.get("/trip-requests")
+async def admin_trip_requests(
+    status_: str = Query(default="pending_approval", alias="status"),
+    limit: int = Query(default=50, ge=1, le=200),
+    user: Dict = Depends(_admin),
+):
+    """Live trips awaiting an administrator's publish decision."""
+    _ = user
+    if status_ not in ("pending_approval", "approved", "rejected", "all"):
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY,
+                            "bad trip request status")
+    db = get_db()
+    query: Dict = {}
+    if status_ == "pending_approval":
+        query["status"] = "pending_approval"
+    elif status_ == "approved":
+        query["status"] = "published"
+    elif status_ == "rejected":
+        query["status"] = "rejected"
+    rows: List[Dict] = []
+    async for trip in db.trips.find(query).sort("created_at", -1).limit(limit):
+        driver = await db.users.find_one({"_id": trip["driver_id"]},
+                                         {"full_name": 1, "phone": 1})
+        vehicle = await db.vehicles.find_one({"_id": trip["vehicle_id"]},
+                                              {"make": 1, "model": 1, "plate_no": 1})
+        rows.append(_trip_request_row(trip, driver, vehicle))
+    return {"count": len(rows), "trips": rows}
+
+
+@router.post("/trip-requests/{trip_id}/review")
+async def review_trip_request(trip_id: str, body: TripDecisionIn,
+                              user: Dict = Depends(_admin)):
+    """Approve a pending live trip (publish it) or reject it with an optional note."""
+    db = get_db()
+    trip = await db.trips.find_one({"_id": _oid(trip_id, "trip not found")})
+    if trip is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "trip not found")
+    if trip.get("status") != "pending_approval":
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY,
+                            "only pending trip requests can be reviewed")
+    now = _utcnow()
+    next_status = "published" if body.decision == "approved" else "rejected"
+    updated = await db.trips.find_one_and_update(
+        {"_id": trip["_id"], "status": "pending_approval"},
+        {"$set": {"status": next_status, "approval_note": body.note,
+                  "approved_at": now, "approved_by": ObjectId(user["id"]),
+                  "updated_at": now}},
+        return_document=True)
+    if updated is None:
+        raise HTTPException(status.HTTP_409_CONFLICT,
+                            "trip changed state while reviewing")
+    try:
+        from app.api.v1.notifications import emit
+        route = "{} → {}".format(trip["source"]["name"], trip["destination"]["name"])
+        await emit(db, "trip_approved" if body.decision == "approved" else "trip_rejected",
+                   actor_id=user["id"], trip_id=str(trip["_id"]), route=route,
+                   detail=body.note or "No additional note was provided.", _trip=updated)
+    except Exception:
+        pass
+    driver = await db.users.find_one({"_id": updated["driver_id"]},
+                                     {"full_name": 1, "phone": 1})
+    vehicle = await db.vehicles.find_one({"_id": updated["vehicle_id"]},
+                                          {"make": 1, "model": 1, "plate_no": 1})
+    return {"changed": True, "decision": body.decision,
+            "trip": _trip_request_row(updated, driver, vehicle)}
 
 def _driver_row(doc: Dict) -> Dict:
     """One driver account with their latest vehicle + approval state."""

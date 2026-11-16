@@ -75,7 +75,10 @@ async def test_vehicle_flow():
 
         # 6. admin pending lists it; verify -> verified
         pend = await ac.get("/api/v1/vehicles/admin/pending", headers=_h(t_adm))
-        assert pend.status_code == 200 and any(v["id"] == vid for v in pend.json())
+        assert pend.status_code == 200
+        pending_vehicle = next(v for v in pend.json() if v["id"] == vid)
+        assert pending_vehicle["owner_name"] == "V 501"
+        assert pending_vehicle["owner_phone"] == drv
         vok = await ac.post("/api/v1/vehicles/admin/" + vid + "/verify?decision=verified&note=ok",
                             headers=_h(t_adm))
         assert vok.status_code == 200 and vok.json()["verification_status"] == "verified"

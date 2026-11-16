@@ -39,14 +39,17 @@ export function ensureLeaflet(): Promise<any> {
 }
 
 export function RouteMap({
-  src, dst, geometry, height = 320, pins = [], dashes = []
+  src, dst, geometry, height = 320, pins = [], dashes = [],
+  passengerSegment
 }: {
-  src?: [number, number] | null;
-  dst?: [number, number] | null;
-  geometry?: { type: string; coordinates: [number, number][] } | null;
+  src?: [number, number] | null;     // [lng, lat]
+  dst?: [number, number] | null;     // [lng, lat]
+  geometry?: { type: string; coordinates: [number, number][] } | null; // [lng, lat]
   height?: number;
   pins?: MapPin[];
   dashes?: MapDash[];
+  // Passenger's shared segment (pickup -> drop) in [lat, lng], drawn highlighted.
+  passengerSegment?: [number, number][] | null;
 }) {
   const divRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
@@ -92,6 +95,13 @@ export function RouteMap({
       L.polyline(latlngs, { color: "#C6FF4A", weight: 2, dashArray: "8 8", opacity: 0.9 }).addTo(map);
       bounds.push(...latlngs);
     }
+    // Passenger's shared segment (pickup -> drop) highlighted in amber.
+    if (passengerSegment && passengerSegment.length >= 2) {
+      const seg = passengerSegment.map(([lat, lng]) => [lat, lng] as [number, number]);
+      L.polyline(seg, { color: "#fbbf24", weight: 6, opacity: 0.95 }).addTo(map);
+      L.polyline(seg, { color: "#ffffff", weight: 2, dashArray: "6 6", opacity: 0.95 }).addTo(map);
+      bounds.push(...seg);
+    }
     if (src) {
       L.marker([src[1], src[0]], { icon: dot("#C6FF4A") }).addTo(map).bindPopup("Pickup");
       bounds.push([src[1], src[0]]);
@@ -115,7 +125,8 @@ export function RouteMap({
     // raw array identity would redraw the layers on every parent re-render.
   }, [
     JSON.stringify(src), JSON.stringify(dst), JSON.stringify(geometry),
-    JSON.stringify(pins), JSON.stringify(dashes)
+    JSON.stringify(pins), JSON.stringify(dashes),
+    JSON.stringify(passengerSegment)
   ]);
 
   // Cleanup on unmount.

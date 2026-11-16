@@ -2,29 +2,25 @@
 destination compatibility, time compatibility. Pure Python, zero new deps.
 
 How it works (explainable, no ML — Module 16 learns weights later):
-1. Project passenger pickup P and dropoff D onto the driver's route
-   polyline -> nearest distances (pickup_km, dropoff_km) + positions along
-   the route as fractions src_frac, dst_frac in [0, 1].
-2. FEASIBLE iff pickup_km <= max AND dropoff_km <= max AND dst_frac >
-   src_frac (passenger travels FORWARD along the route) AND overlap >= min.
-3. overlap_pct = (dst_frac - src_frac) * 100 = share of the driver's route
-   the passenger rides along. (Route-share, not journey-share: it separates
-   short-hop from long-ride passengers and highlights cleanly on the map.)
+1. Evaluate pickup and dropoff against the driver's route polyline using
+   the Module 10 minimum-detour pickup optimiser.
+2. FEASIBLE iff pickup_km <= max AND dropoff_km <= max AND dst_along >
+   src_along (passenger travels FORWARD along the route) AND overlap >= min.
+3. overlap_pct = share of the driver's route the passenger rides along.
+   Also returns overlap_pct_passenger for passenger journey coverage.
 4. Baseline score = 45*overlap + 25*pickup + 15*dropoff + 15*time.
-
-Geometry lives in app/services/geo_math.py (shared with Module 10's
-minimum-detour pickup optimiser) and is re-exported here so Module 9 tests
-and callers keep working unchanged.
 """
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from app.services.geo_math import (  # re-exported for backwards compatibility
+    haversine_km,
     point_at_km,
     project_onto_route,
     route_length_km,
-    xy as _xy,
     seg_proj as _seg_proj,
+    xy as _xy,
 )
+from app.services.pickup import evaluate_pickup_detour
 
 # Baseline weights — documented for the viva; Module 16 LEARNS these.
 W_OVERLAP = 0.45
@@ -34,11 +30,21 @@ W_TIME = 0.15
 TIME_WINDOW_MIN = 120.0
 EPS_FRAC = 1e-6
 
-WEIGHTS = {"overlap": W_OVERLAP, "pickup": W_PICKUP,
-           "dropoff": W_DROPOFF, "time": W_TIME}
+WEIGHTS = {
+    "overlap": W_OVERLAP,
+    "pickup": W_PICKUP,
+    "dropoff": W_DROPOFF,
+    "time": W_TIME,
+}
 
-__all__ = ["WEIGHTS", "match_trip", "match_fallback",
-           "project_onto_route", "route_length_km", "point_at_km"]
+__all__ = [
+    "WEIGHTS",
+    "match_trip",
+    "match_fallback",
+    "project_onto_route",
+    "route_length_km",
+    "point_at_km",
+]
 
 
 def _pickup_score(pickup_km: float, max_km: float) -> float:
@@ -61,62 +67,95 @@ def _time_score(time_diff_min: Optional[float]) -> float:
     return max(0.0, 1.0 - time_diff_min / TIME_WINDOW_MIN)
 
 
-def match_trip(coords: List[List[float]],
-               p_pickup: List[float],
-               p_dropoff: List[float],
-               time_diff_min: Optional[float] = None,
-               max_pickup_km: float = 3.0,
-               max_detour_km: float = 5.0,
-               min_overlap_pct: float = 20.0) -> Dict:
+def match_trip(
+    coords: List[List[float]],
+    p_pickup: List[float],
+    p_dropoff: List[float],
+    time_diff_min: Optional[float] = None,
+    max_pickup_km: float = 3.0,
+    max_detour_km: float = 5.0,
+    min_overlap_pct: float = 20.0,
+    pickup_snap_km: Optional[float] = None,
+    dest_tolerance_km: Optional[float] = None,
+    max_drop_km: Optional[float] = None,
+    min_shared_km: Optional[float] = None,
+    max_extra_min: Optional[float] = None,
+    routing_client: Optional[Any] = None,
+) -> Dict:
     """Score one trip route vs one passenger request. Full explain dict."""
     if not coords or len(coords) < 2:
-        return {"feasible": False, "reason": "no route geometry",
-                "routed": True, "score": 0.0}
-    proj_p = project_onto_route(p_pickup, coords)
-    proj_d = project_onto_route(p_dropoff, coords)
-    pickup_km = round(proj_p["dist_km"], 3)
-    dropoff_km = round(proj_d["dist_km"], 3)
-    src_frac = round(proj_p["frac"], 4)
-    dst_frac = round(proj_d["frac"], 4)
-    forward = (dst_frac - src_frac) > EPS_FRAC
-    overlap = round(max(0.0, (dst_frac - src_frac)) * 100.0, 1)
-    if pickup_km > max_pickup_km:
-        reason = "pickup too far ({:.1f} km > {:.0f} km)".format(pickup_km, max_pickup_km)
-        return {"feasible": False, "reason": reason, "routed": True,
-                "pickup_km": pickup_km, "dropoff_km": dropoff_km,
-                "src_frac": src_frac, "dst_frac": dst_frac,
-                "forward": forward, "overlap_pct": overlap, "score": 0.0}
-    if not forward:
-        return {"feasible": False, "reason": "wrong direction along route",
-                "routed": True, "pickup_km": pickup_km, "dropoff_km": dropoff_km,
-                "src_frac": src_frac, "dst_frac": dst_frac,
-                "forward": forward, "overlap_pct": overlap, "score": 0.0}
-    if overlap < min_overlap_pct:
-        reason = "overlap {:.0f}% below {:.0f}% minimum".format(overlap, min_overlap_pct)
-        return {"feasible": False, "reason": reason, "routed": True,
-                "pickup_km": pickup_km, "dropoff_km": dropoff_km,
-                "src_frac": src_frac, "dst_frac": dst_frac,
-                "forward": forward, "overlap_pct": overlap, "score": 0.0}
-    score = round((
-        W_OVERLAP * (overlap / 100.0)
-        + W_PICKUP * _pickup_score(pickup_km, max_pickup_km)
-        + W_DROPOFF * _dropoff_score(dropoff_km, max_detour_km)
-        + W_TIME * _time_score(time_diff_min)
-    ) * 100.0, 1)
+        return {
+            "feasible": False,
+            "reason": "no route geometry",
+            "routed": True,
+            "route_quality": "straight_line",
+            "score": 0.0,
+        }
+
+    opt = evaluate_pickup_detour(
+        coords=coords,
+        p_pickup=p_pickup,
+        p_dropoff=p_dropoff,
+        max_pickup_km=max_pickup_km,
+        max_detour_km=max_detour_km,
+        min_overlap_pct=min_overlap_pct,
+        pickup_snap_km=pickup_snap_km,
+        dest_tolerance_km=dest_tolerance_km,
+        max_drop_km=max_drop_km,
+        min_shared_km=min_shared_km,
+        max_extra_min=max_extra_min,
+        routing_client=routing_client,
+    )
+
+    pickup_km = opt["pickup_km"]
+    dropoff_km = opt["dropoff_km"]
+    overlap = opt["overlap_pct"]
+
+    if opt["feasible"]:
+        score = round((
+            W_OVERLAP * (overlap / 100.0)
+            + W_PICKUP * _pickup_score(pickup_km, max_pickup_km)
+            + W_DROPOFF * _dropoff_score(dropoff_km, max_detour_km)
+            + W_TIME * _time_score(time_diff_min)
+        ) * 100.0, 1)
+    else:
+        score = 0.0
+
     return {
-        "feasible": True, "reason": None, "routed": True,
-        "score": score, "overlap_pct": overlap,
-        "pickup_km": pickup_km, "dropoff_km": dropoff_km,
-        "src_frac": src_frac, "dst_frac": dst_frac,
-        "forward": forward, "time_diff_min": time_diff_min,
+        "feasible": opt["feasible"],
+        "reason": opt["reason"],
+        "routed": True,
+        "route_quality": "routed",
+        "score": score,
+        "overlap_pct": overlap,
+        "overlap_pct_driver": opt["overlap_pct_driver"],
+        "overlap_pct_passenger": opt["overlap_pct_passenger"],
+        "passenger_overlap_pct": opt["passenger_overlap_pct"],
+        "pickup_km": pickup_km,
+        "dropoff_km": dropoff_km,
+        "src_frac": opt["src_frac"],
+        "dst_frac": opt["dst_frac"],
+        "forward": opt["forward"],
+        "time_diff_min": time_diff_min,
         "weights": dict(WEIGHTS),
+        "pickup": opt["pickup"],
+        "drop": opt["drop"],
+        "passenger_distance_km": opt["passenger_distance_km"],
+        "detour_km": opt["detour_km"],
+        "extra_time_min": opt["extra_time_min"],
+        "estimated": opt["estimated"],
+        "alternatives": opt["alternatives"],
     }
 
 
-def match_fallback(trip_src: List[float], trip_dst: List[float],
-                   p_pickup: List[float], p_dropoff: List[float],
-                   time_diff_min: Optional[float] = None,
-                   max_pickup_km: float = 3.0) -> Dict:
+def match_fallback(
+    trip_src: List[float],
+    trip_dst: List[float],
+    p_pickup: List[float],
+    p_dropoff: List[float],
+    time_diff_min: Optional[float] = None,
+    max_pickup_km: float = 3.0,
+) -> Dict:
     """Endpoint-only estimate for offline-saved trips (routed=False)."""
     straight = [trip_src, trip_dst]
     proj_p = project_onto_route(p_pickup, straight)
@@ -132,12 +171,44 @@ def match_fallback(trip_src: List[float], trip_dst: List[float],
         + W_DROPOFF * _dropoff_score(dropoff_km, 5.0)
         + W_TIME * _time_score(time_diff_min)
     ) * 100.0, 1) if feasible else 0.0
+
+    p_dist = round(haversine_km(p_pickup, p_dropoff), 3)
+
     return {
         "feasible": feasible,
         "reason": None if feasible else "estimated: weak endpoint fit",
-        "routed": False, "score": score, "overlap_pct": overlap,
-        "pickup_km": pickup_km, "dropoff_km": dropoff_km,
-        "src_frac": round(proj_p["frac"], 4), "dst_frac": round(proj_d["frac"], 4),
-        "forward": forward, "time_diff_min": time_diff_min,
+        "routed": False,
+        "route_quality": "straight_line",
+        "score": score,
+        "overlap_pct": overlap,
+        "overlap_pct_driver": overlap,
+        "overlap_pct_passenger": overlap,
+        "passenger_overlap_pct": overlap,
+        "pickup_km": pickup_km,
+        "dropoff_km": dropoff_km,
+        "src_frac": round(proj_p["frac"], 4),
+        "dst_frac": round(proj_d["frac"], 4),
+        "forward": forward,
+        "time_diff_min": time_diff_min,
         "weights": dict(WEIGHTS),
+        "pickup": {
+            "lat": p_pickup[1],
+            "lng": p_pickup[0],
+            "label": "Estimated Pickup (straight-line)",
+            "along_km": 0.0,
+            "walk_km": pickup_km,
+        },
+        "drop": {
+            "lat": p_dropoff[1],
+            "lng": p_dropoff[0],
+            "label": "Estimated Drop (straight-line)",
+            "along_km": p_dist,
+            "dest_km": dropoff_km,
+            "walk_km": dropoff_km,
+        },
+        "passenger_distance_km": p_dist,
+        "detour_km": 0.0,
+        "extra_time_min": 0.0,
+        "estimated": True,
+        "alternatives": [],
     }

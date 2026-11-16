@@ -34,6 +34,7 @@ import { PlacePicker } from "@/components/PlacePicker";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
+import { VehicleTrackingCard } from "@/components/VehicleTrackingCard";
 
 type Section = "find" | "my-rides" | "upcoming" | "profile";
 type TripFilter = "all" | "live" | "monthly" | "long";
@@ -84,6 +85,11 @@ function PassengerConsoleInner() {
   const [error, setError] = React.useState<string | null>(null);
   const [notice, setNotice] = React.useState<string | null>(null);
 
+  // Requirement: if seat available show to other passenger, otherwise show in passenger dashboard
+  const visibleAvailableTrips = availableTrips.filter(
+    (t) => (t.seats_left ?? 1) > 0
+  );
+
   // Load available trips based on destination and filter
   const checkAvailability = React.useCallback(async () => {
     setSearching(true);
@@ -93,6 +99,10 @@ function PassengerConsoleInner() {
         destination: dst?.name ? dst.name.split(",")[0].trim() : undefined,
         source: src?.name ? src.name.split(",")[0].trim() : undefined,
         trip_type: filterType !== "all" ? filterType : undefined,
+        dst_lat: dst?.lat,
+        dst_lng: dst?.lng,
+        src_lat: src?.lat,
+        src_lng: src?.lng,
       });
       setAvailableTrips(trips);
     } catch (cause) {
@@ -127,8 +137,18 @@ function PassengerConsoleInner() {
     setError(null);
     setNotice(null);
     try {
-      const pickupCoords: [number, number] = trip.source?.point?.coordinates || [77.5946, 13.0358];
-      const dropoffCoords: [number, number] = trip.destination?.point?.coordinates || [77.67, 12.8452];
+      const pickupCoords: [number, number] =
+        src?.lng != null && src?.lat != null
+          ? [src.lng, src.lat]
+          : trip.pickup?.coordinates
+          ? trip.pickup.coordinates
+          : trip.source?.point?.coordinates || [77.5946, 13.0358];
+      const dropoffCoords: [number, number] =
+        dst?.lng != null && dst?.lat != null
+          ? [dst.lng, dst.lat]
+          : trip.drop?.coordinates
+          ? trip.drop.coordinates
+          : trip.destination?.point?.coordinates || [77.67, 12.8452];
 
       const res = await bookingApi.create({
         trip_id: trip.id,
@@ -179,6 +199,10 @@ function PassengerConsoleInner() {
 
   const upcomingBookings = myBookings.filter(
     (b) => b.status === "confirmed" || b.status === "accepted" || b.status === "requested"
+  );
+
+  const approvedBookings = myBookings.filter(
+    (b) => b.status === "accepted" || b.status === "confirmed"
   );
 
   return (
@@ -253,6 +277,31 @@ function PassengerConsoleInner() {
                   <X className="h-4 w-4" />
                 </button>
               </Alert>
+            )}
+
+            {/* Live Vehicle Tracking Banner when Trip is Booked & Approved */}
+            {approvedBookings.length > 0 && (
+              <div className="mb-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="h-2.5 w-2.5 rounded-full bg-brand-teal animate-pulse" />
+                    <h2 className="font-display text-sm font-bold uppercase tracking-wider text-brand-teal">
+                      Your Booked Trip is Approved · Live Vehicle Tracking
+                    </h2>
+                  </div>
+                  <Badge variant="success" className="text-xs">
+                    {approvedBookings.length} Approved Trip{approvedBookings.length > 1 ? "s" : ""}
+                  </Badge>
+                </div>
+                {approvedBookings.map((b) => (
+                  <VehicleTrackingCard
+                    key={b.id}
+                    booking={b}
+                    title={`Vehicle Location: ${b.trip?.source_name ?? "Origin"} → ${b.trip?.destination_name ?? "Destination"}`}
+                    defaultExpanded={true}
+                  />
+                ))}
+              </div>
             )}
 
             {/* SECTION 1: FIND RIDES & SEE AVAILABILITY (Show directly on login) */}
@@ -393,10 +442,10 @@ function PassengerConsoleInner() {
                   <div className="flex items-center justify-between mb-4">
                     <div>
                       <h3 className="font-display font-bold text-lg text-ink">
-                        Available Trips ({availableTrips.length})
+                        Available Trips ({visibleAvailableTrips.length})
                       </h3>
                       <p className="text-xs text-muted">
-                        Showing verified rides matching your destination.
+                        Showing verified rides with open seats matching your destination.
                       </p>
                     </div>
                     {dst && (
@@ -406,12 +455,12 @@ function PassengerConsoleInner() {
                     )}
                   </div>
 
-                  {availableTrips.length === 0 ? (
+                  {visibleAvailableTrips.length === 0 ? (
                     <div className="rounded-2xl border border-line bg-surface p-12 text-center">
                       <Car className="mx-auto h-10 w-10 text-muted/40 mb-3" />
-                      <h4 className="font-display font-bold text-ink">No trips currently matching</h4>
+                      <h4 className="font-display font-bold text-ink">No open trips available right now</h4>
                       <p className="text-xs text-muted mt-1 max-w-sm mx-auto">
-                        No active driver has hosted a trip for this exact destination right now. You can try a popular corridor or check back in a few minutes!
+                        Either no driver has hosted a trip for this route or seats are completely booked. Check your booked trips in the dashboard!
                       </p>
                       <Button
                         variant="ghost"
@@ -427,7 +476,7 @@ function PassengerConsoleInner() {
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {availableTrips.map((trip) => {
+                      {visibleAvailableTrips.map((trip) => {
                         const isMonthly = trip.trip_type === "monthly";
                         const isLong = trip.trip_type === "long";
                         const isLive = !isMonthly && !isLong;
@@ -512,6 +561,39 @@ function PassengerConsoleInner() {
                                 </div>
                               </div>
 
+                              {/* Corridor & Pickup Match Info */}
+                              {trip.passenger_distance_km != null && (
+                                <div className="mb-3 rounded-xl bg-brand-teal/10 border border-brand-teal/20 p-2.5 text-xs text-brand-teal space-y-1">
+                                  <div className="flex items-center justify-between font-semibold">
+                                    <span className="flex items-center gap-1">
+                                      <Sparkles className="h-3.5 w-3.5" /> Route Corridor Match
+                                    </span>
+                                    <span>
+                                      {trip.detour_km != null && trip.detour_km <= 0.05
+                                        ? "On Route (0 km detour)"
+                                        : `+${trip.detour_km} km detour`}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center justify-between text-[11px] text-muted">
+                                    <span>Your Distance:</span>
+                                    <span className="font-semibold text-ink">
+                                      {trip.passenger_distance_km} km{" "}
+                                      <span className="text-[10px] text-muted font-normal">
+                                        (Driver total: {trip.distance_km} km)
+                                      </span>
+                                    </span>
+                                  </div>
+                                  {trip.pickup?.label && (
+                                    <div className="text-[11px] text-ink font-medium truncate pt-0.5 border-t border-brand-teal/15">
+                                      📍 Pickup: {trip.pickup.label}
+                                      {trip.pickup.walk_km != null && trip.pickup.walk_km > 0
+                                        ? ` (${Math.round(trip.pickup.walk_km * 1000)}m walk)`
+                                        : ""}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
                               {/* Departure & Distance */}
                               <div className="flex items-center justify-between text-xs text-muted mb-4 px-1">
                                 <span>
@@ -552,11 +634,17 @@ function PassengerConsoleInner() {
                               <div className="flex items-baseline justify-between mb-3">
                                 <div>
                                   <p className="text-[10px] uppercase font-semibold text-muted">
-                                    {isMonthly ? "Full Month Pass" : "Calculated Share"}
+                                    {isMonthly
+                                      ? "Full Month Pass"
+                                      : trip.estimated_contribution
+                                      ? "Estimated Contribution"
+                                      : "Calculated Share"}
                                   </p>
                                   <p className="font-display text-xl font-black text-brand-teal">
                                     {isMonthly
                                       ? `₹${(trip.monthly_cost ? Math.round(trip.monthly_cost / (trip.seats_offered || 1)) : 3600).toLocaleString()}`
+                                      : trip.estimated_contribution != null
+                                      ? `₹${trip.estimated_contribution}`
                                       : trip.cost_per_seat
                                       ? `₹${trip.cost_per_seat}`
                                       : "₹150"}
@@ -694,6 +782,22 @@ function PassengerConsoleInner() {
                           </div>
                         </div>
 
+                        {/* Approved Ride Live Vehicle Tracking Map */}
+                        {(b.status === "accepted" || b.status === "confirmed") ? (
+                          <div className="mt-4 pt-3 border-t border-line">
+                            <VehicleTrackingCard
+                              booking={b}
+                              title="Live Vehicle Location Map"
+                              defaultExpanded={true}
+                            />
+                          </div>
+                        ) : b.status === "requested" ? (
+                          <div className="mt-3 rounded-xl bg-brand/5 border border-brand/20 p-3 text-xs text-muted flex items-center gap-2">
+                            <Clock className="h-4 w-4 text-brand shrink-0" />
+                            <span>Waiting for driver approval. Once approved, the live vehicle map will show where the vehicle is.</span>
+                          </div>
+                        ) : null}
+
                         <div className="mt-4 pt-3 border-t border-line flex items-center justify-between text-xs">
                           <span className="text-muted">Driver: {b.driver_name || "Assigned Driver"}</span>
                           {(b.status === "requested" || b.status === "confirmed") && (
@@ -746,7 +850,9 @@ function PassengerConsoleInner() {
                         className="rounded-2xl border border-line bg-surface p-5 shadow-sm space-y-3"
                       >
                         <div className="flex items-center justify-between">
-                          <Badge variant="success">Confirmed Ride</Badge>
+                          <Badge variant={b.status === "confirmed" || b.status === "accepted" ? "success" : "brand"}>
+                            {b.status === "confirmed" || b.status === "accepted" ? "Approved Ride" : "Pending Approval"}
+                          </Badge>
                           <span className="text-xs text-muted">{b.seats} seat(s)</span>
                         </div>
                         <p className="font-semibold text-sm text-ink">
@@ -758,6 +864,15 @@ function PassengerConsoleInner() {
                             ? new Date(b.trip.depart_at).toLocaleString("en-IN")
                             : "Scheduled"}
                         </p>
+                        {(b.status === "accepted" || b.status === "confirmed") && (
+                          <div className="pt-2">
+                            <VehicleTrackingCard
+                              booking={b}
+                              title="Vehicle Location on Route"
+                              defaultExpanded={true}
+                            />
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

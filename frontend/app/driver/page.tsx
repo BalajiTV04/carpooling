@@ -24,6 +24,8 @@ import {
   Check,
   Sparkles,
   ArrowRight,
+  Navigation,
+  RefreshCw,
 } from "lucide-react";
 import { useSession } from "@/components/SessionProvider";
 import { RequireAuth } from "@/components/RequireAuth";
@@ -31,21 +33,23 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { ProfileSection } from "@/components/ProfileSection";
 import { tripApi, type Trip } from "@/lib/trips";
 import { vehicleApi, type Vehicle } from "@/lib/vehicles";
+import { bookingApi, type Booking } from "@/lib/bookings";
+import { trackingApi } from "@/lib/tracking";
 import { geoApi, type PlaceHit } from "@/lib/geo";
 import { PlacePicker } from "@/components/PlacePicker";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
 
-type Section = "host" | "my-trips" | "tracking" | "garage" | "profile";
+type Section = "host" | "my-trips" | "requests" | "garage" | "profile";
 type TripType = "live" | "monthly" | "long";
 
 const NAV_ITEMS: { id: Section; label: string; icon: React.ElementType }[] = [
   { id: "host", label: "Host a Trip", icon: PlusCircle },
   { id: "my-trips", label: "My Trips", icon: Clock },
-  { id: "tracking", label: "Live Tracking & Safety", icon: Compass },
+  { id: "requests", label: "Passenger Requests", icon: Users },
   { id: "garage", label: "Garage & Mileage", icon: Gauge },
-  { id: "profile", label: "Profile", icon: Users },
+  { id: "profile", label: "Profile", icon: ShieldCheck },
 ];
 
 const PRESET_PLACES: PlaceHit[] = [
@@ -108,6 +112,9 @@ function DriverConsoleInner() {
 
   // Live tracking toggle state
   const [isLiveTracking, setIsLiveTracking] = React.useState(false);
+  const [incomingRequests, setIncomingRequests] = React.useState<Booking[]>([]);
+  const [requestBusyId, setRequestBusyId] = React.useState<string | null>(null);
+  const [broadcastingTripId, setBroadcastingTripId] = React.useState<string | null>(null);
 
   // Sync mileage when user or vehicles load
   React.useEffect(() => {
@@ -116,15 +123,17 @@ function DriverConsoleInner() {
     }
   }, [user]);
 
-  // Load vehicles and trips
+  // Load vehicles, trips, and incoming passenger booking requests
   const loadDriverData = React.useCallback(async () => {
     setLoading(true);
     try {
-      const [fetchedTrips, fetchedVehicles] = await Promise.all([
+      const [fetchedTrips, fetchedVehicles, fetchedRequests] = await Promise.all([
         tripApi.mine().catch(() => []),
         vehicleApi.list().catch(() => []),
+        bookingApi.incoming().catch(() => []),
       ]);
       setTrips(fetchedTrips);
+      setIncomingRequests(Array.isArray(fetchedRequests) ? fetchedRequests : []);
 
       let currentCars = fetchedVehicles;
       // Auto-provision verified car if none exists
@@ -166,6 +175,69 @@ function DriverConsoleInner() {
   React.useEffect(() => {
     void loadDriverData();
   }, [loadDriverData]);
+
+  const handleApproveRequest = async (bookingId: string) => {
+    setRequestBusyId(bookingId);
+    setError(null);
+    try {
+      await bookingApi.accept(bookingId);
+      setNotice("✓ Passenger booking approved! The passenger can now view the vehicle live map.");
+      setIncomingRequests((prev) =>
+        prev.map((r) => (r.id === bookingId ? { ...r, status: "accepted" } : r))
+      );
+      void loadDriverData();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Failed to approve booking");
+    } finally {
+      setRequestBusyId(null);
+    }
+  };
+
+  const handleRejectRequest = async (bookingId: string) => {
+    setRequestBusyId(bookingId);
+    setError(null);
+    try {
+      await bookingApi.reject(bookingId);
+      setNotice("Passenger booking request rejected and seat released.");
+      setIncomingRequests((prev) =>
+        prev.map((r) => (r.id === bookingId ? { ...r, status: "rejected" } : r))
+      );
+      void loadDriverData();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Failed to reject booking");
+    } finally {
+      setRequestBusyId(null);
+    }
+  };
+
+  const handleBroadcastLocation = async (trip: Trip) => {
+    setBroadcastingTripId(trip.id);
+    setError(null);
+    try {
+      let lng = trip.source?.point?.coordinates?.[0] || 77.5946;
+      let lat = trip.source?.point?.coordinates?.[1] || 13.0358;
+
+      if (typeof window !== "undefined" && navigator.geolocation) {
+        try {
+          const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 3500 });
+          });
+          lng = pos.coords.longitude;
+          lat = pos.coords.latitude;
+        } catch {
+          // fallback to trip coordinates
+        }
+      }
+
+      await trackingApi.ping(trip.id, lng, lat, 35.0);
+      setNotice(`📍 Live location broadcasted for ${trip.source_name} → ${trip.destination_name}! Approved passengers can now track this vehicle.`);
+      void loadDriverData();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Failed to broadcast vehicle location");
+    } finally {
+      setBroadcastingTripId(null);
+    }
+  };
 
   // Update departure timing when trip type changes
   React.useEffect(() => {
@@ -279,15 +351,13 @@ function DriverConsoleInner() {
         fuel_price: fuelPrice,
       };
 
-      createdTrip = await tripApi.create(payload);
-      // 2. Every dashboard-hosted trip waits for an administrator's decision.
-      // It remains invisible to passengers until the admin changes it to published.
-      const submitted = await tripApi.submitForApproval(createdTrip.id);
-      setTrips((prev) => [submitted, ...prev]);
+      const savedTrip = await tripApi.create(payload);
+      createdTrip = savedTrip;
+      // Trip is saved as draft. Driver submits for admin approval separately
+      // via the "Submit for Approval" button on their draft trip card.
+      setTrips((prev) => [savedTrip, ...prev]);
       setNotice(
-        `Trip submitted for admin approval. You will receive a notification when ${
-          tripType === "live" ? "the live trip" : "the trip"
-        } is approved.`,
+        "Trip created as draft. Submit it for admin approval from your trips list.",
       );
       setSection("my-trips");
     } catch (cause) {
@@ -925,27 +995,86 @@ function DriverConsoleInner() {
                               </p>
                             </div>
                           </div>
+
+                          {/* Pending passenger booking requests alert on trip card */}
+                          {(() => {
+                            const pendingForTrip = incomingRequests.filter(
+                              (r) => r.trip_id === t.id && r.status === "requested"
+                            );
+                            if (pendingForTrip.length === 0) return null;
+                            return (
+                              <div className="mt-3 rounded-xl bg-brand/10 border border-brand/30 p-2.5 flex items-center justify-between text-xs">
+                                <span className="font-semibold text-brand">
+                                  {pendingForTrip.length} passenger request{pendingForTrip.length > 1 ? "s" : ""} waiting
+                                </span>
+                                <Button
+                                  variant="primary"
+                                  size="sm"
+                                  onClick={() => setSection("requests")}
+                                  className="text-xs py-1 px-2.5 h-auto shadow-sm"
+                                >
+                                  Approve →
+                                </Button>
+                              </div>
+                            );
+                          })()}
                         </div>
 
-                        <div className="mt-4 pt-3 border-t border-line flex items-center justify-between text-xs">
+                        <div className="mt-4 pt-3 border-t border-line flex flex-wrap items-center justify-between gap-2 text-xs">
                           <span className="text-muted">Trip ID: {t.id.slice(-6)}</span>
-                          {t.status === "published" && (
-                            <button
-                              onClick={async () => {
-                                if (confirm("Cancel this trip?")) {
-                                  await tripApi.cancel(t.id);
-                                  setTrips((prev) =>
-                                    prev.map((item) =>
-                                      item.id === t.id ? { ...item, status: "cancelled" } : item
-                                    )
-                                  );
-                                }
-                              }}
-                              className="text-danger hover:underline font-medium"
-                            >
-                              Cancel Trip
-                            </button>
-                          )}
+
+                          <div className="flex items-center gap-2">
+                            {(t.status === "published" || t.status === "ongoing") && (
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                disabled={broadcastingTripId === t.id}
+                                onClick={() => handleBroadcastLocation(t)}
+                                className="text-xs flex items-center gap-1 text-brand-teal"
+                              >
+                                <Navigation className={`h-3 w-3 ${broadcastingTripId === t.id ? "animate-spin" : ""}`} />
+                                {broadcastingTripId === t.id ? "Broadcasting…" : "📍 Broadcast GPS"}
+                              </Button>
+                            )}
+
+                            {t.status === "published" && (
+                              <button
+                                onClick={async () => {
+                                  if (confirm("Cancel this trip?")) {
+                                    await tripApi.cancel(t.id);
+                                    setTrips((prev) =>
+                                      prev.map((item) =>
+                                        item.id === t.id ? { ...item, status: "cancelled" } : item
+                                      )
+                                    );
+                                  }
+                                }}
+                                className="text-danger hover:underline font-medium"
+                              >
+                                Cancel Trip
+                              </button>
+                            )}
+                            {t.status === "draft" && (
+                              <button
+                                onClick={async () => {
+                                  if (confirm("Submit this trip for admin approval?")) {
+                                    const submitted = await tripApi.submitForApproval(t.id);
+                                    setTrips((prev) =>
+                                      prev.map((item) =>
+                                        item.id === t.id
+                                          ? { ...item, status: submitted.status }
+                                          : item
+                                      )
+                                    );
+                                    setNotice("Trip submitted for admin approval.");
+                                  }
+                                }}
+                                className="text-brand-teal hover:underline font-medium"
+                              >
+                                Submit for Approval
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -954,57 +1083,128 @@ function DriverConsoleInner() {
               </div>
             )}
 
-            {/* SECTION 3: LIVE TRACKING & SAFETY */}
-            {section === "tracking" && (
-              <div className="rounded-2xl border border-line bg-surface p-6 shadow-sm max-w-2xl space-y-6">
-                <div>
-                  <h2 className="font-display font-bold text-lg text-ink">Live Driver Broadcast</h2>
-                  <p className="text-xs text-muted">
-                    Share real-time GPS coordinates and ETA with booked passengers.
-                  </p>
-                </div>
-
-                <div className="rounded-xl border border-brand-teal/20 bg-brand-teal/5 p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-xl bg-brand-teal/20 p-2.5 text-brand-teal">
-                      <Compass className="h-6 w-6" />
-                    </div>
-                    <div>
-                      <p className="font-bold text-sm text-ink">
-                        {isLiveTracking ? "Location Sharing Active" : "Location Sharing Idle"}
-                      </p>
-                      <p className="text-xs text-muted">
-                        {isLiveTracking
-                          ? "Broadcasting coordinates every 5 seconds to riders."
-                          : "Not currently sharing location."}
-                      </p>
-                    </div>
+            {/* SECTION: PASSENGER REQUESTS */}
+            {section === "requests" && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="font-display text-lg font-bold text-ink">
+                      Passenger Booking Requests
+                    </h2>
+                    <p className="text-xs text-muted">
+                      Review, approve, or reject passenger booking requests. Once approved, the passenger can see where your vehicle is on their live map.
+                    </p>
                   </div>
                   <Button
-                    variant={isLiveTracking ? "danger" : "primary"}
+                    variant="ghost"
                     size="sm"
-                    onClick={() => setIsLiveTracking(!isLiveTracking)}
+                    onClick={() => void loadDriverData()}
+                    className="flex items-center gap-1.5 text-xs text-muted"
                   >
-                    {isLiveTracking ? "Stop Tracking" : "Start Live Tracking"}
+                    <RefreshCw className="h-3.5 w-3.5" /> Refresh
                   </Button>
                 </div>
 
-                <div className="rounded-xl border border-line bg-card p-4 space-y-3">
-                  <div className="flex items-center gap-2 text-ink font-semibold text-sm">
-                    <Shield className="h-4 w-4 text-brand-teal" />
-                    Safety & Emergency Controls
+                {incomingRequests.length === 0 ? (
+                  <div className="rounded-2xl border border-line bg-surface p-12 text-center">
+                    <Users className="mx-auto h-10 w-10 text-muted/40 mb-3" />
+                    <h3 className="font-display font-bold text-ink">No requests yet</h3>
+                    <p className="text-xs text-muted mt-1 max-w-sm mx-auto">
+                      When passengers find your trip and request seats, their booking requests will appear here for your approval.
+                    </p>
                   </div>
-                  <p className="text-xs text-muted">
-                    In case of route deviation or emergency on road, trigger immediate alerts to passenger emergency contacts and support.
-                  </p>
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    onClick={() => alert("Emergency alert dispatched to response team and emergency contacts.")}
-                  >
-                    Emergency SOS Broadcast
-                  </Button>
-                </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {incomingRequests.map((req) => (
+                      <div
+                        key={req.id}
+                        className="rounded-2xl border border-line bg-surface p-5 shadow-sm space-y-4 flex flex-col justify-between"
+                      >
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-muted">Booking #{req.id.slice(-6)}</span>
+                            <Badge
+                              variant={
+                                req.status === "accepted" || req.status === "confirmed"
+                                  ? "success"
+                                  : req.status === "requested"
+                                  ? "brand"
+                                  : "muted"
+                              }
+                            >
+                              {req.status}
+                            </Badge>
+                          </div>
+
+                          <div className="flex items-start gap-3">
+                            <div className="h-9 w-9 rounded-xl bg-brand-teal/15 text-brand-teal flex items-center justify-center shrink-0">
+                              <Users className="h-4 w-4" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-bold text-sm text-ink truncate">
+                                {req.passenger_name || "Passenger"}
+                              </p>
+                              <p className="text-xs text-muted">
+                                Requested {req.seats} seat{req.seats > 1 ? "s" : ""}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="rounded-xl bg-card p-3 space-y-1.5 text-xs">
+                            <div className="flex items-center justify-between">
+                              <span className="text-muted">Trip:</span>
+                              <span className="font-semibold text-ink truncate max-w-[200px]">
+                                {req.trip?.source_name ?? "—"} → {req.trip?.destination_name ?? "—"}
+                              </span>
+                            </div>
+                            {req.pickup?.name && (
+                              <div className="flex items-center justify-between">
+                                <span className="text-muted">Pickup:</span>
+                                <span className="text-ink truncate max-w-[200px]">{req.pickup.name}</span>
+                              </div>
+                            )}
+                            {req.cost_share && (
+                              <div className="flex items-center justify-between">
+                                <span className="text-muted">Estimated Share:</span>
+                                <span className="font-bold text-brand-teal">₹{req.cost_share}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="pt-3 border-t border-line flex items-center justify-between gap-2">
+                          {req.status === "requested" ? (
+                            <>
+                              <Button
+                                variant="primary"
+                                size="sm"
+                                disabled={requestBusyId === req.id}
+                                onClick={() => handleApproveRequest(req.id)}
+                                className="flex-1 flex items-center justify-center gap-1"
+                              >
+                                <Check className="h-3.5 w-3.5" />
+                                {requestBusyId === req.id ? "Approving…" : "Approve / Accept"}
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                disabled={requestBusyId === req.id}
+                                onClick={() => handleRejectRequest(req.id)}
+                                className="text-danger hover:bg-danger/10"
+                              >
+                                <X className="h-3.5 w-3.5" /> Reject
+                              </Button>
+                            </>
+                          ) : (
+                            <span className="text-xs text-muted">
+                              Status: <strong className="text-ink">{req.status}</strong> (Vehicle tracking active for passenger)
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 

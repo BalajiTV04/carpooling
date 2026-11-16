@@ -26,6 +26,9 @@ class TripDoc(BaseModel):
     price_policy: Optional[Dict] = None  # Module 12
     recurring: Optional[Dict] = None  # Module 15
     status: str = "draft"
+    approval_note: Optional[str] = None
+    approved_at: Optional[datetime] = None
+    approved_by: Optional[str] = None
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)
 

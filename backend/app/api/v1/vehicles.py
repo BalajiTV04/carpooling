@@ -5,7 +5,7 @@ unique (normalised) — 409 on clash. Verification: pending -> verified|rejected
 (admin only). Module 6 refuses non-verified vehicles at publish.
 """
 from datetime import datetime, timezone
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -24,8 +24,10 @@ def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def _out(doc: Dict, trips_as_vehicle: int = 0) -> Dict:
-    return {
+def _out(doc: Dict, trips_as_vehicle: int = 0,
+         owner_name: Optional[str] = None,
+         owner_phone: Optional[str] = None) -> Dict:
+    out = {
         "id": str(doc["_id"]),
         "make": doc["make"],
         "model": doc["model"],
@@ -41,6 +43,11 @@ def _out(doc: Dict, trips_as_vehicle: int = 0) -> Dict:
         "trips_as_vehicle": trips_as_vehicle,
         "created_at": doc.get("created_at"),
     }
+    if owner_name is not None:
+        out["owner_name"] = owner_name
+    if owner_phone is not None:
+        out["owner_phone"] = owner_phone
+    return out
 
 
 def _oid(v: str) -> ObjectId:
@@ -164,7 +171,16 @@ async def admin_pending(user: Dict = Depends(_admin)):
     _ = user
     db = get_db()
     cur = db.vehicles.find({"verification_status": "pending", "is_active": True}).sort("created_at", 1)
-    return [_out(d) async for d in cur]
+    rows = []
+    async for vehicle in cur:
+        owner = await db.users.find_one(
+            {"_id": vehicle["owner_id"]}, {"full_name": 1, "phone": 1})
+        rows.append(_out(
+            vehicle,
+            owner_name=(owner or {}).get("full_name") or "Driver",
+            owner_phone=(owner or {}).get("phone"),
+        ))
+    return rows
 
 
 @router.post("/admin/{vehicle_id}/verify", response_model=VehicleOut)

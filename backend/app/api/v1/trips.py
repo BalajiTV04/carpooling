@@ -5,7 +5,10 @@ Gates (checked IN ORDER, first failure wins):
 4. vehicle verified  5. seats_offered <= vehicle.seats_total
 6. depart_at in future (validator)  7. source != destination (>500m apart)
 
-Lifecycle: draft -> published -> ongoing -> completed, or -> cancelled.
+ Lifecycle: draft -> pending_approval -> published -> ongoing -> completed,
+ or -> rejected/cancelled. Dashboard-hosted trips submit for an administrator's
+ decision; the legacy draft -> publish endpoint remains available for staged
+ trips created elsewhere in the app.
 Publish is explicit (POST /{id}/publish) so drivers can stage drafts.
 Edit allowed in draft/published only; lowering seats below seats_booked is
 rejected (protects accepted passengers — Module 11 writes seats_booked).
@@ -26,8 +29,9 @@ from app.core.database import get_db
 from app.core.deps import get_current_user, require_roles
 from app.models.trip import TripIn, TripOut, TripUpdateIn
 from app.services.booking_window import normalise_policy
-from app.services.cost import resolve_fuel_price
-from app.services.geo_math import haversine_km as _haversine_km
+from app.services.cost import compute_detour_contribution, resolve_fuel_price
+from app.services.geo_math import haversine_km as _haversine_km, project_onto_route
+from app.services.matching import match_trip
 from app.services.routing import osrm_route
 
 router = APIRouter(prefix="/trips", tags=["trips"])
@@ -74,6 +78,10 @@ def _out(doc: Dict) -> Dict:
         "cost_per_seat": doc.get("cost_per_seat"),
         "total_cost": doc.get("total_cost"),
         "monthly_cost": doc.get("monthly_cost"),
+        "approval_note": doc.get("approval_note"),
+        "approved_at": doc.get("approved_at"),
+        "approved_by": (str(doc["approved_by"])
+                        if doc.get("approved_by") else None),
         "created_at": doc.get("created_at"),
     }
 
@@ -170,25 +178,113 @@ async def list_available_trips(
     destination: Optional[str] = Query(default=None),
     source: Optional[str] = Query(default=None),
     trip_type: Optional[str] = Query(default=None),
+    src_lat: Optional[float] = Query(default=None),
+    src_lng: Optional[float] = Query(default=None),
+    dst_lat: Optional[float] = Query(default=None),
+    dst_lng: Optional[float] = Query(default=None),
+    radius_km: float = Query(default=10.0),
     user: Dict = Depends(get_current_user),
 ):
-    """Available trips for passengers: see availability filtered by destination/type."""
+    """Available trips for passengers: see availability filtered by destination/type,
+    with corridor matching and proximity support for near points.
+    """
     _ = user
     db = get_db()
     q: Dict = {"status": "published"}
     if trip_type and trip_type.lower() != "all":
         q["trip_type"] = trip_type.lower()
-    if destination and destination.strip():
-        q["destination.name"] = {"$regex": destination.strip(), "$options": "i"}
-    if source and source.strip():
-        q["source.name"] = {"$regex": source.strip(), "$options": "i"}
 
-    cur = db.trips.find(q).sort("depart_at", 1).limit(60)
+    has_src = src_lat is not None and src_lng is not None
+    has_dst = dst_lat is not None and dst_lng is not None
+
+    # Text regex only applied when NO coordinates provided
+    if not has_src and not has_dst:
+        if destination and destination.strip():
+            q["destination.name"] = {"$regex": destination.strip(), "$options": "i"}
+        if source and source.strip():
+            q["source.name"] = {"$regex": source.strip(), "$options": "i"}
+
+    cur = db.trips.find(q).sort("depart_at", 1).limit(100)
     results = []
     async for d in cur:
         left = int(d.get("seats_offered", 1)) - int(d.get("seats_booked", 0))
         if left <= 0:
             continue
+
+        try:
+            driver_s = d["source"]["point"]["coordinates"]
+            driver_d = d["destination"]["point"]["coordinates"]
+        except (KeyError, TypeError):
+            continue
+
+        geom = (d.get("route_geometry") or {}).get("coordinates")
+        has_geom = bool(geom and len(geom) >= 2)
+
+        p_src = [src_lng, src_lat] if has_src else None
+        p_dst = [dst_lng, dst_lat] if has_dst else None
+
+        match_info = None
+
+        if has_src and has_dst:
+            # Full corridor matching
+            if has_geom:
+                m = match_trip(
+                    geom, p_src, p_dst,
+                    max_pickup_km=max(radius_km, 10.0),
+                    max_detour_km=8.0,
+                    dest_tolerance_km=max(radius_km, 5.0),
+                    max_drop_km=max(radius_km, 5.0),
+                    min_overlap_pct=5.0,
+                )
+                if m.get("feasible"):
+                    match_info = m
+                else:
+                    # Near endpoints fallback
+                    if _haversine_km(p_src, driver_s) <= max(radius_km, 10.0) and _haversine_km(p_dst, driver_d) <= max(radius_km, 10.0):
+                        match_info = m
+            else:
+                if _haversine_km(p_src, driver_s) <= radius_km and _haversine_km(p_dst, driver_d) <= radius_km:
+                    match_info = {"feasible": True}
+
+            if not match_info:
+                continue
+
+        elif has_dst and not has_src:
+            # Destination matching (near driver destination OR along driver corridor)
+            dst_match = False
+            if has_geom:
+                proj_dst = project_onto_route(p_dst, geom)
+                if _haversine_km(p_dst, driver_d) <= max(radius_km, 12.0) or proj_dst["dist_km"] <= radius_km:
+                    dst_match = True
+            else:
+                if _haversine_km(p_dst, driver_d) <= max(radius_km, 12.0):
+                    dst_match = True
+
+            if not dst_match and destination and destination.strip():
+                if destination.strip().lower() in (d.get("destination", {}).get("name", "")).lower():
+                    dst_match = True
+
+            if not dst_match:
+                continue
+
+        elif has_src and not has_dst:
+            # Source matching (near driver source OR along driver corridor)
+            src_match = False
+            if has_geom:
+                proj_src = project_onto_route(p_src, geom)
+                if _haversine_km(p_src, driver_s) <= max(radius_km, 12.0) or proj_src["dist_km"] <= radius_km:
+                    src_match = True
+            else:
+                if _haversine_km(p_src, driver_s) <= max(radius_km, 12.0):
+                    src_match = True
+
+            if not src_match and source and source.strip():
+                if source.strip().lower() in (d.get("source", {}).get("name", "")).lower():
+                    src_match = True
+
+            if not src_match:
+                continue
+
         row = _out(d)
         driver = await db.users.find_one(
             {"_id": d["driver_id"]},
@@ -207,6 +303,35 @@ async def list_available_trips(
             "fuel_type": (veh or {}).get("fuel_type", "petrol"),
             "mileage_kmpl": (veh or {}).get("mileage_kmpl"),
         }
+
+        # If corridor match details are available, attach them and compute contribution
+        if match_info:
+            p_dist = float(match_info.get("passenger_distance_km") or 0.0)
+            det_km = float(match_info.get("detour_km") or 0.0)
+            row["passenger_distance_km"] = round(p_dist, 2) if p_dist > 0 else None
+            row["detour_km"] = round(det_km, 2)
+            row["extra_time_min"] = match_info.get("extra_time_min", 0.0)
+            row["pickup"] = match_info.get("pickup")
+            row["drop"] = match_info.get("drop")
+            row["match_score"] = match_info.get("score")
+
+            mileage = float((veh or {}).get("mileage_kmpl") or 15.0)
+            fuel_price = float(d.get("fuel_price") or 100.0)
+            if not d.get("fuel_price"):
+                fuel_price = resolve_fuel_price((veh or {}).get("fuel_type", "petrol"), d.get("price_policy"))
+
+            occupants = 1 + int(d.get("seats_booked", 0) or 0) + 1
+            cost_res = compute_detour_contribution(
+                passenger_distance_km=p_dist if p_dist > 0 else float(d.get("distance_km") or 0.0),
+                detour_km=det_km,
+                mileage_kmpl=mileage,
+                fuel_price_per_litre=fuel_price,
+                occupants=occupants,
+            )
+            row["estimated_contribution"] = cost_res.get("estimated_contribution")
+            if cost_res.get("estimated_contribution"):
+                row["cost_per_seat"] = cost_res.get("estimated_contribution")
+
         results.append(row)
     return results
 
@@ -225,7 +350,8 @@ async def list_my_trips(
     db = get_db()
     q = {"driver_id": ObjectId(user["id"])}  # type: Dict
     if status_:
-        if status_ not in ("draft", "published", "ongoing", "completed", "cancelled"):
+        if status_ not in ("draft", "pending_approval", "published", "ongoing",
+                           "completed", "rejected", "cancelled"):
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "bad status filter")
         q["status"] = status_
     cur = db.trips.find(q).sort("depart_at", 1)
@@ -307,6 +433,44 @@ async def publish_trip(trip_id: str, user: Dict = Depends(_driver)):
     return _out(updated)
 
 
+@router.post("/{trip_id}/submit-approval", response_model=TripOut)
+async def submit_trip_for_approval(trip_id: str, user: Dict = Depends(_driver)):
+    """Submit a staged trip to the admin queue instead of exposing it directly.
+
+    Only a draft can be submitted. Passenger search only includes `published`,
+    so the route remains private until an administrator approves it.
+    """
+    db = get_db()
+    doc = await db.trips.find_one(
+        {"_id": _oid(trip_id), "driver_id": ObjectId(user["id"])})
+    if doc is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "trip not found")
+    if doc["status"] != "draft":
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY,
+                            "only drafts can be submitted for approval")
+    updated = await db.trips.find_one_and_update(
+        {"_id": doc["_id"], "status": "draft"},
+        {"$set": {"status": "pending_approval", "approval_note": None,
+                  "approved_at": None, "approved_by": None,
+                  "updated_at": _utcnow()}},
+        return_document=True)
+    if updated is None:
+        raise HTTPException(status.HTTP_409_CONFLICT,
+                            "trip changed state while submitting")
+    try:
+        from app.api.v1.notifications import emit
+        route = "{} → {}".format(doc["source"]["name"], doc["destination"]["name"])
+        await emit(db, "trip_approval_requested", actor_id=user["id"],
+                   trip_id=str(doc["_id"]), route=route, _trip=updated)
+    except Exception as exc:
+        import logging
+        logging.warning(
+            "notification emit failed for trip_approval_requested: %s: %s",
+            type(exc).__name__, exc
+        )
+    return _out(updated)
+
+
 @router.post("/{trip_id}/cancel", response_model=TripOut)
 async def cancel_trip(trip_id: str, user: Dict = Depends(_driver)):
     db = get_db()
@@ -331,9 +495,9 @@ async def delete_trip(trip_id: str, user: Dict = Depends(_driver)):
         {"_id": _oid(trip_id), "driver_id": ObjectId(user["id"])})
     if doc is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "trip not found")
-    if doc["status"] not in ("draft", "cancelled"):
+    if doc["status"] not in ("draft", "rejected", "cancelled"):
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY,
-                            "only draft/cancelled trips can be deleted")
+                            "only draft/rejected/cancelled trips can be deleted")
     await db.trips.delete_one({"_id": doc["_id"]})
     return {"deleted": True, "id": str(doc["_id"])}
 

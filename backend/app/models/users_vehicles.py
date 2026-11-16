@@ -22,6 +22,7 @@ class UserDoc(BaseModel):
     rating_avg: Optional[float] = Field(default=None, ge=0, le=5)
     rating_count: int = 0
     mileage_kmpl: Optional[float] = None
+    available_seats: Optional[int] = None
     status: str = "active"
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)

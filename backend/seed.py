@@ -223,8 +223,172 @@ async def main(keep: bool = False) -> None:
         await _wipe(db)
     # ensure indexes so the DB is ready for use
     await ensure_indexes(db)
-    # No demo accounts are created — register your own account at /register.
-    print("Database wiped and indexes ensured. No demo accounts created.")
+
+    DEMO_PASSWORD = "pass1234"
+    now = _utcnow()
+
+    ACCOUNTS = [
+        {
+            "phone": ADMIN_PHONE,
+            "full_name": "Demo Admin",
+            "roles": ["admin"],
+            "driver_approval": None,
+        },
+        {
+            "phone": DRV1,
+            "full_name": "Demo Driver Approved",
+            "roles": ["driver"],
+            "driver_approval": "approved",
+        },
+        {
+            "phone": DRV2,
+            "full_name": "Demo Driver Approved",
+            "roles": ["driver"],
+            "driver_approval": "approved",
+        },
+        {
+            "phone": PAX1,
+            "full_name": "Demo Passenger One",
+            "roles": ["passenger"],
+            "driver_approval": None,
+        },
+        {
+            "phone": PAX2,
+            "full_name": "Demo Passenger Two",
+            "roles": ["passenger"],
+            "driver_approval": None,
+        },
+        {
+            "phone": PAX3,
+            "full_name": "Demo Passenger Three",
+            "roles": ["passenger"],
+            "driver_approval": None,
+        },
+    ]
+
+    for acc in ACCOUNTS:
+        doc = {
+            "phone": acc["phone"],
+            "password_hash": hash_password(DEMO_PASSWORD),
+            "full_name": acc["full_name"],
+            "roles": acc["roles"],
+            "phone_verified": True,
+            "status": "active",
+            "driver_approval": acc["driver_approval"],
+            "driver_approval_note": None,
+            "driver_approval_at": now if acc["driver_approval"] else None,
+            "driver_approval_by": None,
+            "rating_avg": None,
+            "rating_count": 0,
+            "created_at": now,
+            "updated_at": now,
+        }
+        await db.users.update_one(
+            {"phone": acc["phone"]},
+            {"$set": doc},
+            upsert=True,
+            bypass_document_validation=True,
+        )
+        print(
+            f"Seeded {acc['phone']}  {acc['full_name']}  roles={acc['roles']}  approval={acc['driver_approval']}"
+        )
+
+    # Seed Vehicle for Driver +919000000002 (4+1 car capacity)
+    drv1_user = await db.users.find_one({"phone": DRV1})
+    pax1_user = await db.users.find_one({"phone": PAX1})
+    drv1_id = drv1_user["_id"]
+    pax1_id = pax1_user["_id"]
+
+    veh_doc = {
+        "owner_id": drv1_id,
+        "make": "Tata",
+        "model": "Nexon EV",
+        "year": 2023,
+        "color": "Teal Blue",
+        "plate_no": "KA04EV4411",
+        "seats_total": 5,  # 4+1 seats
+        "fuel_type": "diesel",
+        "mileage_kmpl": 18.0,
+        "verification_status": "verified",
+        "is_active": True,
+        "created_at": now,
+        "updated_at": now,
+    }
+    await db.vehicles.update_one({"plate_no": "KA04EV4411"}, {"$set": veh_doc}, upsert=True)
+    veh_id = ObjectId((await db.vehicles.find_one({"plate_no": "KA04EV4411"}))["_id"])
+    print(f"Seeded vehicle KA04EV4411 (4+1 capacity) for driver {DRV1}")
+
+    # Seed Devanahalli -> Hebbal demo trip with 4 seats offered
+    import json
+    fix_path = ROOT / "tests" / "fixtures" / "devanahalli_hebbal.json"
+    if fix_path.exists():
+        with open(fix_path, "r", encoding="utf-8") as f:
+            fix = json.load(f)
+        geometry = fix["geometry"]
+        dist_km = fix["distance_km"]
+        dur_min = fix["duration_min"]
+    else:
+        geometry = {"type": "LineString", "coordinates": [[77.7120, 13.2437], [77.5963, 13.1007], [77.5970, 13.0358]]}
+        dist_km = 28.19
+        dur_min = 28.5
+
+    depart_time = (now + timedelta(days=1)).replace(hour=9, minute=0, second=0, microsecond=0)
+    trip_doc = {
+        "driver_id": drv1_id,
+        "vehicle_id": veh_id,
+        "source": {
+            "name": "Devanahalli Central",
+            "point": {"type": "Point", "coordinates": [77.7120, 13.2437]},
+        },
+        "destination": {
+            "name": "Hebbal Flyover",
+            "point": {"type": "Point", "coordinates": [77.5970, 13.0358]},
+        },
+        "route_geometry": geometry,
+        "distance_km": dist_km,
+        "duration_min": dur_min,
+        "depart_at": depart_time,
+        "seats_offered": 4,      # 4 passenger seats offered (4+1 car capacity)
+        "seats_booked": 1,       # 1 seat ordered by passenger
+        "status": "published",
+        "trip_type": "live",
+        "fuel_type": "diesel",
+        "fuel_price": 95.0,
+        "created_at": now,
+        "updated_at": now,
+    }
+    await db.trips.update_one({"source.name": "Devanahalli Central"}, {"$set": trip_doc}, upsert=True)
+    trip_id = ObjectId((await db.trips.find_one({"source.name": "Devanahalli Central"}))["_id"])
+    print(f"Seeded Trip {trip_id}: Devanahalli -> Hebbal (4 seats offered, 1 booked -> 3 AVAILABLE)")
+
+    # Seed Booking for Passenger PAX1 (+919000000004) from Yelahanka to Hebbal
+    booking_doc = {
+        "trip_id": trip_id,
+        "passenger_id": pax1_id,
+        "driver_id": drv1_id,
+        "seats": 1,
+        "status": "accepted",
+        "pickup": {
+            "name": "Yelahanka Meeting Point",
+            "point": {"type": "Point", "coordinates": [77.5995, 13.0999]},
+        },
+        "dropoff": {
+            "name": "Hebbal Drop",
+            "point": {"type": "Point", "coordinates": [77.5918, 13.0382]},
+        },
+        "pickup_distance_m": 354.0,
+        "detour_km": 0.0,
+        "passenger_distance_km": 7.29,
+        "estimated_contribution": 19.24,
+        "overlap_pct": 25.8,
+        "match_score": 61.8,
+        "created_at": now,
+        "updated_at": now,
+    }
+    await db.bookings.update_one({"trip_id": trip_id, "passenger_id": pax1_id}, {"$set": booking_doc}, upsert=True)
+    print(f"Seeded Booking: Passenger {PAX1} ordered 1 seat (Yelahanka -> Hebbal, 3 seats remain available)")
+
+    print("Database wiped, indexes ensured, and demo accounts/trips/bookings created.")
 
 
 if __name__ == "__main__":
