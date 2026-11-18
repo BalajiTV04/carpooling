@@ -26,8 +26,10 @@ import {
 import { useSession } from "@/components/SessionProvider";
 import { RequireAuth } from "@/components/RequireAuth";
 import { ProfileSection } from "@/components/ProfileSection";
+import { SafetyBanner } from "@/components/SafetyBanner";
 import { tripApi, type Trip } from "@/lib/trips";
 import { bookingApi, type Booking } from "@/lib/bookings";
+import { safetyApi } from "@/lib/safety";
 import { authApi } from "@/lib/auth";
 import { type PlaceHit } from "@/lib/geo";
 import { PlacePicker } from "@/components/PlacePicker";
@@ -790,11 +792,18 @@ function PassengerConsoleInner() {
                               title="Live Vehicle Location Map"
                               defaultExpanded={true}
                             />
+                            {/* SOS emergency button — only once the driver has accepted */}
+                            {b.trip && (
+                              <SafetyBanner
+                                tripId={b.trip.id!}
+                                driverId={b.driver_id}
+                              />
+                            )}
                           </div>
                         ) : b.status === "requested" ? (
                           <div className="mt-3 rounded-xl bg-brand/5 border border-brand/20 p-3 text-xs text-muted flex items-center gap-2">
                             <Clock className="h-4 w-4 text-brand shrink-0" />
-                            <span>Waiting for driver approval. Once approved, the live vehicle map will show where the vehicle is.</span>
+                            <span>Waiting for driver approval. Once approved, the live vehicle map and SOS button will appear.</span>
                           </div>
                         ) : null}
 

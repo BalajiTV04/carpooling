@@ -15,6 +15,16 @@ export default function RegisterPage() {
   const [role, setRole] = useState<"passenger" | "driver">("passenger");
   const [mileage, setMileage] = useState("15.0");
   const [availableSeats, setAvailableSeats] = useState("1");
+  // Driver signup extras: photo + vehicle details
+  const [avatarUrl, setAvatarUrl] = useState("");
+  const [vehicleMake, setVehicleMake] = useState("");
+  const [vehicleModel, setVehicleModel] = useState("");
+  const [vehicleYear, setVehicleYear] = useState("");
+  const [vehicleColor, setVehicleColor] = useState("");
+  const [vehiclePlate, setVehiclePlate] = useState("");
+  const [vehicleSeats, setVehicleSeats] = useState("3");
+  const [vehicleFuel, setVehicleFuel] = useState("petrol");
+  const [vehicleImageUrl, setVehicleImageUrl] = useState("");
   const [busy, setBusy] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
@@ -28,6 +38,15 @@ export default function RegisterPage() {
         roles: [role],
         mileage: parsedMileage,
         available_seats: parsedAvailableSeats,
+        avatar_url: avatarUrl || undefined,
+        vehicle_make: vehicleMake || undefined,
+        vehicle_model: vehicleModel || undefined,
+        vehicle_year: vehicleYear ? parseInt(vehicleYear, 10) : undefined,
+        vehicle_color: vehicleColor || undefined,
+        vehicle_plate_no: vehiclePlate || undefined,
+        vehicle_seats_total: vehicleSeats ? parseInt(vehicleSeats, 10) : undefined,
+        vehicle_fuel_type: vehicleFuel || undefined,
+        vehicle_image_url: vehicleImageUrl || undefined,
       });
       router.push("/verify?fresh=1");
     } catch {
@@ -122,9 +141,111 @@ export default function RegisterPage() {
           </div>
         </div>
 
-        {/* Driver specific field: Vehicle Mileage */}
+        {/* Driver specific: profile photo + vehicle details + mileage/seats */}
         {role === "driver" && (
-          <div className="rounded-xl border border-brand-teal/30 bg-brand-teal/5 p-4 animate-in fade-in">
+          <div className="rounded-xl border border-brand-teal/30 bg-brand-teal/5 p-4 animate-in fade-in space-y-4">
+            {/* Driver photo */}
+            <Field label="Driver photo (https image URL — optional)">
+              <input
+                className={inputCls}
+                value={avatarUrl}
+                onChange={(e) => setAvatarUrl(e.target.value)}
+                placeholder="https://…/driver-photo.jpg"
+              />
+              <span className="mt-1.5 block text-[11px] text-muted">
+                Shown on your driver profile. Blank keeps the default avatar.
+              </span>
+            </Field>
+
+            {/* Vehicle details */}
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Vehicle Make">
+                <input
+                  className={inputCls}
+                  value={vehicleMake}
+                  onChange={(e) => setVehicleMake(e.target.value)}
+                  placeholder="e.g. Maruti"
+                  required
+                />
+              </Field>
+              <Field label="Vehicle Model">
+                <input
+                  className={inputCls}
+                  value={vehicleModel}
+                  onChange={(e) => setVehicleModel(e.target.value)}
+                  placeholder="e.g. Swift"
+                  required
+                />
+              </Field>
+              <Field label="Model Year">
+                <input
+                  className={inputCls}
+                  value={vehicleYear}
+                  onChange={(e) => setVehicleYear(e.target.value)}
+                  type="number"
+                  min="1985"
+                  max="2030"
+                  placeholder="2019"
+                  required
+                />
+              </Field>
+              <Field label="Color">
+                <input
+                  className={inputCls}
+                  value={vehicleColor}
+                  onChange={(e) => setVehicleColor(e.target.value)}
+                  placeholder="e.g. Silver"
+                  required
+                />
+              </Field>
+              <Field label="Plate No. (any spacing)">
+                <input
+                  className={inputCls}
+                  value={vehiclePlate}
+                  onChange={(e) => setVehiclePlate(e.target.value)}
+                  placeholder="KA 05 MN 1234"
+                  required
+                />
+              </Field>
+              <Field label="Passenger Seats (excl. driver)">
+                <select
+                  className={inputCls}
+                  value={vehicleSeats}
+                  onChange={(e) => setVehicleSeats(e.target.value)}
+                  required
+                >
+                  {[1, 2, 3, 4, 5, 6, 7].map((n) => (
+                    <option key={n} value={String(n)}>
+                      {n} passenger seat{n > 1 ? "s" : ""}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Fuel Type">
+                <select
+                  className={inputCls}
+                  value={vehicleFuel}
+                  onChange={(e) => setVehicleFuel(e.target.value)}
+                  required
+                >
+                  {["petrol", "diesel", "cng", "ev", "hybrid"].map((f) => (
+                    <option key={f} value={f}>{f}</option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+            <Field label="Vehicle photo (https image URL — optional)">
+              <input
+                className={inputCls}
+                value={vehicleImageUrl}
+                onChange={(e) => setVehicleImageUrl(e.target.value)}
+                placeholder="https://…/my-car.jpg"
+              />
+              <span className="mt-1.5 block text-[11px] text-muted">
+                Shown on the vehicle card &amp; booking. Blank keeps the default car icon.
+              </span>
+            </Field>
+
             <Field label="Vehicle Mileage (km/L)">
               <div className="relative">
                 <input

@@ -9,6 +9,7 @@ export type SessionUser = {
   full_name: string;
   roles: Role[];
   phone_verified: boolean;
+  avatar_url?: string | null;
   mileage_kmpl?: number | null;
 };
 
@@ -38,7 +39,7 @@ export function loadSession(): { token: string | null; user: SessionUser | null 
 }
 
 export const authApi = {
-  register: (b: { phone: string; email?: string; password: string; full_name: string; roles: Role[]; mileage?: number; available_seats?: number }) =>
+  register: (b: { phone: string; email?: string; password: string; full_name: string; roles: Role[]; mileage?: number; available_seats?: number; avatar_url?: string; vehicle_make?: string; vehicle_model?: string; vehicle_year?: number; vehicle_color?: string; vehicle_plate_no?: string; vehicle_seats_total?: number; vehicle_fuel_type?: string; vehicle_image_url?: string }) =>
     req("/auth/register", { method: "POST", body: JSON.stringify(b) }),
   login: (b: { phone: string; password: string; role?: string }) =>
     req("/auth/login", { method: "POST", body: JSON.stringify(b) }),

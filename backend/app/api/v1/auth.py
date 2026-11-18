@@ -50,6 +50,7 @@ def _public_user(doc: dict) -> dict:
         "full_name": doc.get("full_name", ""),
         "roles": doc.get("roles", []),
         "phone_verified": bool(doc.get("phone_verified", False)),
+        "avatar_url": doc.get("avatar_url"),
         "mileage_kmpl": doc.get("mileage_kmpl"),
         "available_seats": doc.get("available_seats"),
     }
@@ -69,6 +70,7 @@ async def register(body: RegisterIn):
         "full_name": body.full_name.strip(),
         "roles": body.roles,
         "phone_verified": False,
+        "avatar_url": body.avatar_url,
         "driver_approval": "pending" if "driver" in body.roles else None,
         "driver_approval_note": None,
         "driver_approval_at": None,
@@ -88,29 +90,60 @@ async def register(body: RegisterIn):
     except DuplicateKeyError:
         raise HTTPException(status.HTTP_409_CONFLICT, "phone already registered")
     
-    if "driver" in body.roles and body.mileage is not None:
-        # Create an initial verified vehicle for the driver so they can host trips immediately
-        drv_mileage = float(body.mileage)
+    if "driver" in body.roles:
+        drv_mileage = float(body.mileage) if body.mileage else None
         plate_code = str(res.inserted_id)[-4:].upper()
-        veh_doc = {
-            "owner_id": res.inserted_id,
-            "make": "Primary",
-            "model": "Car",
-            "year": 2022,
-            "color": "Silver",
-            "plate_no": f"KA01DR{plate_code}",
-            "seats_total": (int(body.available_seats) + 1) if ("driver" in body.roles and body.available_seats is not None) else 4,
-            "fuel_type": "petrol",
-            "mileage_kmpl": drv_mileage,
-            "verification_status": "verified",
-            "is_active": True,
-            "created_at": now,
-            "updated_at": now,
-        }
-        try:
-            await db.vehicles.insert_one(veh_doc)
-        except Exception:
-            pass
+        if body.vehicle_make or body.vehicle_model or body.vehicle_plate_no:
+            # Vehicle details captured at signup: create the driver's initial
+            # vehicle from those details (verified, ready to host).
+            make = body.vehicle_make or "Vehicle"
+            model = body.vehicle_model or "Car"
+            year = body.vehicle_year or 2022
+            color = body.vehicle_color or "Silver"
+            plate_no = body.vehicle_plate_no or f"KA01DR{plate_code}"
+            seats_total = body.vehicle_seats_total if body.vehicle_seats_total is not None else 4
+            fuel_type = body.vehicle_fuel_type or "petrol"
+            image_url = body.vehicle_image_url
+            verification_status = "verified"
+        elif body.mileage is not None:
+            # Original behaviour: placeholder vehicle only when mileage given,
+            # so drivers can host trips immediately.
+            make = "Primary"
+            model = "Car"
+            year = 2022
+            color = "Silver"
+            plate_no = f"KA01DR{plate_code}"
+            seats_total = (int(body.available_seats) + 1) if body.available_seats is not None else 4
+            fuel_type = "petrol"
+            image_url = None
+            verification_status = "verified"
+        else:
+            # No vehicle info and no mileage: do not create a vehicle here;
+            # the driver can add one later via /vehicles.
+            make = None
+        if make is not None:
+            veh_doc = {
+                "owner_id": res.inserted_id,
+                "make": make,
+                "model": model,
+                "year": year,
+                "color": color,
+                "plate_no": plate_no,
+                "seats_total": seats_total,
+                "fuel_type": fuel_type,
+                "mileage_kmpl": drv_mileage,
+                "image_url": image_url,
+                "verification_status": verification_status,
+                "is_active": True,
+                "created_at": now,
+                "updated_at": now,
+            }
+            try:
+                await db.vehicles.insert_one(veh_doc)
+            except DuplicateKeyError:
+                pass  # plate already taken; driver can add a vehicle later via /vehicles
+            except Exception:
+                pass
 
     created = await db.users.find_one({"_id": res.inserted_id})
     user = _public_user(created)

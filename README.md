@@ -914,3 +914,545 @@ refactor(ranker): consolidate feature extraction logic
 - The 9-part template in each doc file should remain consistent for SRS/final report generation.
 - Never commit real secrets; use `.env.example` / `.env.local` templates only.
 - Run `python -m pytest -q` locally before committing; the CI suite runs the full 121-test battery.
+
+---
+
+## Database & Collections (Module 2)
+
+VoltRide uses **MongoDB** (async Motor driver) with **11 collections**, GeoJSON `[lng, lat]` coordinates everywhere, and UTC timestamps (`depart_at`, `recorded_at`, `created_at`). Validators live in `database/schemas/*.json` (`$jsonSchema`) and indexes are defined in both `database/indexes/*.js` (mongosh) and `backend/app/core/indexes.py` (Python mirror) so `init_db.py` and the runtime never drift.
+
+### Entity relationship diagram
+
+```text
+users ──< vehicles (owner_id)
+  │         │
+  │         └── trips (driver_id, vehicle_id)
+  │                 ├── bookings (trip_id, passenger_id)
+  │                 ├── segments (trip_id, seq)
+  │                 ├── locations (trip_id, trip-scoped GPS only)
+  │                 └── safety_alerts (trip_id, opt booking_id)
+```
+
+### Collection reference
+
+| Collection | One document is… | Geo fields | Key indexes | TTL |
+|---|---|---|---|---|
+| `users` | A person; `roles[]` = `driver`/`passenger`/`admin` | — | unique `phone`, sparse `email` | — |
+| `vehicles` | A driver's car, verified before trips | — | unique `plate_no` | — |
+| `trips` | One driver drive, source → destination + route | `source.point`, `dest.point`, `route_geometry` (LineString) | 2dsphere ×3, `(status, depart_at)` | — |
+| `bookings` | One passenger request on a trip | `pickup.point`, `dropoff.point` | `(trip_id, status)` | — |
+| `segments` | One leg between stops (Module 13) | `from`/`to` points | unique `(trip_id, seq)` | — |
+| `locations` | One GPS ping, active trips only | `point` | 2dsphere | **30 days** |
+| `safety_alerts` | SOS / speeding / deviation event | `point` (optional) | `(trip_id, created_at)` | — |
+| `phone_otps` | OTP challenge for phone verification | — | `(phone, created_at)` + TTL | 10 min |
+| `recurring_groups` | Recurring ride series definition (Module 15) | — | — | — |
+| `ratings` | Post-trip ride rating (Module 22) | — | — | — |
+| `notifications` | In-app / push notifications (Module 23) | — | — | — |
+
+### Index summary (19 total)
+
+Defined in `backend/app/core/indexes.py` and mirrored in `database/indexes/01-indexes.mongosh.js` plus per-module index files (`02-auth`, `03-recurring`, `04-ratings`, `05-notifications`). Key groups:
+
+- **Geospatial**: `2dsphere` on `trips.source.point`, `trips.dest.point`, `trips.route_geometry`, `locations.point`.
+- **Compound unique**: `users.phone`, `vehicles.plate_no`, `segments.(trip_id, seq)`.
+- **Query support**: `bookings.(trip_id, status)`, `trips.(status, depart_at)`, `safety_alerts.(trip_id, created_at)`.
+- **TTL**: `locations` (30 days), `phone_otps` (10 minutes).
+
+### Initializing the database
+
+```powershell
+cd backend
+copy .env.example .env
+python init_db.py
+# Output: created users / validated vehicles / … / indexes ensured: 19 / DB ready: vehicle_sharing_dev
+```
+
+`init_db.py` is **idempotent** — re-running is safe. It calls `collMod` on existing collections and `create_collection` on missing ones, then ensures all indexes.
+
+### Seed data
+
+```powershell
+python seed.py        # demo accounts + week of trip history
+python seed_demo.py   # focused demo dataset
+python seed_admin.py  # admin bootstrap account
+```
+
+Seed scripts are **dev-only** and must never run against production.
+
+---
+
+## Full API Reference
+
+**Base URL:** `http://localhost:8000/api/v1`  
+**Interactive docs:** `GET /docs` (Swagger UI) and `GET /redoc`  
+All mutating endpoints require `Authorization: Bearer <access_token>` unless noted.
+
+### Health / ready / version probes
+
+| Endpoint | Auth | Description | Example response |
+|---|---|---|---|
+| `GET /health` | No | Always 200 while process is up | `{"status":"ok","service":"Intelligent Vehicle Sharing API","db":"disconnected","routing_provider":"osrm"}` |
+| `GET /ready` | No | 200 only when Mongo answers | `{"ready":true}` or `{"ready":false,"reason":"db disconnected"}` |
+| `GET /version` | No | Git SHA, app env, Python version | `{"git_sha":"abc123","app_env":"development","python_version":"3.8.10"}` |
+
+```powershell
+curl http://localhost:8000/api/v1/health
+curl http://localhost:8000/api/v1/ready
+curl http://localhost:8000/api/v1/version
+```
+
+### Authentication (`/auth/`)
+
+| Method | Endpoint | Description | Example request | Example response |
+|---|---|---|---|---|
+| `POST` | `/auth/register` | Register new user | `{"phone":"+919876543210","password":"secret123","full_name":"Ravi Kumar","roles":["passenger","driver"]}` | `201` + `{access_token, user}` |
+| `POST` | `/auth/login` | Login | `{"phone":"+919876543210","password":"secret123"}` | `{access_token, user}` |
+| `POST` | `/auth/otp/request` | Request OTP (dev shows code) | `{"phone":"+919876543210"}` | `{code, masked_phone}` |
+| `POST` | `/auth/otp/verify` | Verify OTP | `{"phone":"+919876543210","code":"123456"}` | `{phone_verified:true, success}` |
+| `GET` | `/auth/me` | Current user profile | Header: `Authorization: Bearer <token>` | `{user object}` |
+| `POST` | `/auth/logout` | Stateless logout | Header: `Authorization: Bearer <token>` | `{success:true}` |
+
+```powershell
+# Register
+curl -X POST http://localhost:8000/api/v1/auth/register ^
+  -H "Content-Type: application/json" ^
+  -d "{\"phone\":\"+919876543210\",\"password\":\"secret123\",\"full_name\":\"Ravi Kumar\",\"roles\":[\"passenger\",\"driver\"]}"
+
+# Login
+curl -X POST http://localhost:8000/api/v1/auth/login ^
+  -H "Content-Type: application/json" ^
+  -d "{\"phone\":\"+919876543210\",\"password\":\"secret123\"}"
+```
+
+### Geo / routing (`/geo/`)
+
+| Method | Endpoint | Description | Example request | Example response |
+|---|---|---|---|---|
+| `GET` | `/geo/search?q=` | Fuzzy place search (min 3 chars) | `?q=koramangala` | `[{name, latitude, longitude, score}]` |
+| `GET` | `/geo/reverse` | Reverse geocode | `?lat=12.93&lng=77.61` | `"Koramangala, Bengaluru"` |
+| `POST` | `/geo/route` | Preview route between two places | `{"src":"Indiranagar","dst":"Koramangala"}` | `{routed, distance_km, duration_min, geometry}` |
+
+### Trips (`/trips/`)
+
+| Method | Endpoint | Description | Example request | Example response |
+|---|---|---|---|---|
+| `GET` | `/trips` | List trips with filters | `?from=Indiranagar&to=Koramangala` | Paginated trip summaries |
+| `POST` | `/trips` | Create trip (driver) | `{"origin":"place_id","destination":"place_id","depart_at":"2026-01-15T08:00:00Z","seats":3}` | Created trip `{id, route_geometry, distance_km, duration_min, status}` |
+| `GET` | `/trips/{trip_id}` | Get trip by ID | — | Full trip object |
+| `GET` | `/trips/mine` | Current user's trips | Auth header | List of user's trips |
+
+### Search / matching (`/search/`)
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/search/rides` | Search available rides with `max_pickup_km` (default 3), `max_detour_km` (default 5), `min_overlap_pct` (default 20), `include_excluded` (default false) |
+
+### Minimum-detour search (`/rides/`)
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/rides/search-with-detour` | 8-step detour optimiser over every published trip that day; returns feasible matches with pickup/drop points, detour km, extra time, overlap %, cost contribution |
+
+**Request body:**
+```json
+{
+  "source": {"lat": 12.93, "lng": 77.61, "address": "Indiranagar, Bengaluru"},
+  "destination": {"lat": 12.91, "lng": 77.64, "address": "Koramangala, Bengaluru"},
+  "date": "2026-01-15",
+  "time": "08:00",
+  "seats": 1
+}
+```
+
+**Response (per result):** `trip_id`, `driver_name`, `vehicle {make, model, plate_no, fuel_type, mileage_kmpl}`, `seats_available`, `departure_time`, `pickup_point {lat, lng, address}`, `drop_point {lat, lng, address}`, `walk_distance_km`, `detour_km`, `extra_time_min`, `passenger_distance_km`, `estimated_contribution`, `estimated`, `route_overlap_percent`, `driver_route_polyline`, `passenger_segment_polyline`.
+
+### Bookings (`/bookings/`)
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/bookings` | Create booking from match snapshot (`ai_score`, `ai_model`, `match_explain`) → `201` + `{id, status, match_score, ai_score}` |
+| `GET` | `/bookings` | List bookings (auth) |
+| `GET` | `/bookings/{booking_id}` | Booking details |
+
+### Vehicles (`/vehicles/`)
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/vehicles` | Register vehicle: `plate` (unique), `verified`, `seating_capacity`, `fuel_type`, `mileage_kmpl` |
+| `GET` | `/vehicles` | List vehicles |
+
+### Profile (`/profiles/`)
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/profiles/me` | Current profile (auth) |
+| `PATCH` | `/profiles/me` | Update `full_name`, `phone`, `roles` |
+
+### Cost (`/cost/`) — Module 12
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/cost/estimate` | Price a ride share: distance, time, mileage, fuel price, occupant count, `COST_SPLIT_POLICY` |
+| `POST` | `/cost/contribution` | Detour fuel contribution for a passenger |
+
+### Segments (`/segments/`) — Module 13
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/segments/{trip_id}` | Trip legs (from/to stops) |
+| `POST` | `/segments` | Add a stop/segment to a trip |
+
+### Recurring rides (`/recurring/`) — Modules 14–15
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/recurring` | Define a recurring series (`ADVANCE_MAX_DAYS=30`, `RECURRING_HORIZON_DAYS=21`) |
+| `GET` | `/recurring` | List upcoming instances |
+
+### Ratings (`/ratings/`) — Module 22
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/ratings` | Rate a completed ride (1–5 stars) |
+| `GET` | `/ratings/{trip_id}` | Trip ratings |
+
+### Notifications (`/notifications/`) — Module 23
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/notifications` | User's notifications |
+| `PATCH` | `/notifications/{id}/read` | Mark as read |
+
+### Analytics (`/analytics/`) — Module 24
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/analytics/stats` | Platform-wide aggregates |
+| `GET` | `/analytics/rides` | Ride volume over time |
+
+### Tracking (`/tracking/`) — Module 17
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/tracking/fix` | Submit GPS fix (driver, active trip only) |
+| `GET` | `/tracking/trail/{trip_id}` | Recent GPS trail |
+
+### Safety (`/safety/`) — Module 18
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/safety/alert` | Raise SOS / speeding / deviation event |
+| `GET` | `/safety/alerts/{trip_id}` | Trip safety events |
+
+### Live / streaming (`/stream/`) — Module 20
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `WS` | `/stream/trips/{trip_id}` | WebSocket live tracking fan-out per trip |
+
+### Admin (`/db/`, `/admin/`) — Module 21
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/db/stats` | Database statistics `{trips, users, vehicles, bookings, …}` |
+| `GET` | `/db/schema/{collection}` | JSON schema validator for a collection |
+| `POST` | `/db/init` | Initialize database (`created: ×11, indexes ensured: 19`) |
+
+---
+
+## WebSocket / Live Tracking Protocol (Module 20)
+
+VoltRide pushes live GPS fixes to every watcher of a trip through an **in-process WebSocket hub** (`backend/app/services/hub.py`, class `LiveHub`, singleton `hub`).
+
+### Connection flow
+
+1. Passenger opens a trip's live page → frontend opens `WS ws://<host>/api/v1/stream/trips/{trip_id}` (scheme derived from `NEXT_PUBLIC_API_URL`: `http→ws`, `https→wss`).
+2. Server calls `hub.subscribe(trip_id, ws)` → returns current subscriber count.
+3. On each driver GPS fix, the tracking route calls `hub.broadcast(trip_id, payload)` → every subscriber receives the JSON frame immediately.
+4. On disconnect / error → `hub.unsubscribe(trip_id, ws)`.
+
+### Message schema
+
+Every broadcast payload is normalised by `json_safe()` so `datetime` → ISO string and `ObjectId` → string. A typical frame:
+
+```json
+{
+  "trip_id": "64f…",
+  "lat": 12.9345,
+  "lng": 77.6123,
+  "speed_kmh": 34.2,
+  "recorded_at": "2026-01-15T08:15:30Z",
+  "eta_min": 12
+}
+```
+
+### Heartbeat & failure discipline
+
+- `HEARTBEAT_S = 5.0` — subscribers re-read from DB when nothing is pushed (safety net for changes arriving over HTTP or another process).
+- A socket that raises on `send_json` is **dropped** from the registry (dead connections never poison a broadcast); the failure reason is stored in `hub.last_error`.
+- `broadcast()` never raises — a push failure cannot fail the driver's ping that triggered it.
+
+### Scope & scale-out
+
+The registry is **in-process**, correct for a single uvicorn worker (the MVP deployment). Scaling to multiple workers/replicas requires a shared bus (Redis pub/sub or NATS) behind `broadcast()` — no caller changes needed.
+
+**Reverse-proxy note:** The proxy must forward the `Upgrade` header for `WS /api/v1/stream/trips/{id}`, or live tracking silently degrades.
+
+### Hub stats (admin console)
+
+```json
+{
+  "trips": 3,
+  "sockets": 5,
+  "pushed": 1247,
+  "dropped": 2,
+  "last_error": null,
+  "scope": "in-process (single worker); Redis pub/sub is the scale-out path"
+}
+
+---
+
+## ML / AI Ride Ranking — Model Card (Module 16)
+
+### Purpose
+
+After hard gates (pickup distance, direction, overlap) filter candidates, an AI model re-ranks feasible matches. The final score is a **blend**:
+
+```
+blended = 0.5 × rule_score + 0.5 × ai_score
+```
+
+The AI never overrides hard constraints — a gated-out ride always gets `ai_score=None`.
+
+### Feature set (4 normalised signals, all in [0, 1], higher = better)
+
+Defined identically in `ml/README.py` and `backend/app/services/ranker.py` so training and serving cannot drift:
+
+| Feature | Formula | Meaning |
+|---|---|---|
+| `overlap01` | `overlap_pct / 100` | Route share the rider actually uses |
+| `pickup01` | `max(0, 1 − pickup_km / max_pickup_km)` | Walk distance to pickup |
+| `dropoff01` | `max(0, 1 − dropoff_km / max_detour_km)` | Drop deviation from driver route |
+| `time01` | `1 − min(1, time_diff_min / 120)` | Departure-time proximity (0.6 when unspecified) |
+
+### Training pipeline
+
+```
+ml/make_dataset.py   →  synthetic 4000-row CSV  →  ml/train_ranker.py  →  ml/artifacts/ranker.json
+```
+
+1. `make_dataset.py` generates a labelled synthetic dataset.
+2. `train_ranker.py` trains logistic regression / random forest / XGBoost and exports `ranker.json` (plain JSON weights + model card).
+3. The backend runtime **never imports** `pandas`/`scikit-learn`/`xgboost` — it reads `ranker.json` via a stdlib-only ranker service (`backend/app/services/ranker.py`).
+
+### Artifact format (`ml/artifacts/ranker.json`)
+
+```json
+{
+  "model": "logistic_regression",
+  "weights": {"overlap01": 0.42, "pickup01": 0.28, "dropoff01": 0.18, "time01": 0.12},
+  "bias": 0.05,
+  "features": ["overlap01","pickup01","dropoff01","time01"],
+  "trained_at": "2026-01-15T…",
+  "version": "1.0"
+}
+```
+
+### Training commands (repo root)
+
+```powershell
+cd ml
+pip install -r requirements.txt
+python make_dataset.py
+python train_ranker.py
+```
+
+If the artifact is missing, the API falls back to `rule-fallback` scoring in `/rank/info`.
+
+---
+
+## Cost Calculation Engine (Module 12)
+
+### Pricing inputs
+
+| Source | Values |
+|---|---|
+| Fuel prices (₹/unit) | Petrol 104.5, Diesel 95.0, CNG 89.0, EV 12.0 (kWh-equiv), Hybrid 95.0 |
+| Default mileage | 15 km/l |
+| Cost policy | `split_equal` / `EQUAL_SPLIT` / `FULL_PASSENGER_SHARE` |
+| Detour cost inclusion | `INCLUDE_DETOUR_COST=false` (default) |
+
+### Contribution formula
+
+`compute_detour_contribution` (`backend/app/modules/cost/calculator.py`) prices each share using:
+
+```
+contribution = f(route_distance_km, travel_time_min, mileage_kmpl, fuel_price, occupant_count, cost_split_policy, include_detour_cost)
+```
+
+The passenger pays only for the **shared segment** (`cumulative(Q) − cumulative(P)`), not the driver's whole route.
+
+### Environment knobs (`.env`)
+
+| Knob | Default | Meaning |
+|---|---|---|
+| `FUEL_PRICE_PETROL` | `104.5` | ₹ per litre |
+| `FUEL_PRICE_DIESEL` | `95.0` | ₹ per litre |
+| `FUEL_PRICE_CNG` | `89.0` | ₹ per kg |
+| `FUEL_PRICE_EV` | `12.0` | ₹ per kWh-equivalent |
+| `DEFAULT_MILEAGE_KMPL` | `15.0` | km per litre |
+| `DEFAULT_COST_POLICY` | `split_equal` | equal vs full passenger share |
+| `COST_SPLIT_POLICY` | `EQUAL_SPLIT` | `EQUAL_SPLIT` / `FULL_PASSENGER_SHARE` |
+| `INCLUDE_DETOUR_COST` | `false` | add detour fuel to passenger share |
+
+---
+
+## Security & Production Hardening (Module 25)
+
+### Startup production guard
+
+When `APP_ENV=production`, `backend/app/main.py` calls `validate_production()` and **refuses to boot** if any check fails:
+
+| Check | Pass condition |
+|---|---|
+| JWT secret | Not the shipped dev value `change-me-in-dev-only-min-32-chars` |
+| JWT length | ≥ 32 characters |
+| CORS origins | Non-empty list |
+| CORS scheme | No plain `http://` origins except `localhost` / `127.0.0.1` |
+| Mongo DB name | Non-empty |
+
+In development the guard is a no-op, so tests and local work are unaffected.
+
+### Authentication security
+
+- JWT signed with `python-jose` (HS256), expiry `JWT_EXPIRE_MINUTES` (default 10080 min = 7 days).
+- Password hashing with `passlib[bcrypt]`.
+- Phone OTP: 5 attempts max, 10-minute TTL, code displayed on screen in dev mode.
+- `python-jose[cryptography]==3.3.0` pinned to avoid drift.
+
+### CORS
+
+Locked to `settings.cors_origin_list` (parsed from comma-separated `CORS_ORIGINS`). Credentials allowed.
+
+### Recommendations for production
+
+1. Rotate `JWT_SECRET` to a 32+ random character value.
+2. Use `https://` CORS origins only.
+3. Set `NEXT_PUBLIC_API_URL` at **build time** (it is inlined into the Next.js bundle).
+4. Consider HttpOnly cookies + short access-token expiry + refresh rotation instead of `localStorage` (current demo-acceptable pattern is XSS-exposed).
+
+---
+
+## Minimum-Detour Search — Algorithm Detail (Module 10)
+
+`POST /api/v1/rides/search-with-detour` runs an **8-step route-snapping / corridor-matching optimiser** over every published trip for the day:
+
+| Step | Action | Gate |
+|---|---|---|
+| 1 | Fetch driver route polyline from OSRM (haversine fallback, `estimated:true`) | — |
+| 2 | Snap passenger source onto polyline → pickup point `P` | Walk ≤ `MAX_PICKUP_DISTANCE_KM` (3 km) |
+| 3 | Project passenger destination → drop point `Q` | — |
+| 4 | Direction gate | `Q` must be after `P` (forward) |
+| 5 | Destination tolerance | `Q` within `DEST_TOLERANCE_KM` (2 km) of driver destination |
+| 6 | Passenger distance | `cumulative(Q) − cumulative(P)` > 0 |
+| 7 | Feasibility limits | detour ≤ 3 km, extra time ≤ 10 min, pickup walk ≤ 3 km |
+| 8 | Cost contribution | `compute_detour_contribution` prices the share |
+
+### Response fields per match
+
+`trip_id`, `driver_name`, `vehicle`, `seats_available`, `departure_time`, `pickup_point`, `drop_point`, `walk_distance_km`, `detour_km`, `extra_time_min`, `passenger_distance_km`, `estimated_contribution`, `estimated`, `route_overlap_percent`, `driver_route_polyline`, `passenger_segment_polyline`.
+
+---
+
+## Monitoring & Observability
+
+| Probe | Endpoint | Condition |
+|---|---|---|
+| Liveness | `GET /health` | Always 200 while process up (Mongo may be down) |
+| Readiness | `GET /ready` | 200 only when Mongo answers |
+| Version | `GET /version` | Git SHA, env, Python version |
+| Hub stats | Admin console | `hub.stats()` — trips, sockets, pushed, dropped, last_error |
+| DB stats | `GET /db/stats` | Counts per collection |
+
+### TTL & data retention
+
+- `locations` (GPS pings): **30-day TTL**, active trips only — privacy-by-design.
+- `phone_otps`: **10-minute TTL**.
+- No permanent location history is stored.
+
+---
+
+## Backup & Restore
+
+### MongoDB dump / restore
+
+```powershell
+# Backup
+mongodump --uri="mongodb://localhost:27017/vehicle_sharing_dev" --out=./backup/$(Get-Date -Format "yyyyMMdd")
+
+# Restore
+mongorestore --uri="mongodb://localhost:27017/vehicle_sharing_dev" ./backup/20260115/vehicle_sharing_dev
+```
+
+### Idempotent re-init
+
+```powershell
+cd backend
+python init_db.py   # safe to rerun; creates missing collections, collMods existing, ensures indexes
+```
+
+### Seed data separation
+
+Seed scripts (`seed.py`, `seed_demo.py`, `seed_admin.py`) insert **demo accounts and trip history only** — never run against production.
+
+---
+
+## Frontend: Next.js App Router vs Static HTML/CSS Port
+
+The repository contains **two frontend representations**:
+
+| Variant | Location | Stack | Build step |
+|---|---|---|---|
+| Next.js App Router (primary) | `frontend/app/`, `frontend/components/`, `frontend/lib/` | Next.js 14, React 18, TypeScript, Tailwind | `npm run build` |
+| Static HTML/CSS port (separate docs) | `frontend/*.html` | Plain HTML + CSS + JS | None |
+
+The root README documents the Next.js monorepo. The static port is documented in `frontend/README.md`. They share the same backend API at `http://localhost:8000/api/v1`.
+
+### Key Next.js routes
+
+`/`, `/login`, `/register`, `/verify`, `/me`, `/trips`, `/garage`, `/profile`, `/requests`, `/bookings`, `/admin`, `/not-found`, `/error`.
+
+### Key UI primitives (`components/ui/`)
+
+`Button`, `Card`, `Input`, `Badge`, `Avatar`, `Separator`, `TripCard`, `RideCard`, `MatchCard`, `DetourRideCard`, `VehicleTrackingCard`, `StatusPill`, `ThemeToggle`, `LiveTrack`, `RouteMap`, `PlacePicker`, `PickupChooser`, `StarPicker`, `Stars`, `CollectionCard`, `FeatureGrid`, `LiveCorridorMap`, `SafetyBanner`, `RateRideCard`, `TripCostCard`, `TrustSignals`, `VehicleArt`, `VehicleCard`, `VehicleForm`, `BookingPanel`, `MatchPipeline`, `NotificationBell`.
+
+### Design tokens
+
+- Dark background: Indigo `#0B1030` / accent `#7B77FF`
+- Light accent: Lime `#C6FF4A`
+- Display type: Sora; Body type: Inter
+- Theme stored via `data-theme` on `<html>`, persisted in `localStorage`, respects `prefers-reduced-motion`.
+
+---
+
+## FAQ
+
+| Question | Answer |
+|---|---|
+| **Does `NEXT_PUBLIC_*` change at runtime?** | No — it is inlined at Next.js **build time**. Rebuild the image after changing it. |
+| **Why single uvicorn worker?** | Module 20's WebSocket hub is an in-process registry. `--workers 2` gives each worker its own watchers; half the clients would stop receiving frames. Scale-out needs Redis/NATS behind `hub.broadcast()`. |
+| **OSRM is down / rate-limited — what happens?** | Haversine straight-line fallback is used; detour results are flagged `estimated:true`. Save still works; refresh later for real routing. |
+| **`npm.ps1 cannot be loaded`** | PowerShell execution policy blocks `npm.ps1`. Use `npm.cmd` or run `start-dev.ps1` with `-ExecutionPolicy Bypass`. |
+| **`409 phone exists` on register** | Expected — that phone already has an account; log in instead. |
+| **`422 roles admin`** | By design — request `driver` or `passenger` only; admin is bootstrapped via `seed_admin.py`. |
+| **`detour_km` higher than expected** | Detour is route-following distance (OSRM), not crow-flies. Route wiggle inflates it. |
+| **`rule-fallback` in `/rank/info`** | ML artifact missing — run `ml/make_dataset.py` then `ml/train_ranker.py` from the repo root. |
+| **Why `python init_db.py` is required** | Without it there are no unique, geo, TTL, or partial indexes — duplicate phone numbers become possible. |
+
+---
+
+## Changelog
+
+| Version | Date | Changes |
+|---|---|---|
+| `v1.0.0` | 2026-01-15 | 25/25 modules complete · 121 tests passing · 92 API routes · 11 MongoDB collections · minimum-detour pickup optimisation · AI ride ranking · live WebSocket tracking · production hardening guard |

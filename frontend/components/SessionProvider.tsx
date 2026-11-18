@@ -10,7 +10,7 @@ type Ctx = {
   ready: boolean;
   error: string | null;
   login: (phone: string, password: string, role?: string) => Promise<void>;
-  register: (b: { phone: string; email?: string; password: string; full_name: string; roles: ("driver" | "passenger")[]; mileage?: number; available_seats?: number }) => Promise<void>;
+  register: (b: { phone: string; email?: string; password: string; full_name: string; roles: ("driver" | "passenger")[]; mileage?: number; available_seats?: number; avatar_url?: string; vehicle_make?: string; vehicle_model?: string; vehicle_year?: number; vehicle_color?: string; vehicle_plate_no?: string; vehicle_seats_total?: number; vehicle_fuel_type?: string; vehicle_image_url?: string }) => Promise<void>;
   logout: () => void;
   refresh: () => Promise<void>;
   setVerified: () => void;

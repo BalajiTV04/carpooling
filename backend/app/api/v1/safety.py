@@ -143,6 +143,43 @@ async def sos(body: SosIn, user: Dict = Depends(get_current_user)):
                booking_id=str(booking_oid) if booking_oid else None,
                who="A rider", detail=(body.message or "no message"),
                _trip=trip)
+    # Also notify the passenger(s) on this trip so the SOS appears in the
+    # passenger's own notification feed (not just driver/admin).
+    try:
+        passenger_ids: List[str] = []
+        if booking_oid is not None:
+            b = await db.bookings.find_one({"_id": booking_oid})
+            if b is not None:
+                pid = str(b["passenger_id"])
+                if pid not in passenger_ids:
+                    passenger_ids.append(pid)
+        else:
+            cur = db.bookings.find({
+                "trip_id": trip["_id"],
+                "passenger_id": {"$ne": ObjectId(user["id"])},
+                "status": {"$in": list(ACTIVE_BOOKING)},
+            })
+            async for b in cur:
+                pid = str(b["passenger_id"])
+                if pid not in passenger_ids:
+                    passenger_ids.append(pid)
+        now = _utcnow()
+        for pid in passenger_ids:
+            await db.notifications.insert_one({
+                "user_id": ObjectId(pid),
+                "type": "sos",
+                "title": "SOS — emergency alert",
+                "body": "An SOS was raised on your trip. Driver and support have been notified.",
+                "priority": "critical",
+                "action": None,
+                "trip_id": trip["_id"],
+                "booking_id": booking_oid,
+                "read_at": None,
+                "created_at": now,
+            })
+    except Exception:
+        # Never let a notification write roll back / fail the SOS itself.
+        pass
     return _out(doc)
 
 
