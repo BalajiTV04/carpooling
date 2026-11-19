@@ -40,7 +40,7 @@ from app.services.cost import distribute, resolve_fuel_price, total_fuel_cost  #
 
 SEED_PHONES = ["+91900000000" + str(i) for i in range(1, 7)]
 ADMIN_PHONE, DRV1, DRV2, PAX1, PAX2, PAX3 = SEED_PHONES
-PASSWORD = "pass1234"
+PASSWORD = "admin123"
 # Bengaluru-ish corridor used throughout the project's tests and docs
 ROUTE = [[77.5946, 13.0358], [77.6100, 13.0200], [77.6250, 12.9900],
          [77.6450, 12.9400], [77.6600, 12.8900], [77.6700, 12.8452]]
@@ -224,7 +224,7 @@ async def main(keep: bool = False) -> None:
     # ensure indexes so the DB is ready for use
     await ensure_indexes(db)
 
-    DEMO_PASSWORD = "pass1234"
+    DEMO_PASSWORD = "admin123"
     now = _utcnow()
 
     ACCOUNTS = [

@@ -6,7 +6,7 @@ import { useSession } from "@/components/SessionProvider";
 import { AuthShell, Field, inputCls } from "@/components/AuthShell";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
-import { Car, UserCheck, Phone } from "lucide-react";
+import { Car, Shield, UserCheck } from "lucide-react";
 import { toDigits, isValidMobile10, formatDisplay, DEFAULT_COUNTRY_CODE } from "@/lib/phone";
 
 function LoginForm() {
@@ -16,8 +16,8 @@ function LoginForm() {
   const nextParam = searchParams.get("next");
   const roleParam = searchParams.get("role");
 
-  const [role, setRole] = useState<"driver" | "passenger" | null>(
-    roleParam === "driver" ? "driver" : roleParam === "passenger" ? "passenger" : null
+  const [role, setRole] = useState<"driver" | "passenger" | "admin" | null>(
+    roleParam === "driver" ? "driver" : roleParam === "passenger" ? "passenger" : roleParam === "admin" ? "admin" : null
   );
   const [form, setForm] = useState({ phone: "", password: "" });
   const [phoneError, setPhoneError] = useState<string | null>(null);
@@ -41,6 +41,8 @@ function LoginForm() {
         router.push("/driver");
       } else if (role === "passenger") {
         router.push("/passenger");
+      } else if (role === "admin") {
+        router.push("/admin/dashboard");
       } else {
         // Read stored session to direct appropriately
         const stored = typeof window !== "undefined" ? JSON.parse(localStorage.getItem("voltride_user") || "{}") : {};
@@ -66,7 +68,7 @@ function LoginForm() {
     >
       <form onSubmit={submit} className="grid gap-4">
         {/* Optional Role Filter Buttons */}
-        <div className="grid grid-cols-2 gap-2 mb-1">
+        <div className="grid grid-cols-3 gap-2 mb-1">
           <button
             type="button"
             onClick={() => setRole(role === "passenger" ? null : "passenger")}
@@ -90,6 +92,18 @@ function LoginForm() {
           >
             <Car className="h-4 w-4" />
             Driver
+          </button>
+          <button
+            type="button"
+            onClick={() => setRole(role === "admin" ? null : "admin")}
+            className={`flex items-center justify-center gap-2 rounded-xl border py-2.5 px-3 text-xs font-semibold transition ${
+              role === "admin"
+                ? "border-brand-teal bg-brand-teal/15 text-brand-teal ring-1 ring-brand-teal"
+                : "border-line bg-surface text-muted hover:border-brand-teal/30 hover:text-ink"
+            }`}
+          >
+            <Shield className="h-4 w-4" />
+            Admin
           </button>
         </div>
 
@@ -144,7 +158,7 @@ function LoginForm() {
         {error && <Alert variant="danger">{error}</Alert>}
 
         <Button variant="primary" size="md" disabled={busy || !!phoneError || !isValidMobile10(toDigits(form.phone))} className="w-full">
-          {busy ? "Checking…" : `Log in as ${role === "driver" ? "Driver" : role === "passenger" ? "Passenger" : "User"} →`}
+          {busy ? "Checking…" : `Log in as ${role === "driver" ? "Driver" : role === "passenger" ? "Passenger" : role === "admin" ? "Admin" : "User"} →`}
         </Button>
 
         <p className="text-center text-sm text-muted">
