@@ -6,12 +6,14 @@ import { useSession } from "@/components/SessionProvider";
 import { AuthShell, Field, inputCls } from "@/components/AuthShell";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
-import { Car, UserCheck, Gauge } from "lucide-react";
+import { Car, UserCheck, Gauge, Phone } from "lucide-react";
+import { toDigits, isValidMobile10, formatDisplay, DEFAULT_COUNTRY_CODE } from "@/lib/phone";
 
 export default function RegisterPage() {
   const { register, error } = useSession();
   const router = useRouter();
-  const [form, setForm] = useState({ phone: "+91", full_name: "", password: "" });
+  const [form, setForm] = useState({ phone: "", full_name: "", password: "" });
+  const [phoneError, setPhoneError] = useState<string | null>(null);
   const [role, setRole] = useState<"passenger" | "driver">("passenger");
   const [mileage, setMileage] = useState("15.0");
   const [availableSeats, setAvailableSeats] = useState("1");
@@ -59,21 +61,40 @@ export default function RegisterPage() {
   return (
     <AuthShell title="Create account" sub="Choose your account type. Phone is your login key.">
       <form onSubmit={submit} className="grid gap-4">
-        <Field label="Phone (E.164)">
-          <input
-            className={inputCls}
-            type="tel"
-            pattern="\\+91[0-9]{10}"
-            name="phone"
-            title="Must start with +, e.g. +919876543210"
-            value={form.phone}
-            onChange={(e) => setForm({ ...form, phone: e.target.value })}
-            placeholder="+919876543210"
-            required
-          />
+                <Field label="Mobile Number">
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted font-medium">
+              {DEFAULT_COUNTRY_CODE}
+            </span>
+            <input
+              className={`${inputCls} pl-10`}
+              type="tel"
+              inputMode="numeric"
+              autoComplete="tel-national"
+              name="phone"
+              value={form.phone}
+              onChange={(e) => {
+                const raw = e.target.value;
+                const digits = toDigits(raw);
+                setForm({ ...form, phone: digits });
+                setPhoneError(
+                  digits && !isValidMobile10(digits)
+                    ? "Enter a valid 10-digit mobile number"
+                    : null
+                );
+              }}
+              placeholder="9876543210"
+              maxLength={10}
+              required
+            />
+            {phoneError && (
+              <p className="mt-1 text-[11px] text-danger" role="alert" aria-live="polite">
+                {phoneError}
+              </p>
+            )}
+          </div>
           <span className="mt-1 block text-[11px] text-muted">
-            Starts with <b className="text-brand-teal">+</b> — e.g.{" "}
-            <span className="text-brand-teal">+919876543210</span>
+            We will send an OTP to <b>{formatDisplay(form.phone) || "+91 XXXXXXXXXX"}</b>
           </span>
         </Field>
 
@@ -286,7 +307,21 @@ export default function RegisterPage() {
           </div>
         )}
 
-        {error && <Alert variant="danger">{error}</Alert>}
+        {error && (
+          <Alert variant="danger">
+            {error === "phone already registered" ? (
+              <>
+                Number already registered.{" "}
+                <a href="/login" className="link-volt underline">
+                  Log in instead
+                </a>
+                .
+              </>
+            ) : (
+              error
+            )}
+          </Alert>
+        )}
 
         <Button variant="primary" size="md" disabled={busy} className="w-full">
           {busy ? "Creating…" : "Create & verify phone →"}
@@ -299,3 +334,4 @@ export default function RegisterPage() {
     </AuthShell>
   );
 }
+

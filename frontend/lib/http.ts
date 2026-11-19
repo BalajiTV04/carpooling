@@ -39,14 +39,24 @@ export function messageOf(body: unknown, status: number): string {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function req<T = any>(path: string, opts: RequestInit = {}): Promise<T> {
   const token = typeof window !== "undefined" ? localStorage.getItem(TOKEN_KEY) : null;
-  const res = await fetch(`${base()}${path}`, {
-    ...opts,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(opts.headers ?? {})
+  const isFormData = opts.body instanceof FormData;
+  const headers: Record<string, string> = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+  if (!isFormData) headers["Content-Type"] = "application/json";
+  if (opts.headers) {
+    for (const [k, v] of Object.entries(opts.headers as Record<string, string>)) {
+      headers[k] = v;
     }
-  });
+  }
+  let res: Response;
+  try {
+    res = await fetch(`${base()}${path}`, {
+      ...opts,
+      headers,
+    });
+  } catch {
+    throw new Error("Cannot reach the server. Check that the backend is running.");
+  }
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(messageOf(body, res.status));
   return body as T;

@@ -4,7 +4,7 @@ from typing import List, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
-from app.models.common import PHONE_RE, utcnow
+from app.models.common import MOBILE10_RE, normalize_phone, PHONE_RE, utcnow
 
 
 class UserDoc(BaseModel):
@@ -30,9 +30,7 @@ class UserDoc(BaseModel):
     @field_validator("phone")
     @classmethod
     def phone_e164(cls, v: str) -> str:
-        if not PHONE_RE.match(v):
-            raise ValueError("phone must be E.164, e.g. +919876543210")
-        return v
+        return normalize_phone(v)
 
     @field_validator("roles")
     @classmethod

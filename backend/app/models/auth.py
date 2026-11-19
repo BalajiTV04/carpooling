@@ -8,7 +8,7 @@ from typing import List, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
-from app.models.common import PHONE_RE
+from app.models.common import MOBILE10_RE, normalize_phone, PHONE_RE
 from app.models.vehicle import FUELS, normalise_plate
 
 
@@ -35,9 +35,7 @@ class RegisterIn(BaseModel):
     @field_validator("phone")
     @classmethod
     def phone_ok(cls, v: str) -> str:
-        if not PHONE_RE.match(v):
-            raise ValueError("phone must be E.164, e.g. +919876543210")
-        return v
+        return normalize_phone(v)
 
     @field_validator("roles")
     @classmethod
@@ -93,14 +91,29 @@ class LoginIn(BaseModel):
     password: str = Field(min_length=1)
     role: Optional[str] = None  # if provided, must match one of the account's roles
 
+    @field_validator("phone")
+    @classmethod
+    def phone_ok(cls, v: str) -> str:
+        return normalize_phone(v)
+
 
 class OtpRequestIn(BaseModel):
     phone: str
+
+    @field_validator("phone")
+    @classmethod
+    def phone_ok(cls, v: str) -> str:
+        return normalize_phone(v)
 
 
 class OtpVerifyIn(BaseModel):
     phone: str
     code: str = Field(min_length=6, max_length=6, pattern="^[0-9]{6}$")
+
+    @field_validator("phone")
+    @classmethod
+    def phone_ok(cls, v: str) -> str:
+        return normalize_phone(v)
 
 
 class TokenOut(BaseModel):

@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Eye, EyeOff, Lock, Mail, Phone, User } from "lucide-react";
+import { toDigits, isValidMobile10, formatDisplay, DEFAULT_COUNTRY_CODE } from "@/lib/phone";
 
 type Role = "driver" | "passenger";
 
@@ -64,7 +65,7 @@ export function RegisterForm({ role, next: nextParam = "/", className }: Registe
     if (!form.email.trim()) errs.email = "Email is required";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errs.email = "Enter a valid email";
     if (!form.phone.trim()) errs.phone = "Phone is required";
-    else if (!/^\+[0-9]{7,15}$/.test(form.phone)) errs.phone = "Use E.164 format, e.g. +919876543210";
+    else if (!isValidMobile10(toDigits(form.phone))) errs.phone = "Enter a valid 10-digit mobile number";
     if (!form.password) errs.password = "Password is required";
     else if (form.password.length < 6) errs.password = "Password must be at least 6 characters";
     if (!form.confirm_password) errs.confirm_password = "Confirm your password";
@@ -86,7 +87,7 @@ export function RegisterForm({ role, next: nextParam = "/", className }: Registe
     setBusy(true);
     try {
       const payload: any = {
-        phone: form.phone,
+        phone: toDigits(form.phone),
         email: form.email,
         password: form.password,
         full_name: form.full_name.trim(),
@@ -150,10 +151,14 @@ return (
           <input
             className="input pl-10"
             type="tel"
-            autoComplete="tel"
+            inputMode="numeric"
+            autoComplete="tel-national"
             value={form.phone}
-            onChange={(e) => setField("phone", e.target.value)}
-            placeholder="+919876543210"
+            onChange={(e) => {
+              setField("phone", toDigits(e.target.value));
+            }}
+            placeholder="9876543210"
+            maxLength={10}
             required
           />
           {fieldErrors.phone && <p className="mt-1 text-[10px] text-danger">{fieldErrors.phone}</p>}

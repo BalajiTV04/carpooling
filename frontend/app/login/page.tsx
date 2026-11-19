@@ -6,7 +6,8 @@ import { useSession } from "@/components/SessionProvider";
 import { AuthShell, Field, inputCls } from "@/components/AuthShell";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
-import { Car, UserCheck } from "lucide-react";
+import { Car, UserCheck, Phone } from "lucide-react";
+import { toDigits, isValidMobile10, formatDisplay, DEFAULT_COUNTRY_CODE } from "@/lib/phone";
 
 function LoginForm() {
   const { login, error } = useSession();
@@ -19,13 +20,20 @@ function LoginForm() {
     roleParam === "driver" ? "driver" : roleParam === "passenger" ? "passenger" : null
   );
   const [form, setForm] = useState({ phone: "", password: "" });
+  const [phoneError, setPhoneError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
     try {
-      await login(form.phone, form.password, role || undefined);
+      const digits = toDigits(form.phone);
+      if (!isValidMobile10(digits)) {
+        setPhoneError("Enter a valid 10-digit mobile number");
+        return;
+      }
+      setPhoneError(null);
+      await login(digits, form.password, role || undefined);
       // Determine redirection based on target or user role
       if (nextParam) {
         router.push(nextParam);
@@ -85,15 +93,41 @@ function LoginForm() {
           </button>
         </div>
 
-        <Field label="Phone">
-          <input
-            className={inputCls}
-            name="phone"
-            value={form.phone}
-            onChange={(e) => setForm({ ...form, phone: e.target.value })}
-            placeholder="+919876543210"
-            required
-          />
+        <Field label="Mobile Number">
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted font-medium">
+              {DEFAULT_COUNTRY_CODE}
+            </span>
+            <input
+              className={`${inputCls} pl-10`}
+              type="tel"
+              inputMode="numeric"
+              autoComplete="tel-national"
+              name="phone"
+              value={form.phone}
+              onChange={(e) => {
+                const raw = e.target.value;
+                const digits = toDigits(raw);
+                setForm({ ...form, phone: digits });
+                setPhoneError(
+                  digits && !isValidMobile10(digits)
+                    ? "Enter a valid 10-digit mobile number"
+                    : null
+                );
+              }}
+              placeholder="9876543210"
+              maxLength={10}
+              required
+            />
+            {phoneError && (
+              <p className="mt-1 text-[11px] text-danger" role="alert" aria-live="polite">
+                {phoneError}
+              </p>
+            )}
+          </div>
+          <span className="mt-1 block text-[11px] text-muted">
+            Log in with <b>{formatDisplay(form.phone) || "+91 XXXXXXXXXX"}</b>
+          </span>
         </Field>
 
         <Field label="Password">
@@ -109,7 +143,7 @@ function LoginForm() {
 
         {error && <Alert variant="danger">{error}</Alert>}
 
-        <Button variant="primary" size="md" disabled={busy} className="w-full">
+        <Button variant="primary" size="md" disabled={busy || !!phoneError || !isValidMobile10(toDigits(form.phone))} className="w-full">
           {busy ? "Checking…" : `Log in as ${role === "driver" ? "Driver" : role === "passenger" ? "Passenger" : "User"} →`}
         </Button>
 

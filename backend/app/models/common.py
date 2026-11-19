@@ -8,6 +8,32 @@ from pydantic import BaseModel, Field, field_validator
 # E.164 India phone, e.g. +919876543210 (Module 3 login key)
 PHONE_RE = re.compile(r"^\+91[0-9]{10}$")
 
+# Canonical Indian mobile: 10 digits, starts with 6-9
+MOBILE10_RE = re.compile(r"^[6-9][0-9]{9}$")
+
+
+def normalize_phone(value: str) -> str:
+    """Normalize a phone input to canonical +91 E.164 form.
+
+    Accepts: 10 digits, "91"+10 digits, "+91"+10 digits, or a leading "0".
+    Strips spaces and other non-digit characters.
+    Returns "+91XXXXXXXXXX".
+    Raises ValueError if the result is not a valid Indian mobile.
+    """
+    digits = re.sub(r"\D", "", value or "")
+    # Drop country code / trunk prefix if present
+    if digits.startswith("91") and len(digits) > 10:
+        digits = digits[2:]
+    elif digits.startswith("+91") and len(digits) > 13:
+        digits = digits[3:]
+    elif digits.startswith("0") and len(digits) > 10:
+        digits = digits[1:]
+    # Cut to 10 digits
+    digits = digits[:10]
+    if not MOBILE10_RE.match(digits):
+        raise ValueError("Enter a valid 10-digit mobile number")
+    return "+91" + digits
+
 
 def utcnow() -> datetime:
     return datetime.now(timezone.utc)

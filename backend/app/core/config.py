@@ -34,7 +34,10 @@ class Settings(BaseSettings):
     JWT_EXPIRE_MINUTES: int = 10080  # 7 days; phone-OTP sessions reuse this in Module 3
 
     # Comma-separated list, parsed into a list for CORSMiddleware.
-    CORS_ORIGINS: str = "http://localhost:3000"
+    CORS_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000"
+
+    # Default country code for phone normalization (e.g. "+91" for India).
+    DEFAULT_COUNTRY_CODE: str = "+91"
 
     # Routing provider switch honoured in Module 7. Default = free OSRM demo.
     ROUTING_PROVIDER: str = "osrm"

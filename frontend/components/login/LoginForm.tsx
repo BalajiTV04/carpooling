@@ -8,7 +8,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "@/components/SessionProvider";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
-import { Eye, EyeOff, Mail, Lock, Phone } from "lucide-react";
+import { Eye, EyeOff, Lock, Mail, Phone, User } from "lucide-react";
+import { toDigits, isValidMobile10, formatDisplay, DEFAULT_COUNTRY_CODE } from "@/lib/phone";
 
 interface LoginFormProps {
   role: "driver" | "passenger";
@@ -43,13 +44,20 @@ export function LoginForm({ role, next: nextParam = "/", className }: LoginFormP
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
     setLocalError(null);
     try {
-      await login(form.phone, form.password, role);
+      const digits = toDigits(form.phone);
+      if (!isValidMobile10(digits)) {
+        setPhoneError("Enter a valid 10-digit mobile number");
+        return;
+      }
+      setPhoneError(null);
+      await login(digits, form.password, role);
       router.push(next);
     } catch (error: any) {
       setLocalError(parseAuthError(error));
@@ -73,16 +81,27 @@ export function LoginForm({ role, next: nextParam = "/", className }: LoginFormP
         <span>Sign in as {role === "driver" ? "Driver" : "Passenger"}</span>
       </div>
       <div className="relative">
-        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted/50" />
+        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted/50" />
         <input
           className="input pl-10"
-          type="text"
-          autoComplete="username"
+          type="tel"
+          inputMode="numeric"
+          autoComplete="tel-national"
           value={form.phone}
-          onChange={(e) => setForm({ ...form, phone: e.target.value })}
-          placeholder="you@example.com or +919876543210"
+          onChange={(e) => {
+            const digits = toDigits(e.target.value);
+            setForm({ ...form, phone: digits });
+            setPhoneError(
+              digits && !isValidMobile10(digits)
+                ? "Enter a valid 10-digit mobile number"
+                : null
+            );
+          }}
+          placeholder="9876543210"
+          maxLength={10}
           required
         />
+        {phoneError && <p className="mt-1 text-[10px] text-danger">{phoneError}</p>}
       </div>
       <div className="relative">
         <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted/50" />
@@ -105,7 +124,7 @@ export function LoginForm({ role, next: nextParam = "/", className }: LoginFormP
         </button>
       </div>
       {(error || localError) && <Alert variant="danger">{localError || error}</Alert>}
-      <Button variant="primary" size="md" disabled={busy} className="w-full">
+      <Button variant="primary" size="md" disabled={busy || !!phoneError || !isValidMobile10(toDigits(form.phone))} className="w-full">
         {busy ? "Signing in…" : "Sign in →"}
       </Button>
       <p className="text-center text-sm text-muted">
