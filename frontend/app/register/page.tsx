@@ -166,13 +166,20 @@ export default function RegisterPage() {
         {role === "driver" && (
           <div className="rounded-xl border border-brand-teal/30 bg-brand-teal/5 p-4 animate-in fade-in space-y-4">
             {/* Driver photo */}
-            <Field label="Driver photo (https image URL — optional)">
+            <Field label="Driver photo (select from device — optional)">
               <input
+                type="file"
+                accept="image/*"
                 className={inputCls}
-                value={avatarUrl}
-                onChange={(e) => setAvatarUrl(e.target.value)}
-                placeholder="https://…/driver-photo.jpg"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = () => setAvatarUrl(reader.result as string);
+                  reader.readAsDataURL(file);
+                }}
               />
+              {avatarUrl && <span className="mt-1.5 block text-[11px] text-muted">Photo selected & will be uploaded</span>}
               <span className="mt-1.5 block text-[11px] text-muted">
                 Shown on your driver profile. Blank keeps the default avatar.
               </span>
@@ -255,13 +262,20 @@ export default function RegisterPage() {
                 </select>
               </Field>
             </div>
-            <Field label="Vehicle photo (https image URL — optional)">
+            <Field label="Vehicle photo (select from device — optional)">
               <input
+                type="file"
+                accept="image/*"
                 className={inputCls}
-                value={vehicleImageUrl}
-                onChange={(e) => setVehicleImageUrl(e.target.value)}
-                placeholder="https://…/my-car.jpg"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = () => setVehicleImageUrl(reader.result as string);
+                  reader.readAsDataURL(file);
+                }}
               />
+              {vehicleImageUrl && <span className="mt-1.5 block text-[11px] text-muted">Photo selected & will be uploaded</span>}
               <span className="mt-1.5 block text-[11px] text-muted">
                 Shown on the vehicle card &amp; booking. Blank keeps the default car icon.
               </span>

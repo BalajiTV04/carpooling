@@ -56,8 +56,10 @@ class RegisterIn(BaseModel):
         v = v.strip()
         if v == "":
             return None
-        if not (v.startswith("http://") or v.startswith("https://")):
-            raise ValueError("avatar_url must start with http(s)://")
+        # Accept data URLs OR http(s) URLs
+        if not (v.startswith("http://") or v.startswith("https://") or
+                (v.startswith("data:image/") and ";base64," in v)):
+            raise ValueError("avatar_url must be http(s):// URL or data:image/...;base64, ...")
         return v
 
     @field_validator("vehicle_image_url")
@@ -68,8 +70,10 @@ class RegisterIn(BaseModel):
         v = v.strip()
         if v == "":
             return None
-        if not (v.startswith("http://") or v.startswith("https://")):
-            raise ValueError("vehicle_image_url must start with http(s)://")
+        # Accept data URLs OR http(s) URLs
+        if not (v.startswith("http://") or v.startswith("https://") or
+                (v.startswith("data:image/") and ";base64," in v)):
+            raise ValueError("vehicle_image_url must be http(s):// URL or data:image/...;base64, ...")
         return v
 
     @field_validator("vehicle_fuel_type")
