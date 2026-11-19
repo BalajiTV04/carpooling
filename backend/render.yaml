@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: voltride-backend
+    env: python
+    plan: free
+    region: oregon
+    buildCommand: "pip install -r backend/requirements.txt"
+    startCommand: "uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT --workers 1"
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: MONGO_URI
+        sync: false
+      - key: MONGO_DB
+        value: voltride
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_EXPIRE_MINUTES
+        value: 10080
+      - key: CORS_ORIGINS
+        sync: false
+      - key: ROUTING_PROVIDER
+        value: osrm
+      - key: GEOCODER_PROVIDER
+        value: nominatim
+      - key: OSRM_URL
+        value: https://router.project-osrm.org
+      - key: NOMINATIM_URL
+        value: https://nominatim.openstreetmap.org
+      - key: NOMINATIM_USER_AGENT
+        sync: false
+      - key: GIT_SHA
+        value: dev
+    healthCheckPath: /api/v1/ready
+    autoDeploy: false

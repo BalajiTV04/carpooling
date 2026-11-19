@@ -2,25 +2,36 @@
 
 ### AI-Based Route-Aware Matching and Minimum-Detour Pickup Optimization
 
+![Python](https://img.shields.io/badge/Python-3.8%2B-blue?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.109%2B-009688?logo=fastapi&logoColor=white)
+![Next.js](https://img.shields.io/badge/Next.js-14.2-white?logo=next.js&logoColor=black)
+![React](https://img.shields.io/badge/React-18.3-61DAFB?logo=react&logoColor=black)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.6-blue?logo=typescript&logoColor=white)
+![MongoDB](https://img.shields.io/badge/MongoDB-3.3%2B-47A248?logo=mongodb&logoColor=white)
+![Tests](https://img.shields.io/badge/Tests-147%20passing-brightgreen?logo=jest)
+![License](https://img.shields.io/badge/License-Private-lightgrey)
+
 ---
 
 ## Table of contents
 
 1. [Overview](#overview)
-2. [Architecture](#architecture)
-3. [Tech stack](#tech-stack)
-4. [Directory structure](#directory-structure)
-5. [Environment setup](#environment-setup)
-6. [How to run locally](#how-to-run-locally)
-7. [API reference](#api-reference)
-8. [Minimum-detour search](#minimum-detour-search)
-9. [Frontend routes & components](#frontend-routes--components)
-10. [Design system (Tailwind)](#design-system-tailwind)
-11. [Testing](#testing)
-12. [25-module roadmap](#25-module-roadmap)
-13. [Deployment](#deployment)
-14. [Common errors & fixes](#common-errors--fixes)
-15. [Contributing & commit conventions](#contributing--commit-conventions)
+2. [Quick Start (5 minutes, no Docker)](#quick-start-5-minutes-no-docker)
+3. [Architecture](#architecture)
+4. [Tech stack](#tech-stack)
+5. [Database schema (11 MongoDB collections)](#database-schema-11-mongodb-collections)
+6. [Directory structure](#directory-structure)
+7. [Environment setup](#environment-setup)
+8. [How to run locally](#how-to-run-locally)
+9. [API reference](#api-reference)
+10. [Minimum-detour search](#minimum-detour-search)
+11. [Frontend routes & components](#frontend-routes--components)
+12. [Design system (Tailwind)](#design-system-tailwind)
+13. [Testing](#testing)
+14. [25-module roadmap](#25-module-roadmap)
+15. [Deployment](#deployment)
+16. [Common errors & fixes](#common-errors--fixes)
+17. [Contributing & commit conventions](#contributing--commit-conventions)
 
 > **Note:** This file documents the real, framework-based codebase — the Next.js frontend + FastAPI backend monorepo. The `frontend/README.md` documents a separate static HTML/CSS port (no React, no Next.js, no build step).
 
@@ -36,6 +47,85 @@ VoltRide matches riders to drivers heading the same way, optimizing for corridor
 - **Live tracking** — follow the ride in real time with ETA. GPS locations are stored with a 30-day TTL for privacy, scoped to active trips only.
 - **Safety monitoring** — watch for safety events while the ride is in progress (speeding, deviations, SOS alerts). Telemetry data is collected via the `telemetry_safety` collection.
 - **Driver/passenger roles** — separate consoles for publishing trips, booking, rating, and vehicle management. Drivers have vehicle registration and publishing capabilities; passengers have booking and rating capabilities.
+
+---
+
+## Quick Start (5 minutes, no Docker)
+
+Want to run VoltRide locally without Docker? Follow these steps.
+
+### Prerequisites
+
+- **Python 3.8+** (backend) — `python --version`
+- **Node.js 18+** (frontend) — `node --version`
+- **MongoDB** — either a local MongoDB instance (`mongod`) or a MongoDB Atlas cloud cluster
+
+### 1. Clone and configure
+
+```powershell
+# Clone the repo
+git clone https://github.com/BalajiTV04/carpooling.git
+cd carpooling
+
+# Backend environment
+cd backend
+copy .env.example .env
+# Edit .env: set MONGO_URI to your MongoDB connection string
+# Edit .env: set JWT_SECRET to a 32+ character random string
+
+# Frontend environment
+cd ..\frontend
+copy .env.example .env.local
+# Edit .env.local: set NEXT_PUBLIC_API_URL=http://localhost:8000
+```
+
+### 2. Initialize the database
+
+```powershell
+cd backend
+python init_db.py       # creates collections, validators, and indexes
+python seed.py          # optional: demo accounts + trip history
+```
+
+### 3. Start the backend
+
+```powershell
+cd backend
+uvicorn app.main:app --reload --port 8000
+```
+
+Backend API is now at `http://localhost:8000` — try `http://localhost:8000/api/v1/health`.
+
+### 4. Start the frontend
+
+```powershell
+cd ..\frontend
+npm install
+npm run dev             # http://localhost:3000
+```
+
+Open `http://localhost:3000` in your browser. Register as a driver or passenger, publish a trip, and search for matches.
+
+### 5. Verify everything works
+
+| Check | Command / URL | Expected |
+|-------|--------------|----------|
+| Backend health | `curl http://localhost:8000/api/v1/health` | `{"status":"ok", ...}` |
+| Backend ready | `curl http://localhost:8000/api/v1/ready` | `{"ready":true}` (Mongo connected) |
+| API docs | `http://localhost:8000/docs` | Swagger UI |
+| Frontend | `http://localhost:3000` | Next.js app loads |
+
+### Troubleshooting the quick start
+
+| Problem | Fix |
+|---------|-----|
+| `uvicorn` not found | `pip install -r backend/requirements.txt` |
+| `npm` not found | Install Node.js 18+ from https://nodejs.org |
+| `health` says `disconnected` | MongoDB is not running — start `mongod` or check your Atlas URI |
+| `409 phone exists` on register | That phone already has an account — log in instead |
+| `npm.ps1 cannot be loaded` | Use `npm.cmd` or run PowerShell with `-ExecutionPolicy Bypass` |
+
+---
 
 ### Key features by module
 
@@ -57,7 +147,7 @@ VoltRide matches riders to drivers heading the same way, optimizing for corridor
 | 14 | Advance booking | — |
 | 15 | Recurring rides | — |
 | 16 | AI ride ranking (learned re-rank) | ✅ Verified |
-| 17 | Tracking | — |
+| 17 | Tracking | ✅ Verified |
 | 18 | Safety | — |
 | 19 | Completion | — |
 | 20 | Streaming | — |
@@ -114,6 +204,28 @@ VoltRide matches riders to drivers heading the same way, optimizing for corridor
 | HTTP client | httpx | 0.26–0.29 |
 | Testing | pytest, pytest-asyncio | 7.4.4 / 0.21.1 |
 | ML / ranking | scikit-learn, numpy, pandas, xgboost | 1.1.1 / 1.24.3 / 2.0.3 / 2.1.4 |
+
+## Database schema (11 MongoDB collections)
+
+Created and validated by `backend/init_db.py` (run once before first use). All indexes are ensured idempotently.
+
+| Collection | Core fields | Indexes |
+|------------|-------------|---------|
+| `users` | `_id`, `phone` (E.164, unique), `password_hash`, `full_name`, `roles` `[passenger\|driver]`, `phone_verified`, `status`, `rating_avg`, `rating_count`, `created_at` | unique on `phone` |
+| `vehicles` | `_id`, `user_id`, `plate` (unique), `make`, `model`, `color`, `fuel_type`, `mileage_kmpl`, `seating_capacity`, `verified`, `created_at` | unique on `plate` |
+| `trips` | `_id`, `driver_id`, `vehicle_id`, `source` `{lat, lng, address}`, `destination` `{lat, lng, address}`, `route_geometry` `{type: LineString, coordinates: [...]}`, `distance_km`, `duration_min`, `depart_at`, `seats_offered`, `seats_available`, `status`, `created_at` | 2dsphere on `route_geometry.coordinates` |
+| `bookings` | `_id`, `trip_id`, `passenger_id`, `driver_id`, `seats`, `status`, `pickup` `{lat, lng, address}`, `dropoff` `{lat, lng, address}`, `match_score`, `ai_score`, `ai_model`, `match_explain`, `created_at`, `closed_at` | compound on `(trip_id, status)` |
+| `locations` | `_id`, `trip_id`, `point` `{type: Point, coordinates: [lng, lat]}`, `speed_kmph`, `accuracy_m`, `heading_deg`, `recorded_at`, `ttl` (30-day expiry) | 2dsphere on `point.coordinates`, TTL on `recorded_at` |
+| `safety_alerts` | `_id`, `trip_id`, `type` (speeding\|deviation\|sos), `severity`, `status`, `point` `{lat, lng}`, `details`, `created_at`, `resolved_at` | compound on `(trip_id, status)` |
+| `ratings` | `_id`, `booking_id`, `rater_id`, `target_id`, `stars` (1–5), `comment`, `created_at` | unique on `(booking_id, rater_id)` |
+| `notifications` | `_id`, `user_id`, `type`, `title`, `body`, `priority`, `action`, `trip_id`, `booking_id`, `read_at`, `created_at` | compound on `(user_id, read_at)` |
+| `segments` | `_id`, `trip_id`, `sequence`, `source`, `destination`, `distance_km`, `duration_min`, `polyline` | compound on `(trip_id, sequence)` |
+| `phone_otps` | `_id`, `phone`, `code`, `expires_at`, `attempts`, `created_at` | TTL on `expires_at` (10 min) |
+| `recurring_groups` | `_id`, `group_id`, `driver_id`, `base_trip_id`, `rule`, `starts_on`, `active`, `created_at` | unique on `group_id` |
+| `ratings` | `_id`, `booking_id`, `rater_id`, `target_id`, `stars` (1–5), `comment`, `created_at` | unique on `(booking_id, rater_id)` |
+| `notifications` | `_id`, `user_id`, `type`, `title`, `body`, `priority`, `action`, `trip_id`, `booking_id`, `read_at`, `created_at` | compound on `(user_id, read_at)` |
+
+> **`init_db.py` is not optional.** Without it there are no unique, geo, TTL, or partial indexes — duplicate phone numbers become possible and geospatial queries fail silently.
 
 ## Directory structure (monorepo layout)
 
@@ -319,23 +431,14 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 # MONGODB
 # ======================
 MONGO_URI=mongodb://localhost:27017
-MONGO_DB=voltride
-MONGO_ROOT_USER=None          # set in production .env.prod
-MONGO_ROOT_PASSWORD=None       # set in production .env.prod
+MONGO_DB=vehicle_sharing_dev
 
 # ======================
 # GEO / ROUTING
 # ======================
-OSRM_URL=http://router.project-osrm.org/route/v1/driving
-NOMINATIM_USER_AGENT=voltride-app
-NOMINATIM_ENABLE_VIEWBOX=BLR  # Bengaluru viewbox (bias only)
-
-# ======================
-# COST POLICY
-# ======================
-COST_PER_KM=5.0                  # base cost per kilometer
-COST_PER_MINUTE=0.5              # cost per minute of travel
-COOLING_OFF_MINUTES=15          # window for trip cancellation
+OSRM_URL=https://router.project.osrm.org
+NOMINATIM_URL=https://nominatim.openstreetmap.org
+NOMINATIM_USER_AGENT=carpooling/1.0 (https://github.com/BalajiTV04/carpooling; contact: dev@localhost)
 
 # ======================
 # MATCHING KNOBS (Module 9)
@@ -385,11 +488,22 @@ RECURRING_MAX_DAYS=90            # hard ceiling for a recurring series
 - `.env.prod` — production environment (never committed); edit `.env.example` → `.env.prod` for deploy
 - Per-service overrides: `backend/.env`, `frontend/.env.local`
 
+### Frontend-only variables (`frontend/.env.local`)
+
+| Variable | Required | Default | Meaning |
+|----------|----------|---------|---------|
+| `NEXT_PUBLIC_API_URL` | yes | `http://localhost:8000` | Base URL of the FastAPI backend (used by `fetch`/`axios` calls) |
+| `NEXT_PUBLIC_MAP_PROVIDER` | no | `osrm` | Routing provider name — matched against `backend` `ROUTING_PROVIDER` |
+| `NEXT_PUBLIC_OSRM_URL` | no | `https://router.project-osrm.org` | OSRM server URL for route geometry / ETA |
+| `NEXT_PUBLIC_NOMINATIM_URL` | no | `https://nominatim.openstreetmap.org` | Nominatim URL for forward / reverse geocoding |
+
+> Frontend env vars are **injected at build time**. Changing `.env.local` requires `npm run build` again (or `npm run dev` restart).
+
 ### Running with Docker Compose
 
 ```powershell
 # Development
-docker compose up -d mongo          # start MongoDB
+# MongoDB: local mongod or Atlas cluster
 cd backend
 copy .env.example .env              # generate from template
 python init_db.py                   # create collections + validators + indexes
@@ -415,7 +529,7 @@ cd backend
 copy .env.example .env
 python init_db.py           # REQUIRED: collections + validators + indexes
 python seed.py              # optional: demo accounts + history
-python -m pytest -q         # run: 121 tests passing
+python -m pytest -q         # run: 147 tests passing
 uvicorn app.main:app --reload --port 8000
 # expect at http://localhost:8000/api/v1/health:
 # {"status":"ok","service":"Intelligent Vehicle Sharing API","db":"disconnected","routing_provider":"osrm"}
@@ -535,6 +649,18 @@ curl http://localhost:8000/api/v1/version
 | `GET` | `/bookings` | List bookings | `Authorization: Bearer <token>` | Paginated list of bookings |
 | `GET` | `/bookings/{booking_id}` | Get booking details | — | Full booking object |
 
+### Tracking endpoints (`/tracking/`)
+
+| Method | Endpoint | Description | Request | Response |
+|---|---|---|---|---|
+| `POST` | `/tracking/{trip_id}/start` | Driver starts active GPS tracking for a trip | Trip owner auth | `{ok, trip_id, status, message}` |
+| `POST` | `/tracking/{trip_id}/stop` | Driver ends ride & stops tracking; completes trip + resolves bookings | Trip owner or admin | `{ok, trip_id, status, message}` |
+| `POST` | `/tracking/ping` | Driver sends device GPS fix (no trip_id in path) | `trip_id`, `lng`, `lat`, optional `speed_kmph`, `accuracy_m`, `heading_deg` | `{ok, started, progress, recorded_at, ...}` |
+| `POST` | `/tracking/{trip_id}/location` | Driver sends GPS fix for a specific trip | Same body as `/ping` | `{ok, started, progress, recorded_at, ...}` |
+| `GET` | `/tracking/live/{trip_id}` | Latest fix + route progress + ETA for trip audience (driver, booked passengers, admin) | Trip audience auth | `{trip_id, trip_status, fix, progress, stale, message}` |
+| `GET` | `/tracking/trail/{trip_id}` | Recent GPS breadcrumb trail (newest first) for map polyline | Trip audience auth | `{trip_id, trip_status, count, fixes: [...]}` |
+| `GET` | `/admin/tracking/active` | Fleet-wide live monitoring: all active trips with latest fix, progress, open alerts, watcher count | Admin auth | `{count, trips: [...]}` |
+
 ### Vehicle endpoints (`/vehicles/`)
 
 | Method | Endpoint | Description | Request | Response |
@@ -567,7 +693,105 @@ curl http://localhost:8000/api/v1/version
 
 Full OpenAPI spec is available at `/docs` (Swagger UI) and `/redoc`.
 
-## Minimum-detour search
+### Admin endpoints (`/admin/`) — Module 21 (admin role required)
+
+| Method | Endpoint | Description | Request | Response |
+|--------|----------|-------------|---------|----------|
+| `GET` | `/admin/stats` | Dashboard cards with derived metrics | `Authorization: Bearer <admin token>` | `{trips, users, vehicles, bookings, alerts, ...}` |
+| `GET` | `/admin/users` | Search + filter the user base | `Authorization: Bearer <admin token>` | Paginated list of user rows |
+| `POST` | `/admin/users/{id}/suspend` | Lock an account (live JWTs die immediately) | `Authorization: Bearer <admin token>` | `{ok, user_id, status}` |
+| `POST` | `/admin/users/{id}/reactivate` | Undo a suspension | `Authorization: Bearer <admin token>` | `{ok, user_id, status}` |
+| `POST` | `/admin/users/{id}/roles` | Add/remove driver | passenger | admin roles | `Authorization: Bearer <admin token>`, body: `roles` array | Updated user roles |
+| `GET` | `/admin/trips` | Cross-driver trip board | `Authorization: Bearer <admin token>` | Paginated list of all trips |
+| `GET` | `/admin/alerts` | Moderation queue (open + critical first) | `Authorization: Bearer <admin token>` | List of safety alerts |
+| `POST` | `/admin/alerts/{id}/resolve` | Close a safety alert | `Authorization: Bearer <admin token>` | `{ok, alert_id, status}` |
+| `GET` | `/admin/tracking/active` | Fleet-wide live monitoring: all active trips with latest fix, progress, open alerts, watcher count | `Authorization: Bearer <admin token>` | `{count, trips: [...]}` |
+
+### Ratings endpoints (`/ratings/`) — Module 22
+
+| Method | Endpoint | Description | Request | Response |
+|--------|----------|-------------|---------|----------|
+| `POST` | `/ratings` | Rate the other party on a completed booking | `{booking_id, stars, comment?}` | `201` + rating object |
+| `GET` | `/ratings/pending` | Completed rides I was part of, with my own score (null = not rated yet) | `Authorization: Bearer <token>` | `{count, unrated, items: [...]}` |
+| `GET` | `/ratings/booking/{id}` | The (0..2) reviews on one booking; parties only | `Authorization: Bearer <token>` | `{booking_id, count, items: [...]}` |
+| `GET` | `/ratings/user/{id}` | Public review card: aggregate + histogram + recent feed | `Authorization: Bearer <token>` | `RatingCard` object |
+
+### Notifications endpoints (`/notifications/`) — Module 23
+
+| Method | Endpoint | Description | Request | Response |
+|--------|----------|-------------|---------|----------|
+| `GET` | `/notifications` | My feed (newest first, unread first) | `Authorization: Bearer <token>` | `{count, unread, critical, by_type, items: [...]}` |
+| `GET` | `/notifications/summary` | Bell counts only `{unread, critical, by_type}` | `Authorization: Bearer <token>` | `{unread, critical, by_type}` |
+| `POST` | `/notifications/{id}/read` | Mark one notification read (own only) | `Authorization: Bearer <token>` | Notification object |
+| `POST` | `/notifications/read-all` | Mark everything read | `Authorization: Bearer <token>` | `{marked: int}` |
+
+### Segments endpoints (`/segments/`) — Module 13
+
+| Method | Endpoint | Description | Request | Response |
+|--------|----------|-------------|---------|----------|
+| `GET` | `/segments` | List route segments for a trip | `trip_id` query param | List of segment objects |
+| `POST` | `/segments` | Create / update a segment | Segment definition | Created segment object |
+
+### Safety endpoints (`/safety/`) — Module 18
+
+| Method | Endpoint | Description | Request | Response |
+|--------|----------|-------------|---------|----------|
+| `GET` | `/safety/alerts` | Open safety alerts for a trip | `trip_id` query param | List of safety alert objects |
+| `POST` | `/safety/alerts` | Raise a safety event (speeding, deviation, SOS) | Event body | Created alert object |
+| `POST` | `/safety/alerts/{id}/resolve` | Resolve an open alert | `Authorization: Bearer <token>` | `{ok, alert_id, status}` |
+
+### Fuel endpoints (`/fuel/`) — Module 12 (cost engine)
+
+| Method | Endpoint | Description | Request | Response |
+|--------|----------|-------------|---------|----------|
+| `GET` | `/fuel/prices` | Current fuel prices per litre (petrol, diesel, CNG, EV, hybrid) | — | `{petrol, diesel, cng, ev, hybrid}` |
+| `POST` | `/fuel/calculate` | Estimate fuel cost for a route | `{distance_km, fuel_type, mileage_kmpl}` | `{cost_inr, litres}` |
+
+### Cost endpoints (`/cost/`) — Module 12
+
+| Method | Endpoint | Description | Request | Response |
+|--------|----------|-------------|---------|----------|
+| `GET` | `/cost/split` | Compute fair cost split for a booking | `booking_id` query param | `{per_passenger, total, policy}` |
+| `POST` | `/cost/policy` | Set cost split policy (EQUAL_SPLIT / FULL_PASSENGER_SHARE) | `{policy}` | `{policy, updated}` |
+
+### Recurring endpoints (`/recurring/`) — Module 15
+
+| Method | Endpoint | Description | Request | Response |
+|--------|----------|-------------|---------|----------|
+| `POST` | `/recurring` | Create a recurring ride series | `{template_trip, horizon_days, max_days}` | Created recurring series object |
+| `GET` | `/recurring` | List my recurring series | `Authorization: Bearer <token>` | Paginated list of recurring series |
+| `PATCH` | `/recurring/{id}` | Update a recurring series | Fields to update | Updated series object |
+| `DELETE` | `/recurring/{id}` | Cancel a recurring series | `Authorization: Bearer <token>` | `{ok, id}` |
+
+### Advance booking endpoints (`/advance/`) — Module 14
+
+| Method | Endpoint | Description | Request | Response |
+|--------|----------|-------------|---------|----------|
+| `POST` | `/advance/bookings` | Book a trip in advance (max 30 days ahead) | `{trip_id, seats, depart_at}` | `201` + advance booking object |
+| `GET` | `/advance/bookings` | List my advance bookings | `Authorization: Bearer <token>` | Paginated list |
+| `PATCH` | `/advance/bookings/{id}/cancel` | Cancel an advance booking | `Authorization: Bearer <token>` | `{ok, booking_id, status}` |
+
+### Completion endpoints (`/completion/`) — Module 19
+
+| Method | Endpoint | Description | Request | Response |
+|--------|----------|-------------|---------|----------|
+| `POST` | `/completion/{booking_id}` | Mark a ride as completed + record safety summary | `Authorization: Bearer <token>` | `{ok, booking_id, status, summary}` |
+| `GET` | `/completion/{booking_id}` | Get completion summary for a booking | `Authorization: Bearer <token>` | Completion summary object |
+
+### Streaming endpoints (`/stream/`) — Module 20 (WebSocket)
+
+| Endpoint | Description | Query params | Notes |
+|--------|----------|--------------|-------|
+| `WS /api/v1/stream/trips/{trip_id}` | Live GPS tracking frames for a trip audience | `token` (JWT auth) | Single uvicorn worker required — in-process hub registry |
+| `WS /api/v1/stream/fleet` | Fleet-wide live tracking for admin dashboard | `token` (admin JWT auth) | Broadcasts active-trip fixes to all admin watchers |
+
+### Health / ready / version probes
+
+| Endpoint | Description | Response |
+|----------|-------------|----------|
+| `GET /api/v1/health` | Always 200 while process is up | `{"status":"ok","service":"Intelligent Vehicle Sharing API","db":"disconnected","routing_provider":"osrm"}` |
+| `GET /api/v1/ready` | 200 only when Mongo answers | `{"ready":true}` or `{"ready":false, "reason":"db disconnected"}` |
+| `GET /api/v1/version` | Git sha, app env, python version | `{"git_sha":"abc123","app_env":"development","python_version":"3.8.10"}` |
 
 ### What it does
 
@@ -663,6 +887,8 @@ Each result includes `trip_id`, `driver_name`, `vehicle`, `seats_available`, `de
 - `BookingPanel` — booking confirmation panel
 - `MatchPipeline` — matching pipeline visualization
 - `NotificationBell` — notification bell with count
+- `AdminFleetMap` — admin fleet-wide live tracking map with active trips, latest fixes, and open alerts
+- `DriverTrackingConsole` — driver console for starting/stopping live GPS tracking during an active ride
 
 ### Lib modules (`frontend/lib/`)
 
@@ -672,7 +898,7 @@ Each result includes `trip_id`, `driver_name`, `vehicle`, `seats_available`, `de
 - `auth.ts` — typed auth client (login, register, OTP, me, logout)
 - `fuzzy.ts` — typo-tolerant place scoring
 - `places.ts` — Karnataka catalogue with scoring
-- `tracking.ts` — `LiveFix`, `Trail` types + `trackingApi` (live / trail) for vehicle tracking
+- `tracking.ts` — `LiveFix`, `Trail`, `ActiveFleetTrip` types + `trackingApi` (start / stop / ping / location / live / trail / activeFleet) for vehicle tracking and admin fleet monitoring
 - `live.ts` — WebSocket live tracking subscription (origin from `NEXT_PUBLIC_API_URL`)
 
 ## Design system (Tailwind)
@@ -721,7 +947,7 @@ Tailwind variants used throughout:
 
 ### Test summary
 
-- **Total tests:** 121 passing
+- **Total tests:** 147 passing
 - **Backend tests:** `pytest -q` — all modules green
 - **Test distribution by module:**
 
@@ -733,15 +959,16 @@ Tailwind variants used throughout:
 | Geo/routing | 19 |
 | Matching | 27 |
 | AI ranking | 65 |
+| Tracking (live GPS, trail, fleet) | 26 |
 | Deploy/runbook | 7 |
-| **Total** | **121** |
+| **Total** | **147** |
 
 ### Running tests
 
 ```powershell
 # Backend
 cd backend
-python -m pytest -q                    # 121 passed
+python -m pytest -q                    # 147 passed
 python -m pytest -q -p no:cacheprovider  # verbose, no cache
 python -m pytest tests/test_matching.py -q -p no:cacheprovider  # 27/27
 python -m pytest tests/test_ranker.py -q -p no:cacheprovider     # 65/65
@@ -780,7 +1007,7 @@ The application is organized into 25 self-documenting modules (docs/), each foll
 | 14 | Advance booking | — |
 | 15 | Recurring rides | — |
 | 16 | AI ride ranking | ✅ VERIFIED |
-| 17 | Tracking | — |
+| 17 | Tracking | ✅ VERIFIED |
 | 18 | Safety | — |
 | 19 | Completion | — |
 | 20 | Streaming | — |
@@ -790,20 +1017,22 @@ The application is organized into 25 self-documenting modules (docs/), each foll
 | 24 | Analytics | — |
 | 25 | Deploy & harden | ✅ VERIFIED |
 
-**Overall status:** **25 / 25 modules complete** · **121 tests passing** · **92 API routes** · **11 MongoDB collections**
+**Overall status:** **25 / 25 modules complete** · **147 tests passing** · **92 API routes** · **11 MongoDB collections**
 
 **License:** Private project — see repository for distribution terms.
 
-**Status:** **25 / 25 modules complete · 121 tests passing · 92 API routes · 11 collections**
+**Status:** **25 / 25 modules complete · 147 tests passing · 92 API routes · 11 collections**
 
 A private-vehicle sharing platform that matches riders to drivers travelling the same corridor, picks the pickup point that costs the driver the least extra distance, prices the share fairly, then tracks the ride and watches for safety events while it happens.
 
 ## Deployment
 
+VoltRide deploys to **Vercel (frontend)** + **Render (backend)** + **MongoDB Atlas (database)**.
+
 ### Development
 
 ```powershell
-docker compose up -d mongo          # start MongoDB
+# MongoDB: local mongod or Atlas cluster
 cd backend
 copy .env.example .env              # generate from template
 python init_db.py                   # create collections + validators + indexes
@@ -816,34 +1045,60 @@ copy .env.example .env.local
 npm run dev                         # http://localhost:3000
 ```
 
-### Production
+### Production — Vercel (Frontend)
+
+1. Push the repo to GitHub and connect it to Vercel.
+2. In Vercel project settings, set **Root Directory** to `frontend`.
+3. Add these environment variables (match `frontend/.env.prod.example`):
+   - `NEXT_PUBLIC_API_URL=https://your-backend.onrender.com/api/v1`
+   - `NEXT_PUBLIC_MAP_PROVIDER=osrm`
+   - `NEXT_PUBLIC_OSRM_URL=https://router.project-osrm.org`
+   - `NEXT_PUBLIC_NOMINATIM_URL=https://nominatim.openstreetmap.org`
+4. Deploy. Vercel runs `npm ci && npm run build` and serves from `.next`.
+
+**Note:** `NEXT_PUBLIC_*` values are inlined at **build time**. Changing them requires a redeploy.
+
+### Production — Render (Backend)
+
+1. Connect the repo to Render and create a **Web Service**.
+2. Set **Root Directory** to the repo root (or use `backend/render.yaml` as a blueprint).
+3. Build command: `pip install -r backend/requirements.txt`
+4. Start command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1`
+5. Add environment variables (match `backend/.env.prod.example`):
+   - `APP_ENV=production`
+   - `MONGO_URI=<your MongoDB Atlas connection string>`
+   - `MONGO_DB=vehicle_sharing_dev`
+   - `JWT_SECRET=<32+ random characters>`
+   - `CORS_ORIGINS=https://your-frontend.vercel.app`
+   - `NOMINATIM_USER_AGENT=<your deployment contact string>`
+6. Set **Health Check Path** to `/api/v1/ready`.
+
+**Important:** Keep `--workers 1`. The Module 20 WebSocket hub is an **in-process** registry, so multiple workers would give each worker its own watchers and clients would silently stop receiving live frames. Scale-out requires Redis pub/sub behind `hub.broadcast()`.
+
+**Reverse proxy must forward the `Upgrade` header** for `WS /api/v1/stream/trips/{id}`, or live tracking silently degrades.
+
+### Production — MongoDB Atlas
+
+1. Create a free cluster at [MongoDB Atlas](https://www.mongodb.com/atlas).
+2. Create a database user with read/write access.
+3. Add your Render backend's outbound IP to the Atlas Network Access list (or allow 0.0.0.0/0 for development).
+4. Get the connection string: `mongodb+srv://<user>:<password>@<cluster>.mongodb.net/vehicle_sharing_dev?retryWrites=true&w=majority`
+5. Set `MONGO_URI` in Render to this string, and `MONGO_DB=vehicle_sharing_dev`.
+
+**One-time initialization:** After deploying the backend, run `python init_db.py` against the production database once:
 
 ```powershell
-# 1. Prepare production environment
-copy .env.example .env.prod
-# Edit .env.prod:
-#   - JWT_SECRET: 32+ random chars (never the dev value)
-#   - CORS_ORIGINS: https origins only (no plain http except localhost)
-#   - NEXT_PUBLIC_API_URL: production URL
-#   - MONGO_ROOT_USER/PASSWORD: if using authenticated Mongo
-
-# 2. Start production stack
-docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
-
-# 3. Wait for health
-docker compose -f docker-compose.prod.yml --env-file .env.prod ps   # wait: healthy
-
-# 4. Verify
-curl http://localhost:8000/api/v1/ready        # {"ready": true, ...}
-curl http://localhost:8000/api/v1/version      # confirms GIT_SHA
-
-# 5. One-time init against production DB
-docker compose -f docker-compose.prod.yml exec backend python init_db.py
+cd backend
+copy .env.example .env
+# Edit .env: MONGO_URI=<atlas-connection-string>
+python init_db.py
 ```
+
+`init_db.py` is **idempotent** — re-running is safe.
 
 ### Production gotchas
 
-1. **`NEXT_PUBLIC_*` is inlined at BUILD time.** Setting it at run time does nothing — the bundle is already compiled. It is a build ARG in `docker-compose.prod.yml`; changing it needs a rebuild.
+1. **`NEXT_PUBLIC_*` is inlined at BUILD time.** Setting it at run time does nothing — the bundle is already compiled. It is a build ARG in `frontend/Dockerfile`; changing it needs a rebuild or redeploy.
 2. **Single uvicorn worker, on purpose.** Module 20's WebSocket hub is an in-process registry, so `--workers 2` would give each worker its own watchers and half the clients would silently stop receiving frames. Scale-out needs a shared bus (Redis pub/sub or NATS) behind `hub.broadcast()`.
 3. **Reverse proxy must forward the `Upgrade` header** for `WS /api/v1/stream/trips/{id}`, or live tracking silently degrades to nothing.
 4. **`python init_db.py` is not optional.** Without it there are no unique, geo, TTL or partial indexes — duplicate phone numbers become possible.
@@ -914,6 +1169,55 @@ refactor(ranker): consolidate feature extraction logic
 - The 9-part template in each doc file should remain consistent for SRS/final report generation.
 - Never commit real secrets; use `.env.example` / `.env.local` templates only.
 - Run `python -m pytest -q` locally before committing; the CI suite runs the full 121-test battery.
+
+### Pull-request checklist
+
+| # | Check | Command |
+|---|-------|---------|
+| 1 | TypeScript typecheck passes | `cd frontend && npm run typecheck` |
+| 2 | Python tests pass | `cd backend && python -m pytest -q` |
+| 3 | Lint passes | `cd frontend && npm run lint` |
+| 4 | Module docs updated | Edit `docs/module-XX-*.md` for any module change |
+| 5 | Conventional commit | `feat(scope): subject` per convention above |
+| 6 | No secrets committed | `.env`, `.env.prod`, `.env.local` are gitignored |
+
+### Branch naming
+
+- `feat/<module>-<short-description>` — e.g. `feat/18-safety-alert-resolution`
+- `fix/<module>-<short-description>` — e.g. `fix/3-auth-otp-expiry`
+- `docs/<module>-<short-description>` — e.g. `docs/10-pickup-examples`
+
+### Module docs index
+
+Each of the 25 modules has a self-documenting `docs/module-XX-*.md` following a 9-part template (Concept / why, Prerequisites, DB changes + endpoints, Code map, Integration, Run + test, Common errors, Commit message, SRS/report notes).
+
+| Module | Doc file | Focus |
+|--------|----------|-------|
+| 1 | `docs/module-01-setup.md` | Project scaffold, repo layout, `.env` contract |
+| 2 | `docs/module-02-db-design.md` | MongoDB schema, validators, 19 indexes |
+| 3 | `docs/module-03-auth.md` | Phone OTP login, JWT, refresh tokens, role model |
+| 4 | `docs/module-04-profile.md` | User profile CRUD, avatar, preferences |
+| 5 | `docs/module-05-vehicles.md` | Vehicle registration, verification, plate uniqueness |
+| 6 | `docs/module-06-trips.md` | Trip publish / update / cancel, route geometry |
+| 7 | `docs/module-07-maps.md` | OSRM routing, Nominatim geocoding, Leaflet map |
+| 8 | `docs/module-08-search.md` | Trip search, filters, corridor matching |
+| 9 | `docs/module-09-matching.md` | Route-aware matching engine, overlap projection |
+| 10 | `docs/module-10-pickup-optimization.md` | Minimum-detour pickup, 8-step optimiser |
+| 11 | `docs/module-11-bookings.md` | Booking lifecycle, match scoring |
+| 12 | `docs/module-12-cost.md` | Fuel cost engine, split policies |
+| 13 | `docs/module-13-segments.md` | Route segments, stop definitions |
+| 14 | `docs/module-14-advance-booking.md` | Advance booking (30-day horizon) |
+| 15 | `docs/module-15-recurring.md` | Recurring ride series, horizon limits |
+| 16 | `docs/module-16-ai-ranking.md` | AI ride re-ranker, XGBoost weights |
+| 17 | `docs/module-17-tracking.md` | Live GPS tracking, 30-day TTL, ETA |
+| 18 | `docs/module-18-safety.md` | Safety alerts: speeding, deviation, SOS |
+| 19 | `docs/module-19-completion.md` | Ride completion, safety summary |
+| 20 | `docs/module-20-streaming.md` | WebSocket live stream hub, admin fleet view |
+| 21 | `docs/module-21-admin.md` | Admin console, stats, suspensions, roles |
+| 22 | `docs/module-22-ratings.md` | Ratings & reviews, aggregate card |
+| 23 | `docs/module-23-notifications.md` | In-app feed, dedupe, emit() hook |
+| 24 | `docs/module-24-analytics.md` | Usage analytics, reports |
+| 25 | `docs/module-25-deploy.md` | Production guard, Docker, health probes |
 
 ---
 
@@ -1456,3 +1760,4 @@ The root README documents the Next.js monorepo. The static port is documented in
 | Version | Date | Changes |
 |---|---|---|
 | `v1.0.0` | 2026-01-15 | 25/25 modules complete · 121 tests passing · 92 API routes · 11 MongoDB collections · minimum-detour pickup optimisation · AI ride ranking · live WebSocket tracking · production hardening guard |
+| `v1.1.0` | 2026-11-19 | Detailed README pass — GitHub badges, Quick Start (no-Docker) section, complete Database schema table, frontend env vars, expanded API reference (Admin, Ratings, Notifications, Segments, Safety, Fuel, Cost, Recurring, Advance, Completion, Streaming, Health probes), Module docs index table, expanded Contributing PR checklist & branch naming, consolidated FAQ |

@@ -19,6 +19,7 @@ export type Trip = {
   pickup?: { label?: string; coordinates?: [number, number]; walk_km?: number; detour_km?: number } | null;
   drop?: { coordinates?: [number, number]; dist_km?: number } | null;
   match_score?: number | null;
+  route_geometry?: { type: string; coordinates: [number, number][] } | null;
 };
 
 // Module 19: post-trip receipt (read-only, money frozen at completion).

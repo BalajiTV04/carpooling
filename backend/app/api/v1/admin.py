@@ -683,4 +683,102 @@ async def admin_charts(
             "generated_at": _utcnow()}
 
 
+@router.get("/tracking/active")
+async def active_tracking_fleet(user: Dict = Depends(_admin)):
+    """Fleet-wide live vehicle tracking for active rides (Admin only)."""
+    db = get_db()
+    from app.services.hub import hub
+    from app.services.tracking import is_stale, progress_frac
+
+    trips_cur = db.trips.find({"status": "ongoing"}).sort("started_at", -1)
+    items = []
+    now = _utcnow()
+    async for trip in trips_cur:
+        fix = await db.locations.find_one({"trip_id": trip["_id"]}, sort=[("recorded_at", -1)])
+        driver = await db.users.find_one({"_id": trip["driver_id"]})
+        vehicle = await db.vehicles.find_one({"_id": trip["vehicle_id"]})
+        bookings_cur = db.bookings.find({
+            "trip_id": trip["_id"],
+            "status": {"$in": ["accepted", "confirmed", "requested"]}
+        })
+        passengers = []
+        async for b in bookings_cur:
+            p_user = await db.users.find_one({"_id": b["passenger_id"]})
+            passengers.append({
+                "booking_id": str(b["_id"]),
+                "passenger_id": str(b["passenger_id"]),
+                "name": (p_user or {}).get("full_name", "Passenger"),
+                "phone": (p_user or {}).get("phone", ""),
+                "seats": b.get("seats", 1),
+                "status": b.get("status"),
+                "pickup": b.get("pickup", {}),
+                "dropoff": b.get("dropoff", {}),
+            })
+
+        alerts_cur = db.safety_alerts.find({"trip_id": trip["_id"], "status": "open"})
+        open_alerts = [{
+            "id": str(a["_id"]),
+            "type": a.get("type"),
+            "severity": a.get("severity"),
+            "status": a.get("status"),
+            "details": a.get("details"),
+            "created_at": a.get("created_at"),
+        } async for a in alerts_cur]
+
+        lng = fix["point"]["coordinates"][0] if fix else None
+        lat = fix["point"]["coordinates"][1] if fix else None
+        prog = None
+        if lng is not None and lat is not None:
+            geom = (trip.get("route_geometry") or {}).get("coordinates")
+            if geom and len(geom) >= 2:
+                prog = progress_frac(geom, lng, lat)
+                rem = prog.get("remaining_km")
+                spd = fix.get("speed_kmph")
+                spd_val = spd if (spd and spd > 5.0) else 25.0
+                prog["eta_min"] = round((rem / spd_val) * 60, 1) if rem is not None else None
+
+        stale = is_stale(fix.get("recorded_at"), now) if fix else True
+
+        items.append({
+            "trip_id": str(trip["_id"]),
+            "status": trip.get("status"),
+            "trip_type": trip.get("trip_type", "live"),
+            "source_name": trip.get("source", {}).get("name"),
+            "destination_name": trip.get("destination", {}).get("name"),
+            "source": trip.get("source"),
+            "destination": trip.get("destination"),
+            "route_geometry": trip.get("route_geometry"),
+            "depart_at": trip.get("depart_at"),
+            "started_at": trip.get("started_at"),
+            "driver": {
+                "id": str(driver["_id"]) if driver else str(trip["driver_id"]),
+                "name": (driver or {}).get("full_name", "Driver"),
+                "phone": (driver or {}).get("phone", ""),
+                "rating_avg": (driver or {}).get("rating_avg"),
+            },
+            "vehicle": {
+                "make": (vehicle or {}).get("make"),
+                "model": (vehicle or {}).get("model"),
+                "plate_no": (vehicle or {}).get("plate_no"),
+                "color": (vehicle or {}).get("color"),
+            },
+            "passengers": passengers,
+            "passengers_count": len(passengers),
+            "latest_fix": {
+                "lng": lng,
+                "lat": lat,
+                "speed_kmph": fix.get("speed_kmph") if fix else None,
+                "accuracy_m": fix.get("accuracy_m") if fix else None,
+                "heading_deg": fix.get("heading_deg") if fix else None,
+                "recorded_at": fix.get("recorded_at") if fix else None,
+            } if fix else None,
+            "progress": prog,
+            "stale": stale,
+            "open_alerts": open_alerts,
+            "watchers": hub.subscriber_count(str(trip["_id"])),
+        })
+    return {"count": len(items), "trips": items}
+
+
+
 

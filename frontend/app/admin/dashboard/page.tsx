@@ -1,4 +1,4 @@
-﻿﻿"use client";
+﻿"use client";
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
@@ -25,13 +25,16 @@ import { profileApi, type FullProfile } from "@/lib/profile";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
 
+import { AdminFleetMap } from "@/components/AdminFleetMap";
+import { Navigation } from "lucide-react";
+
 type Section = "overview" | "profile" | "map" | "users" | "alerts" | "requests" | "vehicles";
 type NavItem = { id: Section; label: string; icon: React.ElementType };
 
 const NAV_ITEMS: NavItem[] = [
   { id: "overview", label: "Dashboard", icon: LayoutDashboard },
+  { id: "map", label: "Live Fleet Monitoring", icon: Navigation },
   { id: "profile", label: "My profile", icon: UserCog },
-  { id: "map", label: "Data map", icon: MapPinned },
   { id: "users", label: "Users", icon: Users },
   { id: "alerts", label: "Alerts", icon: AlertTriangle },
   { id: "requests", label: "Requests", icon: UserRoundCheck },
@@ -309,7 +312,24 @@ function OverviewSection({ stats, alerts, drivers }: { stats: AdminStats | null;
 
 function ProfileSection({ profile, busy, onSave, onPassword }: { profile: FullProfile | null; busy: string | null; onSave: (event: React.FormEvent<HTMLFormElement>) => void; onPassword: (event: React.FormEvent<HTMLFormElement>) => void }) { return <div className="space-y-6"><div><h2 className="font-display text-2xl font-bold">My profile</h2><p className="mt-1 text-sm text-muted">View your administrator details, update username/email, or change your password.</p></div><div className="grid gap-6 xl:grid-cols-2"><section className={`${panelClass} p-6`}><div className="mb-5 flex items-center gap-3"><div className="rounded-full bg-brand-teal/10 p-3 text-brand-teal"><UserCog className="h-5 w-5" /></div><div><h3 className="font-semibold">Admin details</h3><p className="text-sm text-muted">Update username and email only.</p></div></div><form onSubmit={onSave} className="space-y-4"><label className="block text-sm font-medium">Username<input name="full_name" className={`${inputClass} mt-1.5`} defaultValue={profile?.full_name ?? ""} required /></label><label className="block text-sm font-medium">Email<input name="email" type="email" className={`${inputClass} mt-1.5`} defaultValue={profile?.email ?? ""} placeholder="admin@example.com" /></label><div className="rounded-xl bg-card px-4 py-3 text-sm"><p className="text-muted">Login phone</p><p className="mt-1 font-medium">{profile?.phone ?? "—"}</p></div><Button type="submit" disabled={busy === "profile"}>{busy === "profile" ? "Saving…" : "Update details"}</Button></form></section><section className={`${panelClass} p-6`}><div className="mb-5 flex items-center gap-3"><div className="rounded-full bg-brand/10 p-3 text-brand"><LockKeyhole className="h-5 w-5" /></div><div><h3 className="font-semibold">Change password</h3><p className="text-sm text-muted">Use your current password to confirm this change.</p></div></div><form onSubmit={onPassword} className="space-y-4"><label className="block text-sm font-medium">Current password<input name="current_password" type="password" className={`${inputClass} mt-1.5`} required /></label><label className="block text-sm font-medium">New password<input name="new_password" type="password" minLength={6} className={`${inputClass} mt-1.5`} required /></label><Button type="submit" variant="secondary" disabled={busy === "password"}>{busy === "password" ? "Changing…" : "Change password"}</Button></form></section></div></div>; }
 
-function MapSection({ stats }: { stats: AdminStats | null }) { return <div className="space-y-6"><div><h2 className="font-display text-2xl font-bold">Data map</h2><p className="mt-1 text-sm text-muted">A high-level map of the operational data managed by the platform.</p></div><div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3"><DataCard title="Location records" value={stats?.locations ?? 0} icon={MapPinned} description="Recorded route and live-location points." /><DataCard title="Trip records" value={stats?.trips.total ?? 0} icon={Database} description="Published, live, completed, and archived trips." /><DataCard title="Booking records" value={stats?.bookings.total ?? 0} icon={Users} description="Passenger reservations across all trips." /><DataCard title="Vehicle records" value={stats?.vehicles.total ?? 0} icon={UserRoundCheck} description={`${stats?.vehicles.pending ?? 0} currently pending verification.`} /><DataCard title="Alert records" value={stats?.alerts.total ?? 0} icon={AlertTriangle} description={`${stats?.alerts.open ?? 0} currently remain open.`} /><DataCard title="Realtime connections" value={stats?.stream.sockets ?? 0} icon={ShieldCheck} description="Active delivery sockets for live updates." /></div><section className={`${panelClass} overflow-hidden`}><div className="border-b border-line px-6 py-5"><h3 className="font-semibold">Platform data flow</h3><p className="mt-1 text-sm text-muted">Users and vehicles create trips; bookings, locations, and alerts are connected to those trips.</p></div><div className="grid gap-px bg-line md:grid-cols-4"><FlowStep step="1" title="Users" description="Drivers, passengers, and administrators" /><FlowStep step="2" title="Vehicles" description="Driver vehicle verification data" /><FlowStep step="3" title="Trips & bookings" description="Routes, seats, and ride requests" /><FlowStep step="4" title="Locations & alerts" description="Live tracking and safety events" /></div></section></div>; }
+function MapSection({ stats }: { stats: AdminStats | null }) {
+  return (
+    <div className="space-y-6">
+      <AdminFleetMap />
+      <div className="border-t border-line pt-6">
+        <h3 className="font-display text-lg font-bold mb-3 text-ink">Platform Data Summary</h3>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <DataCard title="Location records" value={stats?.locations ?? 0} icon={MapPinned} description="Recorded route and live-location points." />
+          <DataCard title="Trip records" value={stats?.trips.total ?? 0} icon={Database} description="Published, live, completed, and archived trips." />
+          <DataCard title="Booking records" value={stats?.bookings.total ?? 0} icon={Users} description="Passenger reservations across all trips." />
+          <DataCard title="Vehicle records" value={stats?.vehicles.total ?? 0} icon={UserRoundCheck} description={`${stats?.vehicles.pending ?? 0} currently pending verification.`} />
+          <DataCard title="Alert records" value={stats?.alerts.total ?? 0} icon={AlertTriangle} description={`${stats?.alerts.open ?? 0} currently remain open.`} />
+          <DataCard title="Realtime connections" value={stats?.stream.sockets ?? 0} icon={ShieldCheck} description="Active delivery sockets for live updates." />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function UsersSection({ users, query, busy, onQueryChange, onUpdate }: { users: AdminUser[]; query: string; busy: string | null; onQueryChange: (value: string) => void; onUpdate: (user: AdminUser) => void }) { return <div className="space-y-6"><div><h2 className="font-display text-2xl font-bold">Users</h2><p className="mt-1 text-sm text-muted">Review account roles and manage access to the platform.</p></div><section className={panelClass}><div className="flex flex-col gap-4 border-b border-line p-5 sm:flex-row sm:items-center sm:justify-between"><p className="font-semibold">All accounts <span className="text-muted">({users.length})</span></p><input value={query} onChange={(event) => onQueryChange(event.target.value)} className="w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm outline-none focus:border-brand-teal sm:max-w-xs" placeholder="Search name or phone" /></div><div className="table-wrap"><table className="table min-w-[760px]"><thead><tr><th>Account</th><th>Roles</th><th>Verification</th><th>Status</th><th>Action</th></tr></thead><tbody>{users.map((account) => { const isAdmin = account.roles.includes("admin"); const isBusy = busy === `user-${account.id}`; return <tr key={account.id}><td><p className="font-medium">{account.full_name || "Unnamed user"}</p><p className="text-xs text-muted">{account.phone || "No contact details"}</p></td><td><div className="flex flex-wrap gap-1">{account.roles.map((role) => <span className="rounded-full bg-brand-teal/10 px-2 py-0.5 text-xs text-brand-teal" key={role}>{role}</span>)}</div></td><td><span className={account.phone_verified ? "text-success" : "text-muted"}>{account.phone_verified ? "Verified" : "Unverified"}</span></td><td><span className={account.status === "active" ? "text-success" : "text-danger"}>{account.status}</span></td><td><Button size="sm" variant={account.status === "active" ? "danger" : "secondary"} disabled={isAdmin || isBusy} onClick={() => onUpdate(account)}>{isBusy ? "Updating…" : account.status === "active" ? "Suspend" : "Reactivate"}</Button></td></tr>; })}{users.length === 0 && <tr><td colSpan={5} className="py-12 text-center text-muted">No matching users found.</td></tr>}</tbody></table></div></section></div>; }
 

@@ -145,7 +145,18 @@ export function LiveTrack({ tripId, geometry, canPing = false, pingAt = null }: 
       <div className="mt-2">
         <RouteMap
           geometry={(trailLine ?? geometry ?? null) as { type: string; coordinates: [number, number][] } | null}
-          pins={[{ lng: live.fix.lng, lat: live.fix.lat, label: "Driver now", color: "#C6FF4A" }]}
+          pins={[
+            {
+              lng: live.fix.lng,
+              lat: live.fix.lat,
+              label: `Driver Vehicle (${live.fix.speed_kmph != null ? `${live.fix.speed_kmph} km/h` : "Active"})`,
+              color: "#14b8a6",
+              iconType: "car",
+              heading: live.fix.heading_deg ?? 0,
+              speed_kmph: live.fix.speed_kmph ?? 0,
+              isSelected: true,
+            },
+          ]}
           height={220}
         />
       </div>

@@ -125,21 +125,29 @@ export function VehicleTrackingCard({
       lng: vehicleCoords[0],
       lat: vehicleCoords[1],
       label: hasLiveFix
-        ? `🚗 Vehicle Now: ${liveFix?.fix?.speed_kmph ? `${liveFix.fix.speed_kmph} km/h` : "Moving"}`
-        : "🚗 Vehicle (At Origin Point - Waiting to Start)",
+        ? `Vehicle (${liveFix?.fix?.speed_kmph != null ? `${liveFix.fix.speed_kmph} km/h` : "Active"})`
+        : "Vehicle (At Start Point)",
       color: "#10b981", // vibrant emerald
+      iconType: "car",
+      heading: liveFix?.fix?.heading_deg ?? 0,
+      speed_kmph: liveFix?.fix?.speed_kmph ?? (hasLiveFix ? 20 : 0),
+      plateNo: typeof booking.trip?.vehicle === "string" ? booking.trip.vehicle : (booking.trip?.vehicle as any)?.plate_no || "RIDE",
+      driverName: booking.driver_name || "Assigned Driver",
+      isSelected: true,
     },
     {
       lng: pickupCoords[0],
       lat: pickupCoords[1],
-      label: `📍 Pickup: ${booking.pickup?.name || "Your Pickup Point"}`,
+      label: `Pickup: ${booking.pickup?.name || "Your Pickup Point"}`,
       color: "#0ea5e9", // vibrant sky blue
+      iconType: "pickup",
     },
     {
       lng: dropoffCoords[0],
       lat: dropoffCoords[1],
-      label: `🏁 Drop: ${booking.dropoff?.name || "Your Destination"}`,
+      label: `Drop: ${booking.dropoff?.name || "Your Destination"}`,
       color: "#f43f5e", // vibrant rose
+      iconType: "dropoff",
     },
   ];
 
@@ -207,10 +215,20 @@ export function VehicleTrackingCard({
           {/* Status banner */}
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-card p-3 border border-line text-xs">
             <div className="flex items-center gap-2">
-              <span className={`h-2.5 w-2.5 rounded-full ${hasLiveFix ? "bg-brand-teal animate-pulse" : "bg-amber-400"}`} />
+              <span
+                className={`h-2.5 w-2.5 rounded-full ${
+                  hasLiveFix && !liveFix?.stale
+                    ? "bg-brand-teal animate-pulse"
+                    : liveFix?.stale
+                    ? "bg-amber-400"
+                    : "bg-muted"
+                }`}
+              />
               <span className="font-semibold text-ink">
-                {hasLiveFix
+                {hasLiveFix && !liveFix?.stale
                   ? "Live Vehicle GPS Connected"
+                  : liveFix?.stale
+                  ? "Location Temporarily Unavailable (Stale)"
                   : "Vehicle Stationed at Starting Point"}
               </span>
               <span className="text-muted text-[11px]">
@@ -219,6 +237,12 @@ export function VehicleTrackingCard({
             </div>
 
             <div className="flex items-center gap-4 text-muted">
+              {liveFix?.progress?.eta_min !== null && liveFix?.progress?.eta_min !== undefined && (
+                <div className="flex items-center gap-1">
+                  <Clock className="h-3.5 w-3.5 text-brand-teal" />
+                  <span className="font-bold text-ink">~{liveFix.progress.eta_min}m ETA</span>
+                </div>
+              )}
               {liveFix?.fix?.speed_kmph !== null && liveFix?.fix?.speed_kmph !== undefined && (
                 <div className="flex items-center gap-1">
                   <Gauge className="h-3.5 w-3.5 text-brand-teal" />
@@ -233,12 +257,20 @@ export function VehicleTrackingCard({
               )}
               {lastPingTime && (
                 <div className="hidden sm:flex items-center gap-1 text-[11px]">
-                  <Clock className="h-3.5 w-3.5 text-muted" />
                   <span>{lastPingTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</span>
                 </div>
               )}
             </div>
           </div>
+
+          {liveFix?.stale && hasLiveFix && (
+            <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-2.5 text-xs text-amber-500 flex items-center gap-2">
+              <Clock className="h-4 w-4 shrink-0" />
+              <span>
+                Driver location is temporarily stale (no recent update in &gt; 5 minutes). The driver may be in a low-connectivity area or waiting at a signal.
+              </span>
+            </div>
+          )}
 
           {/* Interactive Map */}
           <div className="rounded-xl overflow-hidden border border-line shadow-inner">

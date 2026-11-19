@@ -40,13 +40,15 @@ import { PlacePicker } from "@/components/PlacePicker";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
+import { DriverTrackingConsole } from "@/components/DriverTrackingConsole";
 
-type Section = "host" | "my-trips" | "requests" | "garage" | "profile";
+type Section = "host" | "my-trips" | "tracking" | "requests" | "garage" | "profile";
 type TripType = "live" | "monthly" | "long";
 
 const NAV_ITEMS: { id: Section; label: string; icon: React.ElementType }[] = [
   { id: "host", label: "Host a Trip", icon: PlusCircle },
   { id: "my-trips", label: "My Trips", icon: Clock },
+  { id: "tracking", label: "Live GPS Tracking", icon: Navigation },
   { id: "requests", label: "Passenger Requests", icon: Users },
   { id: "garage", label: "Garage & Mileage", icon: Gauge },
   { id: "profile", label: "Profile", icon: ShieldCheck },
@@ -1026,14 +1028,13 @@ function DriverConsoleInner() {
                           <div className="flex items-center gap-2">
                             {(t.status === "published" || t.status === "ongoing") && (
                               <Button
-                                variant="secondary"
+                                variant={t.status === "ongoing" ? "primary" : "secondary"}
                                 size="sm"
-                                disabled={broadcastingTripId === t.id}
-                                onClick={() => handleBroadcastLocation(t)}
-                                className="text-xs flex items-center gap-1 text-brand-teal"
+                                onClick={() => setSection("tracking")}
+                                className="text-xs flex items-center gap-1.5 font-semibold"
                               >
-                                <Navigation className={`h-3 w-3 ${broadcastingTripId === t.id ? "animate-spin" : ""}`} />
-                                {broadcastingTripId === t.id ? "Broadcasting…" : "📍 Broadcast GPS"}
+                                <Navigation className={`h-3 w-3 ${t.status === "ongoing" ? "animate-spin text-brand-teal" : ""}`} />
+                                {t.status === "ongoing" ? "Live Tracking Active →" : "Start Live Tracking →"}
                               </Button>
                             )}
 
@@ -1081,6 +1082,11 @@ function DriverConsoleInner() {
                   </div>
                 )}
               </div>
+            )}
+
+            {/* SECTION: LIVE GPS RIDE TRACKING */}
+            {section === "tracking" && (
+              <DriverTrackingConsole trips={trips} onTripUpdated={loadDriverData} />
             )}
 
             {/* SECTION: PASSENGER REQUESTS */}
