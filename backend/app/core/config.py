@@ -70,6 +70,8 @@ class Settings(BaseSettings):
     FUEL_PRICE_PER_LITRE: float = 100.0
     COST_SPLIT_POLICY: str = "EQUAL_SPLIT"
     INCLUDE_DETOUR_COST: bool = False
+    ROUND_MODE: str = "CEIL"  # CEIL | HALF_UP | NONE
+    LOCK_FUEL_PRICE_AFTER_ACCEPT: bool = True
 
     # Advance booking + recurring (Modules 14-15)
     ADVANCE_MAX_DAYS: int = 30        # how far ahead a passenger may book

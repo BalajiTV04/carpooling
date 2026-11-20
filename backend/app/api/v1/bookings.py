@@ -25,6 +25,11 @@ from app.core.deps import get_current_user
 from app.models.booking import BookingIn, BookingOut
 from app.services.booking_window import check_window
 from app.services.cost import compute_detour_contribution, resolve_fuel_price
+from app.core.config import get_settings
+from app.services.cost_sharing import (
+    check_seats_left, compute_shares, CONFIRMED_STATUSES, cost_preview,
+    get_fuel_unit, recompute_trip_fares,
+)
 from app.services.geo_math import (
     haversine_km,
     point_at_km,
@@ -232,19 +237,42 @@ async def create_booking(body: BookingIn, user: Dict = Depends(get_current_user)
     now = _utcnow()
     p_dist = match.get("passenger_distance_km")
     detour_val = match.get("detour_km", detour_km)
-    est_contrib = None
-    if p_dist is not None:
-        veh = await db.vehicles.find_one({"_id": trip.get("vehicle_id")})
-        mileage = float((veh or {}).get("mileage_kmpl") or 15.0)
-        fuel_price = resolve_fuel_price((veh or {}).get("fuel_type", "petrol"), trip.get("price_policy"))
-        cost_res = compute_detour_contribution(
-            passenger_distance_km=p_dist,
-            detour_km=detour_val or 0.0,
-            mileage_kmpl=mileage,
-            fuel_price_per_litre=fuel_price,
-            occupants=1 + int(trip.get("seats_booked", 0) or 0) + body.seats,
-        )
-        est_contrib = cost_res.get("estimated_contribution")
+
+    # --- project pickup/drop onto the route for segment costing -----------
+    pickup_along_km = None
+    drop_along_km = None
+    geom = (trip.get("route_geometry") or {}).get("coordinates")
+    if geom and len(geom) >= 2:
+        # Prefer Module 10 snapshot values from match_explain if present.
+        me_pickup = (match.get("match_explain") or {}).get("pickup", {})
+        me_drop = (match.get("match_explain") or {}).get("drop", {})
+        if me_pickup.get("along_km") is not None:
+            pickup_along_km = float(me_pickup["along_km"])
+        else:
+            proj = project_onto_route(body.pickup_coordinates, geom)
+            pickup_along_km = float(proj["frac"]) * float(trip.get("distance_km") or route_length_km(geom))
+        if me_drop.get("along_km") is not None:
+            drop_along_km = float(me_drop["along_km"])
+        else:
+            proj = project_onto_route(body.dropoff_coordinates, geom)
+            drop_along_km = float(proj["frac"]) * float(trip.get("distance_km") or route_length_km(geom))
+    pickup_along_km = max(0.0, min(float(trip.get("distance_km") or 0), pickup_along_km or 0.0))
+    drop_along_km = max(0.0, min(float(trip.get("distance_km") or 0), drop_along_km or float(trip.get("distance_km") or 0)))
+    if drop_along_km <= pickup_along_km:
+        drop_along_km = min(float(trip.get("distance_km") or 0), pickup_along_km + 1.0)
+
+    # --- segment-based preview: what this passenger would pay ------------
+    preview = await cost_preview(
+        trip, pickup_along_km, drop_along_km, requested_seats=body.seats, db=db,
+    )
+    est_contrib = preview.get("estimated_contribution")
+    if not preview.get("can_book", False):
+        # Release the reserved seats before rejecting.
+        await db.trips.update_one(
+            {"_id": trip["_id"], "status": "published"},
+            {"$inc": {"seats_booked": -int(body.seats)}})
+        raise HTTPException(status.HTTP_409_CONFLICT,
+                            "not enough seats left for this request")
 
     doc = {
         "trip_id": trip["_id"],
@@ -256,6 +284,8 @@ async def create_booking(body: BookingIn, user: Dict = Depends(get_current_user)
         "pickup_distance_m": pickup_distance_m,
         "detour_km": detour_val,
         "passenger_distance_km": p_dist,
+        "pickup_along_km": pickup_along_km,
+        "drop_along_km": drop_along_km,
         "estimated_contribution": est_contrib,
         "overlap_pct": match.get("overlap_pct"),
         "match_score": match.get("score"),
@@ -316,6 +346,15 @@ async def accept_booking(booking_id: str, user: Dict = Depends(get_current_user)
         {"$set": {"status": "accepted", "updated_at": _utcnow()}},
         return_document=True)
     await _recalculate(db, doc["trip_id"])  # simple M12 version (M13 upgrades)
+    # Recompute all confirmed fares with the segment engine; idempotent.
+    await recompute_trip_fares(db, doc["trip_id"], reason="booking_accepted")
+    # Notify other passengers whose share changed (recompute_trip_fares sets
+    # fare_changed; this best-effort ping never fails the accept).
+    try:
+        from app.api.v1.notifications import notify_booking
+        await notify_booking(db, "fare_changed", updated, actor_id=user["id"])
+    except Exception:
+        pass
     await _notify(db, "booking_accepted", updated, actor_id=user["id"])
     return await _out(db, updated)
 
@@ -335,6 +374,7 @@ async def reject_booking(booking_id: str, user: Dict = Depends(get_current_user)
         return_document=True)
     await _release_seats(db, doc)
     await _recalculate(db, doc["trip_id"])
+    await recompute_trip_fares(db, doc["trip_id"], reason="booking_rejected")
     await _notify(db, "booking_rejected", updated, actor_id=user["id"])
     return await _out(db, updated)
 
@@ -354,6 +394,7 @@ async def confirm_booking(booking_id: str, user: Dict = Depends(get_current_user
         {"$set": {"status": "confirmed", "updated_at": _utcnow()}},
         return_document=True)
     await _recalculate(db, doc["trip_id"])
+    await recompute_trip_fares(db, doc["trip_id"], reason="booking_confirmed")
     refreshed = await db.bookings.find_one({"_id": doc["_id"]})
     return await _out(db, refreshed)
 
@@ -379,6 +420,102 @@ async def cancel_booking(booking_id: str, user: Dict = Depends(get_current_user)
     if trip is not None and trip.get("status") == "published":
         await _release_seats(db, doc)
     await _recalculate(db, doc["trip_id"])
+    await recompute_trip_fares(db, doc["trip_id"], reason="booking_cancelled")
     # Module 23: tell the OTHER side; `_notify` never lets this fail the cancel.
     await _notify(db, "booking_cancelled", updated, actor_id=user["id"])
     return await _out(db, updated)
+
+
+@router.get("/{booking_id}/accept-preview")
+async def accept_preview(booking_id: str, user: Dict = Depends(get_current_user)):
+    """Return the fare split BEFORE and AFTER accepting this booking.
+
+    Driver sees each passenger's amount, the driver's remaining amount,
+    and seats left in both scenarios — before approving.
+    """
+    db = get_db()
+    doc = await _get_booking(db, booking_id)
+    trip = await _owning_trip(db, doc, user)
+    if doc["status"] != "requested":
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY,
+                            "only requested bookings can be previewed")
+
+    route_km = float(trip.get("route_km") or trip.get("distance_km") or 0)
+    mileage = trip.get("vehicle_mileage_kmpl")
+    fuel_price = trip.get("fuel_price_per_unit") or trip.get("fuel_price")
+    route_coords = (trip.get("route_geometry") or {}).get("coordinates")
+
+    # Resolve mileage/fuel from vehicle snapshot if not on trip
+    if (not mileage or not fuel_price) and trip.get("vehicle_id"):
+        veh = await db.vehicles.find_one({"_id": trip["vehicle_id"]})
+        if veh:
+            mileage = mileage or veh.get("mileage_kmpl")
+            if not fuel_price:
+                from app.services.cost import resolve_fuel_price
+                fuel_price = resolve_fuel_price(veh.get("fuel_type"),
+                                                trip.get("price_policy"))
+
+    if not mileage or not fuel_price or route_km <= 0:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY,
+                            "trip has no fuel price or mileage snapshot")
+
+    mileage = float(mileage)
+    fuel_price = float(fuel_price)
+
+    # Currently confirmed bookings (BEFORE accepting this one)
+    cursor = db.bookings.find({
+        "trip_id": trip["_id"],
+        "status": {"$in": list(CONFIRMED_STATUSES)},
+    })
+    before_bookings = await cursor.to_list(100)
+    before = compute_shares(
+        route_km=route_km, mileage=mileage, fuel_price=fuel_price,
+        bookings=before_bookings, round_mode=get_settings().ROUND_MODE,
+        route_coords=route_coords,
+    )
+
+    # AFTER: add this booking as accepted
+    candidate = {
+        "_id": doc["_id"],
+        "id": str(doc["_id"]),
+        "status": "accepted",
+        "seats": int(doc.get("seats", 1)),
+        "pickup_along_km": doc.get("pickup_along_km", 0.0),
+        "drop_along_km": doc.get("drop_along_km", float(route_km)),
+    }
+    after = compute_shares(
+        route_km=route_km, mileage=mileage, fuel_price=fuel_price,
+        bookings=before_bookings + [candidate],
+        round_mode=get_settings().ROUND_MODE,
+        route_coords=route_coords,
+    )
+
+    p_seats = int(trip.get("passenger_seats") or trip.get("seats_offered") or 4)
+    seats_left_before = check_seats_left(
+        route_km, p_seats, before_bookings,
+        float(doc.get("pickup_along_km", 0.0)),
+        float(doc.get("drop_along_km", route_km)), route_coords,
+    )
+    seats_left_after = check_seats_left(
+        route_km, p_seats, before_bookings + [candidate],
+        float(doc.get("pickup_along_km", 0.0)),
+        float(doc.get("drop_along_km", route_km)), route_coords,
+    )
+
+    return {
+        "booking_id": str(doc["_id"]),
+        "route_km": route_km,
+        "fuel_unit": get_fuel_unit(trip.get("fuel_type")),
+        "before": {
+            "passengers": before["passengers"],
+            "driver_share": before["driver_share"],
+            "total_cost": before["total_cost"],
+            "seats_left": seats_left_before,
+        },
+        "after": {
+            "passengers": after["passengers"],
+            "driver_share": after["driver_share"],
+            "total_cost": after["total_cost"],
+            "seats_left": seats_left_after,
+        },
+    }

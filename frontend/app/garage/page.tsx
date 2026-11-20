@@ -38,7 +38,8 @@ function GarageInner() {
       make: form.make, model: form.model,
       year: form.year === "" ? undefined : Number(form.year),
       color: form.color || undefined, plate_no: form.plate_no,
-      seats_total: Number(form.seats_total), fuel_type: form.fuel_type,
+      seats_total: Number(form.seats_total), seat_capacity: Number(form.seat_capacity),
+      fuel_type: form.fuel_type,
       mileage_kmpl: form.mileage_kmpl === "" ? undefined : Number(form.mileage_kmpl),
       image_url: form.image_url.trim() === "" ? null : form.image_url.trim()
     };
@@ -63,9 +64,11 @@ function GarageInner() {
     setForm({
       make: v.make, model: v.model, year: v.year?.toString() ?? "",
       color: v.color ?? "", plate_no: v.plate_no,
-      seats_total: String(v.seats_total), fuel_type: v.fuel_type,
+      seats_total: String(v.seats_total), seat_capacity: String(v.seat_capacity ?? v.seats_total + 1),
+      fuel_type: v.fuel_type,
       mileage_kmpl: v.mileage_kmpl?.toString() ?? "",
-      image_url: v.image_url ?? ""
+      image_url: v.image_url ?? "",
+      mileage_err: "", seats_err: ""
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
   };

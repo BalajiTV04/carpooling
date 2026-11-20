@@ -2,7 +2,7 @@
 export type Vehicle = {
   id: string; make: string; model: string; year: number | null;
   color: string | null; plate_no: string; seats_total: number;
-  fuel_type: string; mileage_kmpl: number | null;
+  seat_capacity: number; fuel_type: string; mileage_kmpl: number | null;
   image_url: string | null;
   verification_status: "pending" | "verified" | "rejected";
   is_active: boolean; trips_as_vehicle: number;

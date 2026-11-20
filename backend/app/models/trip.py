@@ -40,7 +40,8 @@ class TripIn(BaseModel):
     seats_offered: int = Field(ge=1, le=7)
     trip_type: Optional[str] = "live"  # live | monthly | long
     fuel_type: Optional[str] = "petrol"
-    fuel_price: Optional[float] = None
+    fuel_price: Optional[float] = None  # legacy; kept for backward compat
+    fuel_price_per_unit: float = Field(gt=0)  # driver-entered fuel price per unit
     advance_policy: Optional[Dict] = None
 
     @field_validator("depart_at")
@@ -59,6 +60,8 @@ class TripUpdateIn(BaseModel):
     destination: Optional[PlaceIn] = None
     depart_at: Optional[datetime] = None
     seats_offered: Optional[int] = Field(default=None, ge=1, le=7)
+    fuel_price: Optional[float] = None
+    fuel_price_per_unit: Optional[float] = None
 
     @field_validator("depart_at")
     @classmethod
@@ -92,9 +95,15 @@ class TripOut(BaseModel):
     recurring_group_id: Optional[str] = None  # Module 15 series tag
     trip_type: Optional[str] = "live"
     fuel_price: Optional[float] = None
+    fuel_price_per_unit: Optional[float] = None
+    vehicle_mileage_kmpl: Optional[float] = None
+    passenger_seats: Optional[int] = None
+    fuel_unit: Optional[str] = "L"
     fuel_type: Optional[str] = None
     cost_per_seat: Optional[float] = None
     total_cost: Optional[float] = None
+    cost_summary: Optional[dict] = None
+    cost_message: Optional[str] = None
     monthly_cost: Optional[float] = None
     approval_note: Optional[str] = None
     approved_at: Optional[datetime] = None

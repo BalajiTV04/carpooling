@@ -59,10 +59,12 @@ async def test_trip_flow():
         # 1. unverified phone cannot stage trips -> 403
         car = await ac.post("/api/v1/vehicles", json={
             "make": "Honda", "model": "City", "plate_no": "KA06TRIP01",
-            "seats_total": 3, "fuel_type": "petrol"}, headers=_h(t_drv))
+            "seats_total": 3, "seat_capacity": 4,
+            "fuel_type": "petrol", "mileage_kmpl": 18.0}, headers=_h(t_drv))
         assert car.status_code == 201
         vid = car.json()["id"]
-        base = {"vehicle_id": vid, "source": SRC, "destination": DST, "seats_offered": 2}
+        base = {"vehicle_id": vid, "source": SRC, "destination": DST,
+                "seats_offered": 2, "fuel_price_per_unit": 100.0}
         assert (await ac.post("/api/v1/trips", json=dict(base, depart_at=future),
                 headers=_h(t_drv))).status_code == 403
 

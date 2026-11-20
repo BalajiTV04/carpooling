@@ -25,11 +25,13 @@ from typing import Dict, List, Optional
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+from app.core.config import get_settings
 from app.core.database import get_db
 from app.core.deps import get_current_user, require_roles
 from app.models.trip import TripIn, TripOut, TripUpdateIn
 from app.services.booking_window import normalise_policy
 from app.services.cost import compute_detour_contribution, resolve_fuel_price
+from app.services.cost_sharing import CONFIRMED_STATUSES, recompute_trip_fares
 from app.services.geo_math import haversine_km as _haversine_km, project_onto_route
 from app.services.matching import match_trip
 from app.services.routing import osrm_route
@@ -125,11 +127,18 @@ async def create_trip(body: TripIn, user: Dict = Depends(_driver)):
 
     # Amount calculation based on fuel price, vehicle mileage, and distance
     mileage = float(veh.get("mileage_kmpl") or 15.0)
-    fuel_price = float(body.fuel_price) if (body.fuel_price and body.fuel_price > 0) else resolve_fuel_price(body.fuel_type or veh.get("fuel_type", "petrol"), None)
+    fuel_price = float(body.fuel_price_per_unit) if (body.fuel_price_per_unit and body.fuel_price_per_unit > 0) else resolve_fuel_price(body.fuel_type or veh.get("fuel_type", "petrol"), None)
     litres = (distance / mileage) if mileage > 0 else 0.0
     total_cost = round(litres * fuel_price, 2)
     cost_per_seat = round(total_cost / body.seats_offered, 2) if body.seats_offered > 0 else total_cost
     monthly_cost = round(total_cost * 30, 2)  # Full month calculation (30 days commute)
+
+    fuel_unit = "L"
+    ft = (veh.get("fuel_type") or body.fuel_type or "petrol").lower()
+    if ft == "cng":
+        fuel_unit = "kg"
+    elif ft == "ev":
+        fuel_unit = "kWh"
 
     policy = {
         "mode": "per_seat",
@@ -156,7 +165,11 @@ async def create_trip(body: TripIn, user: Dict = Depends(_driver)):
         "price_policy": policy,
         "trip_type": body.trip_type or "live",
         "fuel_price": fuel_price,
+        "fuel_price_per_unit": fuel_price,
         "fuel_type": body.fuel_type or veh.get("fuel_type", "petrol"),
+        "fuel_unit": fuel_unit,
+        "vehicle_mileage_kmpl": mileage,
+        "passenger_seats": int(veh.get("seat_capacity", 4)) - 1,
         "cost_per_seat": cost_per_seat,
         "total_cost": total_cost,
         "monthly_cost": monthly_cost,
@@ -395,6 +408,22 @@ async def update_trip(trip_id: str, body: TripUpdateIn, user: Dict = Depends(_dr
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY,
                                 "seats_offered exceeds vehicle capacity " + str(cap))
         patch["seats_offered"] = body.seats_offered
+
+    if body.fuel_price_per_unit is not None:
+        # Fuel price locked once any booking is accepted (config).
+        if get_settings().LOCK_FUEL_PRICE_AFTER_ACCEPT:
+            existing = await db.bookings.find_one({
+                "trip_id": doc["_id"],
+                "status": {"$in": list(CONFIRMED_STATUSES)},
+            })
+            if existing is not None:
+                raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY,
+                                    "fuel price is locked after a booking is accepted")
+        if body.fuel_price_per_unit <= 0:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY,
+                                "fuel price must be greater than 0")
+        patch["fuel_price_per_unit"] = body.fuel_price_per_unit
+        patch["fuel_price"] = body.fuel_price_per_unit
     if ("source" in patch) or ("destination" in patch):
         src = patch.get("source", doc["source"])
         dst = patch.get("destination", doc["destination"])
@@ -409,6 +438,11 @@ async def update_trip(trip_id: str, body: TripUpdateIn, user: Dict = Depends(_dr
     patch["updated_at"] = _utcnow()
     updated = await db.trips.find_one_and_update(
         {"_id": doc["_id"]}, {"$set": patch}, return_document=True)
+    # Recompute fares when route, fuel price, or seats changed.
+    recompute_keys = {"route_km", "fuel_price_per_unit", "fuel_price",
+                      "seats_offered", "distance_km", "route_geometry"}
+    if any(k in patch for k in recompute_keys):
+        await recompute_trip_fares(db, doc["_id"], reason="trip_updated")
     return _out(updated)
 
 

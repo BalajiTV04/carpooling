@@ -51,6 +51,10 @@ class BookingOut(BaseModel):
     ai_score: Optional[float] = None
     ai_model: Optional[str] = None
     cost_share: Optional[float] = None  # Module 12 fills this
+    final_contribution: Optional[float] = None
+    fare_changed: Optional[bool] = False
+    previous_amount: Optional[float] = None
+    fare_history: Optional[List[dict]] = None
     closed_at: Optional[datetime] = None      # Module 19: trip-completion stamp
     closure_note: Optional[str] = None        # Module 19: e.g. "trip completed"
     created_at: Optional[datetime] = None

@@ -36,7 +36,9 @@ function TripsInner() {
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [seats, setSeats] = useState(2);
+  const [fuelPrice, setFuelPrice] = useState("");
   const [preview, setPreview] = useState<RoutePreview | null>(null);
+  const [costSummary, setCostSummary] = useState<{ routeKm: number; mileage: number; litres: number; fuelPrice: number; totalCost: number; passengerSeats: number; paxPays: number; driverPays: number } | null>(null);
   const [routing, setRouting] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -69,6 +71,28 @@ function TripsInner() {
     return () => { if (timer.current) clearTimeout(timer.current); };
   }, [src, dst]);
 
+  // Live cost summary: recompute whenever vehicle/distance/fuel price changes.
+  useEffect(() => {
+    const car = cars.find((c) => c.id === vehicleId);
+    const km = preview?.distance_km ?? 0;
+    if (!car || !km || !fuelPrice) {
+      setCostSummary(null);
+      return;
+    }
+    const mileage = car.mileage_kmpl ?? 0;
+    const price = Number(fuelPrice);
+    if (!mileage || !price || price <= 0) {
+      setCostSummary(null);
+      return;
+    }
+    const litres = km / mileage;
+    const totalCost = litres * price;
+    const passengerSeats = Math.max(1, (car.seat_capacity ?? 4) - 1);
+    const paxPays = Math.ceil(totalCost / 2); // one passenger full route, equal split with driver
+    const driverPays = Math.ceil(totalCost - paxPays);
+    setCostSummary({ routeKm: km, mileage, litres, fuelPrice: price, totalCost, passengerSeats, paxPays, driverPays });
+  }, [vehicleId, preview, fuelPrice, cars]);
+
   const verified = cars.filter((c) => c.verification_status === "verified" && c.is_active);
   const cap = cars.find((c) => c.id === vehicleId)?.seats_total ?? 7;
 
@@ -81,13 +105,15 @@ function TripsInner() {
       if (!src || !dst) throw new Error("Search and pick both places");
       if (!vehicleId) throw new Error("Choose a verified car");
       if (!date || !time) throw new Error("Pick a departure date AND time");
+      const fp = Number(fuelPrice);
+      if (!fp || fp <= 0) throw new Error("Enter a fuel price per unit (> 0)");
       const depart = new Date(`${date}T${time}:00`);
       if (Number.isNaN(depart.getTime())) throw new Error("That date/time is not valid");
       if (depart.getTime() < Date.now() + 5 * 60_000) {
         throw new Error("Departure must be at least 5 minutes in the future — the server refuses past trips");
       }
       const depart_at = depart.toISOString();
-      const created = await tripApi.create({ vehicle_id: vehicleId, source_name: src!.name, destination_name: dst!.name, depart_at, seats_offered: seats });
+      const created = await tripApi.create({ vehicle_id: vehicleId, source_name: src!.name, destination_name: dst!.name, depart_at, seats_offered: seats, fuel_price_per_unit: fp });
       setMsg("Trip staged as draft — publish it to go live.");
       setTrips([...trips, created]);
       setSrc(null); setDst(null); setVehicleId(""); setDate(""); setTime(""); setSeats(2); setPreview(null);
@@ -123,9 +149,20 @@ function TripsInner() {
             <select className={inputCls} value={vehicleId} onChange={(e) => setVehicleId(e.target.value)} required>
               <option value="">— choose car —</option>
               {verified.map((c) => (
-                <option key={c.id} value={c.id}>{c.make} {c.model} · {c.plate_no}</option>
+                <option key={c.id} value={c.id}>
+                  {c.make} {c.model} · {c.plate_no} · {c.mileage_kmpl ?? 0} km/l · {c.seat_capacity} seats
+                </option>
               ))}
             </select>
+            {vehicleId && (
+              <p className="text-[10px] text-muted mt-0.5">
+                Mileage {cars.find((c) => c.id === vehicleId)?.mileage_kmpl ?? 0} km/l · {cars.find((c) => c.id === vehicleId)?.seat_capacity ?? 0} seats total · passenger seats: {Math.max(1, (cars.find((c) => c.id === vehicleId)?.seat_capacity ?? 4) - 1)}
+              </p>
+            )}
+          </Field>
+          <Field label="Fuel price per unit (₹)">
+            <input className={inputCls} value={fuelPrice} onChange={(e) => setFuelPrice(e.target.value)} inputMode="decimal" placeholder="e.g. 100" required />
+            <p className="text-[10px] text-muted mt-0.5">Suggested: ₹100/litre — you confirm the price for this trip.</p>
           </Field>
           <PlacePicker label="From" value={src} onPick={setSrc} placeholder="Hebbal… try “Man miss”" />
           <PlacePicker label="To" value={dst} onPick={setDst} placeholder="Electronic City…" />
@@ -142,6 +179,22 @@ function TripsInner() {
               </select>
             </Field>
           </div>
+          {costSummary && (
+            <div className="glass-card p-4 border border-brand-teal/40">
+              <h3 className="font-display text-sm font-bold text-ink mb-3">Trip cost summary</h3>
+              <div className="grid grid-cols-2 gap-2 text-xs text-muted">
+                <span>Route km</span><span className="text-ink font-mono">{costSummary.routeKm.toFixed(1)} km</span>
+                <span>Mileage</span><span className="text-ink font-mono">{costSummary.mileage} km/l</span>
+                <span>Fuel needed</span><span className="text-ink font-mono">{costSummary.litres.toFixed(2)} L</span>
+                <span>Fuel price</span><span className="text-ink font-mono">₹{costSummary.fuelPrice}/L</span>
+                <span>Total fuel cost</span><span className="text-ink font-bold">₹{(costSummary.litres * costSummary.fuelPrice).toFixed(0)}</span>
+                <span>Passenger seats</span><span className="text-ink font-mono">{costSummary.passengerSeats}</span>
+              </div>
+              <p className="mt-3 text-xs text-muted">
+                If one passenger rides the full route: they pay <span className="font-bold text-brand-teal">₹{costSummary.paxPays}</span>, you pay <span className="font-bold text-brand-teal">₹{costSummary.driverPays}</span>. When more passengers join, the shared segments are re-split and every share is recalculated.
+              </p>
+            </div>
+          )}
           <Button variant="primary" size="md" disabled={busy || !src || !dst} className="w-full">
             {busy ? "Staging…" : "Stage as draft →"}
           </Button>

@@ -174,7 +174,7 @@ async def login(body: LoginIn):
     if user.get("status") != "active":
         raise HTTPException(status.HTTP_403_FORBIDDEN, "account suspended")
     # Driver approval gate: only approved drivers may log in
-    if "driver" in user.get("roles", []) and user.get("driver_approval") != "approved":
+    if body.role == "driver" and user.get("driver_approval") not in ("approved", None):
         if user.get("driver_approval") == "rejected":
             raise HTTPException(status.HTTP_403_FORBIDDEN,
                                 "driver application rejected — contact admin")

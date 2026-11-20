@@ -21,7 +21,7 @@ function Bar({ label, value, display }: { label: string; value: number; display:
   );
 }
 
-export function MatchCard({ m, hit }: { m: MatchInfo; hit?: RideHit }) {
+export function MatchCard({ m, hit, seatsLeft, passengersCount }: { m: MatchInfo; hit?: RideHit; seatsLeft?: number; passengersCount?: number }) {
   const shown = m.blended ?? m.score;
   const ring = `conic-gradient(#C6FF4A ${shown}%, #1A2154 ${shown}% 100%)`;
 
@@ -110,6 +110,11 @@ export function MatchCard({ m, hit }: { m: MatchInfo; hit?: RideHit }) {
           <span className="text-muted">Estimated Travel Contribution</span>
           <span className="font-bold text-brand-teal">₹{contrib}</span>
         </div>
+      )}
+      {contrib != null && seatsLeft != null && (
+        <p className="mt-1.5 text-[10px] text-muted">
+          {seatsLeft} seat{seatsLeft !== 1 ? "s" : "s"} left · shared with {passengersCount ?? 0} other passenger{passengersCount !== 1 && passengersCount !== 0 ? "s" : ""}. Amount can change if others join or cancel. Final amount is settled when the trip ends.
+        </p>
       )}
 
       <div className="mt-2 grid gap-1.5">

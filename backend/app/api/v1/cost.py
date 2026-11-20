@@ -18,6 +18,7 @@ from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field, field_validator
 
+from app.core.config import get_settings
 from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.services.cost import (
@@ -26,6 +27,10 @@ from app.services.cost import (
     passenger_share,
     resolve_fuel_price,
     total_fuel_cost,
+)
+from app.services.cost_sharing import (
+    check_seats_left, compute_shares, CONFIRMED_STATUSES, get_fuel_unit,
+    segment_table,
 )
 
 router = APIRouter(tags=["cost"])
@@ -205,3 +210,183 @@ async def recalculate_trip_shares(db, trip_id: ObjectId) -> None:
         await db.bookings.update_one(
             {"_id": d["_id"]},
             {"$set": {"cost_share": shares.get(str(d["_id"]), 0.0)}})
+
+
+# ---------------------------------------------------------------------------
+# New segment-based cost endpoints (Module 12+)
+# ---------------------------------------------------------------------------
+
+class CostPreviewIn(BaseModel):
+    trip_id: str
+    pickup_along_km: float
+    drop_along_km: float
+    seats: int = Field(default=1, ge=1, le=7)
+
+
+@router.post("/cost/preview")
+async def cost_preview_endpoint(body: CostPreviewIn,
+                                user: Dict = Depends(get_current_user)):
+    """What this passenger would pay if they joined the currently accepted
+    passengers on the trip. Also returns seats left for their range."""
+    db = get_db()
+    trip = await db.trips.find_one({"_id": _oid(body.trip_id, "trip not found")})
+    if trip is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "trip not found")
+
+    route_km = float(trip.get("route_km") or trip.get("distance_km") or 0)
+    mileage = trip.get("vehicle_mileage_kmpl")
+    fuel_price = trip.get("fuel_price_per_unit") or trip.get("fuel_price")
+    route_coords = (trip.get("route_geometry") or {}).get("coordinates")
+
+    if (not mileage or not fuel_price) and trip.get("vehicle_id"):
+        veh = await db.vehicles.find_one({"_id": trip["vehicle_id"]})
+        if veh:
+            mileage = mileage or veh.get("mileage_kmpl")
+            if not fuel_price:
+                fuel_price = resolve_fuel_price(veh.get("fuel_type"),
+                                                trip.get("price_policy"))
+
+    if not mileage or not fuel_price or route_km <= 0:
+        return {
+            "estimated_contribution": None,
+            "available": False,
+            "reason": "Cost not available - driver has not set a fuel price",
+            "seats_left": 0,
+            "can_book": False,
+        }
+
+    mileage = float(mileage)
+    fuel_price = float(fuel_price)
+
+    cursor = db.bookings.find({
+        "trip_id": trip["_id"],
+        "status": {"$in": list(CONFIRMED_STATUSES)},
+    })
+    confirmed_docs = await cursor.to_list(100)
+
+    p_seats = int(trip.get("passenger_seats") or trip.get("seats_offered") or 4)
+    seats_left = check_seats_left(
+        route_km, p_seats, confirmed_docs,
+        body.pickup_along_km, body.drop_along_km, route_coords,
+    )
+    if seats_left < body.seats:
+        return {
+            "estimated_contribution": None,
+            "available": False,
+            "reason": "not enough seats left for this request",
+            "seats_left": seats_left,
+            "can_book": False,
+        }
+
+    candidate = {
+        "_id": "preview_candidate",
+        "seats": body.seats,
+        "pickup_along_km": body.pickup_along_km,
+        "drop_along_km": body.drop_along_km,
+        "status": "accepted",
+    }
+    shares = compute_shares(
+        route_km=route_km, mileage=mileage, fuel_price=fuel_price,
+        bookings=confirmed_docs + [candidate],
+        round_mode=get_settings().ROUND_MODE,
+        route_coords=route_coords,
+    )
+    return {
+        "estimated_contribution": shares["passengers"].get("preview_candidate", 0),
+        "available": True,
+        "seats_left": seats_left,
+        "can_book": True,
+        "total_cost": shares["total_cost"],
+        "driver_share": shares["driver_share"],
+        "passengers_count": len(confirmed_docs),
+        "fuel_unit": get_fuel_unit(trip.get("fuel_type")),
+    }
+
+
+@router.get("/trips/{trip_id}/fare-breakdown")
+async def fare_breakdown(trip_id: str, user: Dict = Depends(get_current_user)):
+    """Segment-level fare breakdown for a trip.
+
+    Driver sees every passenger's amount; a passenger sees the segment table
+    and only their own amount.
+    """
+    db = get_db()
+    trip = await db.trips.find_one({"_id": _oid(trip_id, "trip not found")})
+    if trip is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "trip not found")
+
+    is_driver = str(trip.get("driver_id")) == user["id"]
+
+    route_km = float(trip.get("route_km") or trip.get("distance_km") or 0)
+    mileage = trip.get("vehicle_mileage_kmpl")
+    fuel_price = trip.get("fuel_price_per_unit") or trip.get("fuel_price")
+    route_coords = (trip.get("route_geometry") or {}).get("coordinates")
+
+    if not mileage or not fuel_price or route_km <= 0:
+        return {
+            "available": False,
+            "reason": "Cost not available - driver has not set a fuel price",
+            "segments": [],
+            "passengers": {},
+            "driver_share": 0,
+            "total_cost": 0,
+        }
+
+    mileage = float(mileage)
+    fuel_price = float(fuel_price)
+
+    cursor = db.bookings.find({
+        "trip_id": trip["_id"],
+        "status": {"$in": list(CONFIRMED_STATUSES)},
+    })
+    confirmed_docs = await cursor.to_list(100)
+
+    result = compute_shares(
+        route_km=route_km, mileage=mileage, fuel_price=fuel_price,
+        bookings=confirmed_docs,
+        round_mode=get_settings().ROUND_MODE,
+        route_coords=route_coords,
+    )
+
+    segs = segment_table(
+        route_km, mileage, fuel_price, confirmed_docs,
+        round_mode=get_settings().ROUND_MODE, route_coords=route_coords,
+    )
+
+    passengers_out = {}
+    for b in confirmed_docs:
+        bid = str(b["_id"])
+        amt = result["passengers"].get(bid, 0)
+        entry = {"amount": amt}
+        if is_driver:
+            u = await db.users.find_one({"_id": b["passenger_id"]}, {"full_name": 1})
+            entry["name"] = (u or {}).get("full_name") or "Passenger"
+            entry["seats"] = int(b.get("seats", 1))
+            entry["pickup_along_km"] = b.get("pickup_along_km")
+            entry["drop_along_km"] = b.get("drop_along_km")
+        passengers_out[bid] = entry
+
+    p_seats = int(trip.get("passenger_seats") or trip.get("seats_offered") or 4)
+    seats_left = check_seats_left(route_km, p_seats, confirmed_docs,
+                                  0.0, route_km, route_coords)
+
+    if is_driver:
+        passengers_payload = passengers_out
+    else:
+        passengers_payload = {str(user["id"]):
+                              result["passengers"].get(str(user["id"]), 0)}
+
+    return {
+        "available": True,
+        "route_km": route_km,
+        "fuel_unit": get_fuel_unit(trip.get("fuel_type")),
+        "mileage_kmpl": mileage,
+        "fuel_price_per_unit": fuel_price,
+        "total_cost": result["total_cost"],
+        "driver_share": result["driver_share"],
+        "passengers_total": result["passengers_total"],
+        "seats_left": seats_left,
+        "segments": segs,
+        "passengers": passengers_payload,
+        "is_driver": is_driver,
+    }

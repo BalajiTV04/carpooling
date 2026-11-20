@@ -73,6 +73,9 @@ export function DetourRideCard({ t }: { t: DetourRideResult }) {
               {t.estimated && <span className="text-muted/70"> (estimated)</span>}
             </span>
           </p>
+          <p className="mt-1 text-[10px] text-muted">
+            {t.seats_available} seat{t.seats_available === 1 ? "" : "s"} left · shared ride. Amount can change if others join or cancel. Final amount is settled when the trip ends.
+          </p>
         </div>
         <button
           onClick={() => setOpen(!open)}

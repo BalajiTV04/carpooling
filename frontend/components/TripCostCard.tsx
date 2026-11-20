@@ -4,13 +4,15 @@
 // what each confirmed passenger currently owes.
 import { useCallback, useEffect, useState } from "react";
 import {
-  costApi, POLICY_BLURBS, type CostPolicy, type TripCost
+  costApi, POLICY_BLURBS, type CostPolicy, type TripCost,
+  type FareBreakdown, type FareSegment
 } from "@/lib/cost";
 import { Field, inputCls } from "@/components/AuthShell";
 import { SegmentView } from "@/components/SegmentView";
 
 export function TripCostCard({ tripId, seatsLeft }: { tripId: string; seatsLeft: number }) {
   const [cost, setCost] = useState<TripCost | null>(null);
+  const [breakdown, setBreakdown] = useState<FareBreakdown | null>(null);
   const [mode, setMode] = useState<CostPolicy>("split_equal");
   const [price, setPrice] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
@@ -21,6 +23,12 @@ export function TripCostCard({ tripId, seatsLeft }: { tripId: string; seatsLeft:
     [tripId]
   );
   useEffect(() => { load(); }, [load]);
+
+  const loadBreakdown = useCallback(
+    () => costApi.fareBreakdown(tripId).then((b) => { setBreakdown(b); }).catch(() => {}),
+    [tripId]
+  );
+  useEffect(() => { loadBreakdown(); }, [loadBreakdown]);
 
   const save = async () => {
     setErr(null);
@@ -54,6 +62,58 @@ export function TripCostCard({ tripId, seatsLeft }: { tripId: string; seatsLeft:
             <p className="text-[10px] uppercase tracking-wider text-muted">collected</p>
           </div>
         </div>
+      )}
+      {/* Fare breakdown: segment-level table (Module 12+) */}
+      {breakdown && breakdown.available && (
+        <div className="mt-3 rounded-2xl border border-brand-teal/40 bg-surface p-3">
+          <p className="font-display text-sm font-bold text-ink mb-2">Fare breakdown — segment shares</p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-[10px]">
+              <thead>
+                <tr className="text-muted border-b border-surface">
+                  <th className="text-left pb-1">Km range</th>
+                  <th className="text-right pb-1">Km</th>
+                  <th className="text-right pb-1">Litres</th>
+                  <th className="text-right pb-1">Cost</th>
+                  <th className="text-right pb-1">People</th>
+                  <th className="text-right pb-1">Each pays</th>
+                </tr>
+              </thead>
+              <tbody>
+                {breakdown.segments.map((s) => (
+                  <tr key={s.seq} className="border-b border-surface/30">
+                    <td className="text-left py-1">{s.from_km}–{s.to_km}</td>
+                    <td className="text-right py-1">{s.km}</td>
+                    <td className="text-right py-1">{s.litres}</td>
+                    <td className="text-right py-1">₹{Math.round(s.cost)}</td>
+                    <td className="text-right py-1">{s.occupants}</td>
+                    <td className="text-right py-1 font-mono">₹{Math.round(s.per_person)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="mt-2 grid grid-cols-3 gap-2 text-center">
+            <div className="rounded-2xl bg-surface px-2 py-2">
+              <p className="font-display text-base font-bold text-brand-teal">₹{breakdown.total_cost}</p>
+              <p className="text-[10px] uppercase tracking-wider text-muted">total route cost</p>
+            </div>
+            <div className="rounded-2xl bg-surface px-2 py-2">
+              <p className="font-display text-base font-bold text-brand-teal">₹{breakdown.passengers_total}</p>
+              <p className="text-[10px] uppercase tracking-wider text-muted">passengers’ total</p>
+            </div>
+            <div className="rounded-2xl bg-surface px-2 py-2">
+              <p className="font-display text-base font-bold text-ink">₹{breakdown.driver_share}</p>
+              <p className="text-[10px] uppercase tracking-wider text-muted">your remaining</p>
+            </div>
+          </div>
+          <p className="mt-2 text-[10px] text-muted">
+            {breakdown.seats_left} seat{breakdown.seats_left !== 1 ? "s" : ""} left · fuel unit: {breakdown.fuel_unit}
+          </p>
+        </div>
+      )}
+      {breakdown && !breakdown.available && (
+        <p className="mt-3 text-[11px] text-muted">{breakdown.reason ?? "Cost not available"}</p>
       )}
       {/* The arithmetic behind the total. total = km ÷ mileage × price, so the
           mileage and the car it came from must both be on screen — a bare

@@ -1,6 +1,6 @@
 "use client";
 // /search (Module 9 ranking + Module 10 pickup optimisation).
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { RequireAuth } from "@/components/RequireAuth";
@@ -67,6 +67,19 @@ function SearchInner() {
       setBusy(false);
     }
   };
+
+  // Refresh search results on window focus and every ~15s so seats left stays current.
+  useEffect(() => {
+    const handleFocus = () => submitRef.current?.();
+    window.addEventListener("focus", handleFocus);
+    const timer = setInterval(() => submitRef.current?.(), 15000);
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      clearInterval(timer);
+    };
+  }, []);
+
+  const submitRef = { current: submit as () => Promise<void> };
 
   const submitDetour = async (e: React.FormEvent) => {
     e.preventDefault();

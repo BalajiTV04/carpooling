@@ -17,7 +17,7 @@ def _h(tok):
 
 
 CAR = {"make": "Maruti", "model": "Swift", "year": 2019, "color": "Blue",
-       "plate_no": "KA 05 mn 4321", "seats_total": 3,
+       "plate_no": "KA 05 mn 4321", "seats_total": 3, "seat_capacity": 4,
        "fuel_type": "petrol", "mileage_kmpl": 18.0}
 
 

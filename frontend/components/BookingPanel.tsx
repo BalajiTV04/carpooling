@@ -226,6 +226,11 @@ export function BookingPanel({
             <button onClick={() => act(() => bookingApi.cancel(booking.id), "Cancelled — seats released.")}
               className="ml-2 text-rose-300 underline" disabled={busy}>cancel</button>
           </p>
+          {booking.fare_changed && booking.previous_amount != null && booking.cost_share != null && (
+            <p className="mt-1 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-2 text-[11px] text-amber-300">
+              Your share changed from ₹{Math.round(booking.previous_amount)} to ₹{Math.round(booking.cost_share)} because another passenger joined or cancelled.
+            </p>
+          )}
           <CostStrip bookingId={booking.id} bookingCost={booking.cost_share} tripId={tripId} />
           <LiveTrack tripId={tripId} />
           <SafetyBanner tripId={tripId} driverId={undefined} />
