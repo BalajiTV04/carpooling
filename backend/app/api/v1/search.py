@@ -118,6 +118,24 @@ async def search_rides(body: SearchIn, user: Dict = Depends(get_current_user)):
         enrich_match(m, max_pickup_km=body.max_pickup_km,
                      max_detour_km=body.max_detour_km)
         row = _out(doc)
+        # Enrich with driver + vehicle info (consistent with GET /trips/available)
+        driver = await db.users.find_one(
+            {"_id": doc["driver_id"]},
+            {"full_name": 1, "phone": 1, "rating_avg": 1, "rating_count": 1},
+        )
+        veh = await db.vehicles.find_one({"_id": doc.get("vehicle_id")})
+        row["driver"] = {
+            "name": (driver or {}).get("full_name") or "Driver",
+            "rating_avg": (driver or {}).get("rating_avg"),
+            "rating_count": (driver or {}).get("rating_count", 0),
+        }
+        row["vehicle"] = {
+            "make": (veh or {}).get("make"),
+            "model": (veh or {}).get("model"),
+            "plate_no": (veh or {}).get("plate_no"),
+            "fuel_type": (veh or {}).get("fuel_type", "petrol"),
+            "mileage_kmpl": (veh or {}).get("mileage_kmpl"),
+        }
         row["src_km"] = round(m.get("pickup_km", src_km), 2)
         row["dst_km"] = round(m.get("dropoff_km", dst_km), 2)
         row["match"] = m
@@ -125,16 +143,13 @@ async def search_rides(body: SearchIn, user: Dict = Depends(get_current_user)):
         # Module 12: Estimated travel contribution based on passenger_distance_km
         p_dist = float(m.get("passenger_distance_km", 0.0) or 0.0)
         det_km = float(m.get("detour_km", 0.0) or 0.0)
-        veh_id = doc.get("vehicle_id")
         mileage = 15.0
         fuel_price = float(doc.get("fuel_price") or 100.0)
         fuel_type = doc.get("fuel_type") or "petrol"
-        if veh_id:
-            veh = await db.vehicles.find_one({"_id": veh_id})
-            if veh:
-                mileage = float(veh.get("mileage_kmpl") or 15.0)
-                if not doc.get("fuel_price"):
-                    fuel_price = resolve_fuel_price(veh.get("fuel_type", fuel_type), doc.get("price_policy"))
+        if veh:
+            mileage = float(veh.get("mileage_kmpl") or 15.0)
+            if not doc.get("fuel_price"):
+                fuel_price = resolve_fuel_price(veh.get("fuel_type", fuel_type), doc.get("price_policy"))
 
         occupants = 1 + int(doc.get("seats_booked", 0) or 0) + int(body.seats)
         settings = get_settings()
