@@ -173,6 +173,13 @@ async def login(body: LoginIn):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "account not found")
     if user.get("status") != "active":
         raise HTTPException(status.HTTP_403_FORBIDDEN, "account suspended")
+    # Driver approval gate: only approved drivers may log in
+    if "driver" in user.get("roles", []) and user.get("driver_approval") != "approved":
+        if user.get("driver_approval") == "rejected":
+            raise HTTPException(status.HTTP_403_FORBIDDEN,
+                                "driver application rejected — contact admin")
+        raise HTTPException(status.HTTP_403_FORBIDDEN,
+                            "driver account pending admin approval")
     if not verify_password(body.password, user["password_hash"]):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "wrong password")
     # Role match: if the caller selected a role, the account must hold it.
