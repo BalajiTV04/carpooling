@@ -24,7 +24,6 @@ export default function RegisterPage() {
   const [vehicleYear, setVehicleYear] = useState("");
   const [vehicleColor, setVehicleColor] = useState("");
   const [vehiclePlate, setVehiclePlate] = useState("");
-  const [vehicleSeats, setVehicleSeats] = useState("3");
   const [vehicleFuel, setVehicleFuel] = useState("petrol");
   const [vehicleImageUrl, setVehicleImageUrl] = useState("");
   const [busy, setBusy] = useState(false);
@@ -46,7 +45,6 @@ export default function RegisterPage() {
         vehicle_year: vehicleYear ? parseInt(vehicleYear, 10) : undefined,
         vehicle_color: vehicleColor || undefined,
         vehicle_plate_no: vehiclePlate || undefined,
-        vehicle_seats_total: vehicleSeats ? parseInt(vehicleSeats, 10) : undefined,
         vehicle_fuel_type: vehicleFuel || undefined,
         vehicle_image_url: vehicleImageUrl || undefined,
       });
@@ -179,10 +177,22 @@ export default function RegisterPage() {
                   reader.readAsDataURL(file);
                 }}
               />
-              {avatarUrl && <span className="mt-1.5 block text-[11px] text-muted">Photo selected & will be uploaded</span>}
-              <span className="mt-1.5 block text-[11px] text-muted">
-                Shown on your driver profile. Blank keeps the default avatar.
-              </span>
+              {avatarUrl ? (
+                <>
+                  <span className="mt-1.5 block text-[11px] text-muted">Photo selected & will be uploaded</span>
+                  <button
+                    type="button"
+                    onClick={() => setAvatarUrl("")}
+                    className="mt-1 text-[10px] text-danger underline underline-offset-4 hover:text-danger/70"
+                  >
+                    Remove
+                  </button>
+                </>
+              ) : (
+                <span className="mt-1.5 block text-[11px] text-muted">
+                  Shown on your driver profile. Blank keeps the default avatar.
+                </span>
+              )}
             </Field>
 
             {/* Vehicle details */}
@@ -235,20 +245,6 @@ export default function RegisterPage() {
                   required
                 />
               </Field>
-              <Field label="Passenger Seats (excl. driver)">
-                <select
-                  className={inputCls}
-                  value={vehicleSeats}
-                  onChange={(e) => setVehicleSeats(e.target.value)}
-                  required
-                >
-                  {[1, 2, 3, 4, 5, 6, 7].map((n) => (
-                    <option key={n} value={String(n)}>
-                      {n} passenger seat{n > 1 ? "s" : ""}
-                    </option>
-                  ))}
-                </select>
-              </Field>
               <Field label="Fuel Type">
                 <select
                   className={inputCls}
@@ -275,10 +271,22 @@ export default function RegisterPage() {
                   reader.readAsDataURL(file);
                 }}
               />
-              {vehicleImageUrl && <span className="mt-1.5 block text-[11px] text-muted">Photo selected & will be uploaded</span>}
-              <span className="mt-1.5 block text-[11px] text-muted">
-                Shown on the vehicle card &amp; booking. Blank keeps the default car icon.
-              </span>
+              {vehicleImageUrl ? (
+                <>
+                  <span className="mt-1.5 block text-[11px] text-muted">Photo selected & will be uploaded</span>
+                  <button
+                    type="button"
+                    onClick={() => setVehicleImageUrl("")}
+                    className="mt-1 text-[10px] text-danger underline underline-offset-4 hover:text-danger/70"
+                  >
+                    Remove
+                  </button>
+                </>
+              ) : (
+                <span className="mt-1.5 block text-[11px] text-muted">
+                  Shown on the vehicle card &amp; booking. Blank keeps the default car icon.
+                </span>
+              )}
             </Field>
 
             <Field label="Vehicle Mileage (km/L)">

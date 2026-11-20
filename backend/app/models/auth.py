@@ -21,7 +21,7 @@ class RegisterIn(BaseModel):
     mileage: Optional[float] = Field(default=None, ge=1, le=60)
     available_seats: Optional[int] = Field(default=None, ge=1, le=7)
     # --- driver photo (URL-only, same doctrine as profile avatar) ---
-    avatar_url: Optional[str] = Field(default=None, max_length=500)
+    avatar_url: Optional[str] = Field(default=None)
     # --- optional vehicle details captured at driver signup ---
     vehicle_make: Optional[str] = Field(default=None, max_length=40)
     vehicle_model: Optional[str] = Field(default=None, max_length=40)
@@ -30,7 +30,7 @@ class RegisterIn(BaseModel):
     vehicle_plate_no: Optional[str] = Field(default=None, min_length=4, max_length=15)
     vehicle_seats_total: Optional[int] = Field(default=None, ge=1, le=7)
     vehicle_fuel_type: Optional[str] = None
-    vehicle_image_url: Optional[str] = Field(default=None, max_length=500)
+    vehicle_image_url: Optional[str] = Field(default=None)
 
     @field_validator("phone")
     @classmethod
