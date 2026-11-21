@@ -254,7 +254,7 @@ export function NavBar() {
                         Rider login
                       </Link>
                       <Link
-                        href="/login?role=admin"
+                        href="/admin/login"
                         className="flex items-center gap-3 px-4 py-3 rounded-xl font-medium border border-brand-teal/30 text-brand-teal hover:bg-brand-teal/5"
                       >
                         Admin login

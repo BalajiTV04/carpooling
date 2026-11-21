@@ -35,7 +35,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from bson import ObjectId
 
 from app.core.config import get_settings
-from app.services.geo_math import project_onto_route, route_length_km
+from app.services.geo_math import point_at_km, project_onto_route, route_length_km
 
 EPS_KM = 1e-4  # 10 cm tolerance for breakpoint deduplication and segment coverage
 CONFIRMED_STATUSES = ("accepted", "confirmed", "completed")
@@ -607,10 +607,25 @@ async def recompute_trip_fares(
     # Persist segments in db.segments collection
     await db.segments.delete_many({"trip_id": oid})
     seg_docs = []
+    src_pt = (trip.get("source") or {}).get("point") or {"type": "Point", "coordinates": [0.0, 0.0]}
+    dst_pt = (trip.get("destination") or {}).get("point") or {"type": "Point", "coordinates": [0.0, 0.0]}
+    src_label = (trip.get("source") or {}).get("name") or "Start"
+    dst_label = (trip.get("destination") or {}).get("name") or "End"
+    route_coords = (trip.get("route_geometry") or {}).get("coordinates") or []
+
     for s in result["segments"]:
+        p_lo = point_at_km(route_coords, s["from_km"]) if route_coords else None
+        p_hi = point_at_km(route_coords, s["to_km"]) if route_coords else None
+        from_pt = {"type": "Point", "coordinates": [round(p_lo[0], 6), round(p_lo[1], 6)]} if p_lo else src_pt
+        to_pt = {"type": "Point", "coordinates": [round(p_hi[0], 6), round(p_hi[1], 6)]} if p_hi else dst_pt
+
         seg_docs.append({
             "trip_id": oid,
             "seq": s["seq"],
+            "from_label": src_label if s["seq"] == 0 else f"km {s['from_km']:.1f}",
+            "to_label": dst_label if s["seq"] == len(result["segments"]) - 1 else f"km {s['to_km']:.1f}",
+            "from_point": from_pt,
+            "to_point": to_pt,
             "from_km": s["from_km"],
             "to_km": s["to_km"],
             "distance_km": s["km"],

@@ -77,22 +77,23 @@ export default function Home() {
             className="flex flex-col sm:flex-row gap-4 justify-center"
           >
             <Link
-              href="/search"
+              href="/login?role=passenger"
               className="btn btn-primary btn-lg flex items-center gap-2"
             >
               Find a ride <ArrowRight className="ml-1 h-4 w-4" />
             </Link>
-            <Link href="/trips" className="btn btn-secondary btn-lg flex items-center gap-2">
+            <Link
+              href="/login?role=driver"
+              className="btn btn-secondary btn-lg flex items-center gap-2"
+            >
               Become a driver <Car className="ml-1 h-4 w-4" />
             </Link>
-            {health?.db === "connected" && (
-              <Link
-                href="/admin/login"
-                className="btn btn-danger btn-lg flex items-center gap-2"
-              >
-                <Shield className="h-5 w-5" /> Login as Admin
-              </Link>
-            )}
+            <Link
+              href="/admin/login"
+              className="btn btn-danger btn-lg flex items-center gap-2"
+            >
+              <Shield className="h-5 w-5" /> Login as Admin
+            </Link>
           </motion.div>
         </div>
         {/* Feature grid */}

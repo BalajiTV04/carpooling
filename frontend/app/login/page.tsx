@@ -1,27 +1,46 @@
 "use client";
 // Login: phone + password → session saved → redirect to role dashboard (/driver or /passenger).
-import { Suspense, useState } from "react";
+import { Suspense, useState, useEffect } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "@/components/SessionProvider";
 import { AuthShell, Field, inputCls } from "@/components/AuthShell";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
-import { Car, Shield, UserCheck } from "lucide-react";
+import { Car, UserCheck } from "lucide-react";
 import { toDigits, isValidMobile10, formatDisplay, DEFAULT_COUNTRY_CODE } from "@/lib/phone";
+
+type UserRole = "passenger" | "driver";
 
 function LoginForm() {
   const { login, error } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextParam = searchParams.get("next");
-  const roleParam = searchParams.get("role");
+  const roleParam = searchParams.get("role")?.toLowerCase();
 
-  const [role, setRole] = useState<"driver" | "passenger" | "admin" | null>(
-    roleParam === "driver" ? "driver" : roleParam === "passenger" ? "passenger" : roleParam === "admin" ? "admin" : null
+  const [role, setRole] = useState<UserRole>(
+    roleParam === "driver" ? "driver" : "passenger"
   );
   const [form, setForm] = useState({ phone: "", password: "" });
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // Sync role state whenever the query parameter changes
+  useEffect(() => {
+    if (roleParam === "driver") {
+      setRole("driver");
+    } else {
+      setRole("passenger");
+    }
+  }, [roleParam]);
+
+  const handleRoleSelect = (selectedRole: UserRole) => {
+    setRole(selectedRole);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("role", selectedRole);
+    router.replace(`/login?${params.toString()}`, { scroll: false });
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,26 +52,14 @@ function LoginForm() {
         return;
       }
       setPhoneError(null);
-      await login(digits, form.password, role || undefined);
+      await login(digits, form.password, role);
       // Determine redirection based on target or user role
       if (nextParam) {
         router.push(nextParam);
       } else if (role === "driver") {
         router.push("/driver");
-      } else if (role === "passenger") {
-        router.push("/passenger");
-      } else if (role === "admin") {
-        router.push("/admin/dashboard");
       } else {
-        // Read stored session to direct appropriately
-        const stored = typeof window !== "undefined" ? JSON.parse(localStorage.getItem("voltride_user") || "{}") : {};
-        if (stored?.roles?.includes("admin")) {
-          router.push("/admin/dashboard");
-        } else if (stored?.roles?.includes("driver")) {
-          router.push("/driver");
-        } else {
-          router.push("/passenger");
-        }
+        router.push("/passenger");
       }
     } catch {
       /* context error */
@@ -63,15 +70,17 @@ function LoginForm() {
 
   return (
     <AuthShell
-      title={role === "driver" ? "Driver Login" : role === "passenger" ? "Passenger Login" : "Welcome Back"}
+      title={role === "driver" ? "Driver Login" : "Passenger Login"}
       sub="Log in with your registered phone number."
     >
       <form onSubmit={submit} className="grid gap-4">
-        {/* Optional Role Filter Buttons */}
-        <div className="grid grid-cols-3 gap-2 mb-1">
+        {/* Role Selection Tabs: Passenger & Driver Only */}
+        <div className="grid grid-cols-2 gap-2 mb-1" role="tablist" aria-label="Login Role">
           <button
             type="button"
-            onClick={() => setRole(role === "passenger" ? null : "passenger")}
+            role="tab"
+            aria-selected={role === "passenger"}
+            onClick={() => handleRoleSelect("passenger")}
             className={`flex items-center justify-center gap-2 rounded-xl border py-2.5 px-3 text-xs font-semibold transition ${
               role === "passenger"
                 ? "border-brand-teal bg-brand-teal/15 text-brand-teal ring-1 ring-brand-teal"
@@ -83,7 +92,9 @@ function LoginForm() {
           </button>
           <button
             type="button"
-            onClick={() => setRole(role === "driver" ? null : "driver")}
+            role="tab"
+            aria-selected={role === "driver"}
+            onClick={() => handleRoleSelect("driver")}
             className={`flex items-center justify-center gap-2 rounded-xl border py-2.5 px-3 text-xs font-semibold transition ${
               role === "driver"
                 ? "border-brand-teal bg-brand-teal/15 text-brand-teal ring-1 ring-brand-teal"
@@ -92,18 +103,6 @@ function LoginForm() {
           >
             <Car className="h-4 w-4" />
             Driver
-          </button>
-          <button
-            type="button"
-            onClick={() => setRole(role === "admin" ? null : "admin")}
-            className={`flex items-center justify-center gap-2 rounded-xl border py-2.5 px-3 text-xs font-semibold transition ${
-              role === "admin"
-                ? "border-brand-teal bg-brand-teal/15 text-brand-teal ring-1 ring-brand-teal"
-                : "border-line bg-surface text-muted hover:border-brand-teal/30 hover:text-ink"
-            }`}
-          >
-            <Shield className="h-4 w-4" />
-            Admin
           </button>
         </div>
 
@@ -157,15 +156,24 @@ function LoginForm() {
 
         {error && <Alert variant="danger">{error}</Alert>}
 
-        <Button variant="primary" size="md" disabled={busy || !!phoneError || !isValidMobile10(toDigits(form.phone))} className="w-full">
-          {busy ? "Checking…" : `Log in as ${role === "driver" ? "Driver" : role === "passenger" ? "Passenger" : role === "admin" ? "Admin" : "User"} →`}
+        <Button
+          variant="primary"
+          size="md"
+          disabled={busy || !!phoneError || !isValidMobile10(toDigits(form.phone))}
+          className="w-full"
+        >
+          {busy
+            ? "Checking…"
+            : role === "driver"
+            ? "Log in as Driver →"
+            : "Log in as Passenger →"}
         </Button>
 
         <p className="text-center text-sm text-muted">
           New here?{" "}
-          <a href="/register" className="link-volt">
+          <Link href="/register" className="link-volt">
             Create account
-          </a>
+          </Link>
         </p>
       </form>
     </AuthShell>

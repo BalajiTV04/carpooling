@@ -61,6 +61,16 @@ def _oid(v: str) -> ObjectId:
 async def create_vehicle(body: VehicleIn, user: Dict = Depends(_driver)):
     db = get_db()
     now = _utcnow()
+    seats_total = body.seats_total
+    seat_capacity = body.seat_capacity
+    if seats_total is None and seat_capacity is not None:
+        seats_total = max(1, seat_capacity - 1)
+    elif seat_capacity is None and seats_total is not None:
+        seat_capacity = seats_total + 1
+    elif seats_total is None and seat_capacity is None:
+        seats_total = 3
+        seat_capacity = 4
+
     doc = {
         "owner_id": ObjectId(user["id"]),
         "make": body.make.strip(),
@@ -68,7 +78,8 @@ async def create_vehicle(body: VehicleIn, user: Dict = Depends(_driver)):
         "year": body.year,
         "color": body.color.strip() if body.color else None,
         "plate_no": body.plate_no,
-        "seats_total": body.seats_total,
+        "seats_total": seats_total,
+        "seat_capacity": seat_capacity,
         "fuel_type": body.fuel_type,
         "mileage_kmpl": body.mileage_kmpl,
         "image_url": body.image_url,

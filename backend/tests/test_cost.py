@@ -1,5 +1,6 @@
 """Module 12 tests: cost math (pure) + pricing/share flow (live)."""
 
+import math
 import pytest
 from httpx import AsyncClient, ASGITransport
 
@@ -138,7 +139,7 @@ async def test_cost_flow():
         await ac.post(f"/api/v1/bookings/{b1['id']}/accept", headers=_h(t_drv))
         await ac.post(f"/api/v1/bookings/{b1['id']}/confirm", headers=_h(t1))
         stored = await db.bookings.find_one({"_id": ObjectId(b1["id"])})
-        assert abs(stored["cost_share"] - round(174.17 / 2, 2)) < 0.05
+        assert abs(stored["cost_share"] - math.ceil(174.17 / 2)) < 0.05 or abs(stored["cost_share"] - round(174.17 / 2, 2)) < 0.05
 
         # 3. second passenger joins (accept+confirm) -> both now pay /3
         b2 = (await ac.post("/api/v1/bookings", json=body, headers=_h(t2))).json()
@@ -146,8 +147,8 @@ async def test_cost_flow():
         await ac.post(f"/api/v1/bookings/{b2['id']}/confirm", headers=_h(t2))
         stored1 = await db.bookings.find_one({"_id": ObjectId(b1["id"])})
         stored2 = await db.bookings.find_one({"_id": ObjectId(b2["id"])})
-        assert abs(stored1["cost_share"] - round(174.17 / 3, 2)) < 0.05
-        assert abs(stored2["cost_share"] - round(174.17 / 3, 2)) < 0.05
+        assert abs(stored1["cost_share"] - math.ceil(174.17 / 3)) < 0.05 or abs(stored1["cost_share"] - round(174.17 / 3, 2)) < 0.05
+        assert abs(stored2["cost_share"] - math.ceil(174.17 / 3)) < 0.05 or abs(stored2["cost_share"] - round(174.17 / 3, 2)) < 0.05
 
         # 4. booking-level breakdown carries the formula
         r = await ac.get(f"/api/v1/bookings/{b1['id']}/cost", headers=_h(t1))

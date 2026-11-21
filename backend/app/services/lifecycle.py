@@ -25,7 +25,7 @@ rewrite history after the driver has seen the final numbers.
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
-COMPLETABLE_FROM = ("ongoing",)
+COMPLETABLE_FROM = ("published", "ongoing")
 
 # status -> status applied at completion (absent = leave untouched)
 COMPLETION_MAP = {
@@ -43,7 +43,7 @@ def completion_guard(status: Optional[str]) -> Dict:
                 "reason": "trip is already completed"}
     if status not in COMPLETABLE_FROM:
         return {"allowed": False, "from_status": status,
-                "reason": "start the trip first before completing it (" + str(status) + ")"}
+                "reason": "trip must be in published/ongoing status (" + str(status) + ")"}
     return {"allowed": True, "reason": None, "from_status": status}
 
 

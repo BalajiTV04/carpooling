@@ -41,7 +41,7 @@ class TripIn(BaseModel):
     trip_type: Optional[str] = "live"  # live | monthly | long
     fuel_type: Optional[str] = "petrol"
     fuel_price: Optional[float] = None  # legacy; kept for backward compat
-    fuel_price_per_unit: float = Field(gt=0)  # driver-entered fuel price per unit
+    fuel_price_per_unit: Optional[float] = Field(default=None, gt=0)  # driver-entered fuel price per unit
     advance_policy: Optional[Dict] = None
 
     @field_validator("depart_at")

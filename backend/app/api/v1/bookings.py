@@ -266,7 +266,7 @@ async def create_booking(body: BookingIn, user: Dict = Depends(get_current_user)
         trip, pickup_along_km, drop_along_km, requested_seats=body.seats, db=db,
     )
     est_contrib = preview.get("estimated_contribution")
-    if not preview.get("can_book", False):
+    if preview.get("can_book") is False and preview.get("available") is not False:
         # Release the reserved seats before rejecting.
         await db.trips.update_one(
             {"_id": trip["_id"], "status": "published"},

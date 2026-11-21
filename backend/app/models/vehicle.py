@@ -42,7 +42,7 @@ class VehicleIn(BaseModel):
     color: Optional[str] = Field(default=None, max_length=30)
     plate_no: str = Field(min_length=4, max_length=15)
     seats_total: Optional[int] = Field(default=None, ge=1, le=7)
-    seat_capacity: int = Field(ge=2, le=8)  # total seats including driver
+    seat_capacity: Optional[int] = Field(default=None, ge=2, le=8)  # total seats including driver
     fuel_type: str
     mileage_kmpl: float = Field(ge=3, le=60)  # km per litre/kg/kWh by fuel type
     image_url: Optional[str] = Field(default=None, max_length=500)
