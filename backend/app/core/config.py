@@ -5,7 +5,7 @@ from here via `get_settings()`. Nothing reads os.environ directly, so the
 env contract in root .env.example stays honoured and tests can override it.
 """
 from functools import lru_cache
-from typing import List
+from typing import List, Optional
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -34,7 +34,9 @@ class Settings(BaseSettings):
     JWT_EXPIRE_MINUTES: int = 10080  # 7 days; phone-OTP sessions reuse this in Module 3
 
     # Comma-separated list, parsed into a list for CORSMiddleware.
-    CORS_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000"
+    CORS_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000,https://voltride-app2.vercel.app"
+    # Regex pattern to match allowed origins (e.g. all Vercel preview/production deployments)
+    CORS_ORIGIN_REGEX: Optional[str] = r"^https?://(localhost|127\.0\.0\.1|.*\.vercel\.app)(:\d+)?$"
 
     # Default country code for phone normalization (e.g. "+91" for India).
     DEFAULT_COUNTRY_CODE: str = "+91"
@@ -111,6 +113,8 @@ def validate_production(settings) -> List[str]:
         problems.append("CORS_ORIGINS is empty — the frontend cannot call the API")
     else:
         for origin in origins:
+            if origin == "*":
+                continue
             if origin.startswith("http://") and "localhost" not in origin \
                     and "127.0.0.1" not in origin:
                 problems.append(
