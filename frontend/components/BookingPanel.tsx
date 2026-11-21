@@ -207,14 +207,21 @@ export function BookingPanel({
         </p>
       )}
       {s === "accepted" && booking && (
-        <div className="mt-2 flex items-center gap-2">
-          <p className="flex-1 text-[11px] text-brand-teal">Driver accepted — confirm to lock it in.</p>
-          <button onClick={() => act(() => bookingApi.confirm(booking.id), "Booked! See you at the pickup point.")}
-            className="btn btn-primary btn-sm" disabled={busy}>
-            Confirm ✓
-          </button>
-          <button onClick={() => act(() => bookingApi.cancel(booking.id), "Cancelled.")}
-            className="text-[11px] text-rose-300 underline" disabled={busy}>cancel</button>
+        <div className="mt-2 space-y-2">
+          {booking.fare_changed && booking.previous_amount != null && booking.cost_share != null && (
+            <p className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-2 text-[11px] text-emerald-300">
+              🎉 Your share reduced from <span className="line-through text-muted">₹{Math.round(booking.previous_amount)}</span> to <b>₹{Math.round(booking.cost_share)}</b> because another passenger joined your route!
+            </p>
+          )}
+          <div className="flex items-center gap-2">
+            <p className="flex-1 text-[11px] text-brand-teal">Driver accepted — confirm to lock it in.</p>
+            <button onClick={() => act(() => bookingApi.confirm(booking.id), "Booked! See you at the pickup point.")}
+              className="btn btn-primary btn-sm" disabled={busy}>
+              Confirm ✓
+            </button>
+            <button onClick={() => act(() => bookingApi.cancel(booking.id), "Cancelled.")}
+              className="text-[11px] text-rose-300 underline" disabled={busy}>cancel</button>
+          </div>
         </div>
       )}
       {s === "confirmed" && booking && (

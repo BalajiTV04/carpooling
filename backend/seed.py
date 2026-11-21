@@ -434,13 +434,52 @@ async def main(keep: bool = False) -> None:
     await db.bookings.update_one({"trip_id": trip_id, "passenger_id": pax2_id}, {"$set": booking2_doc}, upsert=True)
     print(f"Seeded Booking 2: Passenger {PAX2} (Airport Road Toll -> Hebbal, distance: {pax2_dist} km)")
 
-    # Calculate and persist exact fuel-based segment contributions
+    # Calculate and persist exact fuel-based segment contributions for Pax 1 and Pax 2
     recalc_result = await recompute_trip_fares(db, trip_id, reason="seed_init")
-    print("Recalculated Segment Cost Sharing:")
+    print("Initial Segment Cost Sharing (2 Passengers):")
     print(f"  Total Cost: Rs {recalc_result.get('total_cost')}")
     print(f"  Driver Share: Rs {recalc_result.get('driver_share')}")
     print(f"  Passenger Shares: {recalc_result.get('passengers')}")
-    print(f"  Seats Left: {recalc_result.get('seats_left')}")
+
+    # Seed Booking for Passenger 3 (PAX3: +919000000006) travelling Yelahanka -> Hebbal (remaining seat)
+    pax3_user = await db.users.find_one({"phone": PAX3})
+    pax3_id = pax3_user["_id"]
+    pax3_dist = round(float(dist_km) - 18.0, 1)
+    booking3_doc = {
+        "trip_id": trip_id,
+        "passenger_id": pax3_id,
+        "driver_id": drv1_id,
+        "seats": 1,
+        "status": "accepted",
+        "pickup": {
+            "name": "Yelahanka Bypass",
+            "point": {"type": "Point", "coordinates": [77.5995, 13.0999]},
+        },
+        "dropoff": {
+            "name": "Hebbal Flyover",
+            "point": {"type": "Point", "coordinates": [77.5970, 13.0358]},
+        },
+        "pickup_along_km": 18.0,
+        "drop_along_km": float(dist_km),
+        "passenger_distance_km": pax3_dist,
+        "pickup_distance_m": 0.0,
+        "detour_km": 0.0,
+        "overlap_pct": round((pax3_dist / dist_km) * 100, 1),
+        "match_score": 90.0,
+        "created_at": now,
+        "updated_at": now,
+    }
+    await db.bookings.update_one({"trip_id": trip_id, "passenger_id": pax3_id}, {"$set": booking3_doc}, upsert=True)
+    await db.trips.update_one({"_id": trip_id}, {"$set": {"seats_booked": 3}})
+    print(f"Seeded Booking 3: Passenger {PAX3} (Yelahanka -> Hebbal, distance: {pax3_dist} km)")
+
+    # Recompute fares again with Passenger 3 joined — Passenger 2's fare reduces!
+    recalc_result2 = await recompute_trip_fares(db, trip_id, reason="passenger_joined")
+    print("Recalculated Segment Cost Sharing with 3 Passengers (Fare Reduction Applied):")
+    print(f"  Total Cost: Rs {recalc_result2.get('total_cost')}")
+    print(f"  Driver Share: Rs {recalc_result2.get('driver_share')}")
+    print(f"  Passenger Shares: {recalc_result2.get('passengers')}")
+    print(f"  Seats Left: {recalc_result2.get('seats_left')}")
 
     print("Database wiped, indexes ensured, and demo accounts/trips/bookings created.")
 

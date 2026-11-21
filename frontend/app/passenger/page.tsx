@@ -777,11 +777,26 @@ function PassengerConsoleInner() {
                             </div>
                             <div>
                               <p className="text-muted text-[10px]">Cost Share</p>
-                              <p className="font-bold text-brand-teal">
-                                {b.cost_share ? `₹${b.cost_share}` : "Standard share"}
-                              </p>
+                              <div className="flex items-center gap-1.5">
+                                {b.fare_changed && b.previous_amount != null && b.cost_share != null && b.previous_amount !== b.cost_share && (
+                                  <span className="text-xs line-through text-muted font-medium">
+                                    ₹{Math.round(b.previous_amount)}
+                                  </span>
+                                )}
+                                <p className="font-bold text-brand-teal">
+                                  {b.cost_share ? `₹${b.cost_share}` : "Standard share"}
+                                </p>
+                              </div>
                             </div>
                           </div>
+                          {b.fare_changed && b.previous_amount != null && b.cost_share != null && (
+                            <div className="mt-2.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-2.5 text-xs text-emerald-400 flex items-center gap-2">
+                              <span>🎉</span>
+                              <span>
+                                Fare reduced from <span className="line-through text-muted">₹{Math.round(b.previous_amount)}</span> to <b>₹{Math.round(b.cost_share)}</b> because another passenger joined your shared route!
+                              </span>
+                            </div>
+                          )}
                         </div>
 
                         {/* Approved Ride Live Vehicle Tracking Map */}
