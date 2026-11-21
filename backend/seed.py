@@ -37,6 +37,7 @@ from app.core.database import get_client, get_settings  # noqa: E402
 from app.core.indexes import ensure_indexes  # noqa: E402
 from app.core.security import hash_password  # noqa: E402
 from app.services.cost import distribute, resolve_fuel_price, total_fuel_cost  # noqa: E402
+from app.services.cost_sharing import recompute_trip_fares  # noqa: E402
 
 SEED_PHONES = ["+91900000000" + str(i) for i in range(1, 7)]
 ADMIN_PHONE, DRV1, DRV2, PAX1, PAX2, PAX3 = SEED_PHONES
@@ -233,36 +234,43 @@ async def main(keep: bool = False) -> None:
             "full_name": "Demo Admin",
             "roles": ["admin"],
             "driver_approval": None,
+            "email": "admin@voltride.com",
+            "username": "admin",
         },
         {
             "phone": DRV1,
-            "full_name": "Demo Driver Approved",
+            "full_name": "Demo Driver",
             "roles": ["driver"],
             "driver_approval": "approved",
+            "email": "driver@voltride.com",
         },
         {
             "phone": DRV2,
-            "full_name": "Demo Driver Approved",
+            "full_name": "Demo Driver Two",
             "roles": ["driver"],
             "driver_approval": "approved",
+            "email": "driver2@voltride.com",
         },
         {
             "phone": PAX1,
             "full_name": "Demo Passenger One",
             "roles": ["passenger"],
             "driver_approval": None,
+            "email": "pax1@voltride.com",
         },
         {
             "phone": PAX2,
             "full_name": "Demo Passenger Two",
             "roles": ["passenger"],
             "driver_approval": None,
+            "email": "pax2@voltride.com",
         },
         {
             "phone": PAX3,
             "full_name": "Demo Passenger Three",
             "roles": ["passenger"],
             "driver_approval": None,
+            "email": "pax3@voltride.com",
         },
     ]
 
@@ -274,6 +282,8 @@ async def main(keep: bool = False) -> None:
             "roles": acc["roles"],
             "phone_verified": True,
             "status": "active",
+            "email": acc.get("email"),
+            "username": acc.get("username"),
             "driver_approval": acc["driver_approval"],
             "driver_approval_note": None,
             "driver_approval_at": now if acc["driver_approval"] else None,
@@ -296,8 +306,10 @@ async def main(keep: bool = False) -> None:
     # Seed Vehicle for Driver +919000000002 (4+1 car capacity)
     drv1_user = await db.users.find_one({"phone": DRV1})
     pax1_user = await db.users.find_one({"phone": PAX1})
+    pax2_user = await db.users.find_one({"phone": PAX2})
     drv1_id = drv1_user["_id"]
     pax1_id = pax1_user["_id"]
+    pax2_id = pax2_user["_id"]
 
     veh_doc = {
         "owner_id": drv1_id,
@@ -306,7 +318,8 @@ async def main(keep: bool = False) -> None:
         "year": 2023,
         "color": "Teal Blue",
         "plate_no": "KA04EV4411",
-        "seats_total": 5,  # 4+1 seats
+        "seats_total": 4,  # passenger seats
+        "seat_capacity": 5,  # 4+1 seats
         "fuel_type": "diesel",
         "mileage_kmpl": 18.0,
         "verification_status": "verified",
@@ -325,12 +338,12 @@ async def main(keep: bool = False) -> None:
         with open(fix_path, "r", encoding="utf-8") as f:
             fix = json.load(f)
         geometry = fix["geometry"]
-        dist_km = fix["distance_km"]
-        dur_min = fix["duration_min"]
+        dist_km = float(fix["distance_km"])
+        dur_min = float(fix["duration_min"])
     else:
         geometry = {"type": "LineString", "coordinates": [[77.7120, 13.2437], [77.5963, 13.1007], [77.5970, 13.0358]]}
-        dist_km = 28.19
-        dur_min = 28.5
+        dist_km = 30.0
+        dur_min = 35.0
 
     depart_time = (now + timedelta(days=1)).replace(hour=9, minute=0, second=0, microsecond=0)
     trip_doc = {
@@ -348,45 +361,86 @@ async def main(keep: bool = False) -> None:
         "distance_km": dist_km,
         "duration_min": dur_min,
         "depart_at": depart_time,
-        "seats_offered": 4,      # 4 passenger seats offered (4+1 car capacity)
-        "seats_booked": 1,       # 1 seat ordered by passenger
+        "seats_offered": 4,      # 4 passenger seats offered
+        "seats_booked": 2,       # 2 seats booked (Pax 1 + Pax 2)
         "status": "published",
         "trip_type": "live",
         "fuel_type": "diesel",
         "fuel_price": 95.0,
+        "fuel_price_per_unit": 95.0,
+        "vehicle_mileage_kmpl": 18.0,
         "created_at": now,
         "updated_at": now,
     }
     await db.trips.update_one({"source.name": "Devanahalli Central"}, {"$set": trip_doc}, upsert=True)
     trip_id = ObjectId((await db.trips.find_one({"source.name": "Devanahalli Central"}))["_id"])
-    print(f"Seeded Trip {trip_id}: Devanahalli -> Hebbal (4 seats offered, 1 booked -> 3 AVAILABLE)")
+    print(f"Seeded Trip {trip_id}: Devanahalli -> Hebbal (4 seats offered, 2 booked)")
 
-    # Seed Booking for Passenger PAX1 (+919000000004) from Yelahanka to Hebbal
-    booking_doc = {
+    # Seed Booking for Passenger 1 (PAX1: +919000000004) travelling 18 km
+    booking1_doc = {
         "trip_id": trip_id,
         "passenger_id": pax1_id,
         "driver_id": drv1_id,
         "seats": 1,
         "status": "accepted",
         "pickup": {
-            "name": "Yelahanka Meeting Point",
-            "point": {"type": "Point", "coordinates": [77.5995, 13.0999]},
+            "name": "Devanahalli Central",
+            "point": {"type": "Point", "coordinates": [77.7120, 13.2437]},
         },
         "dropoff": {
-            "name": "Hebbal Drop",
-            "point": {"type": "Point", "coordinates": [77.5918, 13.0382]},
+            "name": "Yelahanka Bypass",
+            "point": {"type": "Point", "coordinates": [77.5995, 13.0999]},
         },
-        "pickup_distance_m": 354.0,
+        "pickup_along_km": 0.0,
+        "drop_along_km": 18.0,
+        "passenger_distance_km": 18.0,
+        "pickup_distance_m": 0.0,
         "detour_km": 0.0,
-        "passenger_distance_km": 7.29,
-        "estimated_contribution": 19.24,
-        "overlap_pct": 25.8,
-        "match_score": 61.8,
+        "overlap_pct": 60.0,
+        "match_score": 92.0,
         "created_at": now,
         "updated_at": now,
     }
-    await db.bookings.update_one({"trip_id": trip_id, "passenger_id": pax1_id}, {"$set": booking_doc}, upsert=True)
-    print(f"Seeded Booking: Passenger {PAX1} ordered 1 seat (Yelahanka -> Hebbal, 3 seats remain available)")
+    await db.bookings.update_one({"trip_id": trip_id, "passenger_id": pax1_id}, {"$set": booking1_doc}, upsert=True)
+    print(f"Seeded Booking 1: Passenger {PAX1} (Devanahalli -> Yelahanka Bypass, distance: 18.0 km)")
+
+    # Seed Booking for Passenger 2 (PAX2: +919000000005) travelling from km 10 to km 28.2
+    drop_pax2 = float(dist_km)
+    pax2_dist = round(drop_pax2 - 10.0, 1)
+    booking2_doc = {
+        "trip_id": trip_id,
+        "passenger_id": pax2_id,
+        "driver_id": drv1_id,
+        "seats": 1,
+        "status": "accepted",
+        "pickup": {
+            "name": "Airport Road Toll",
+            "point": {"type": "Point", "coordinates": [77.6500, 13.1800]},
+        },
+        "dropoff": {
+            "name": "Hebbal Drop",
+            "point": {"type": "Point", "coordinates": [77.5970, 13.0358]},
+        },
+        "pickup_along_km": 10.0,
+        "drop_along_km": drop_pax2,
+        "passenger_distance_km": pax2_dist,
+        "pickup_distance_m": 45.0,
+        "detour_km": 0.0,
+        "overlap_pct": round((pax2_dist / dist_km) * 100, 1),
+        "match_score": 88.0,
+        "created_at": now,
+        "updated_at": now,
+    }
+    await db.bookings.update_one({"trip_id": trip_id, "passenger_id": pax2_id}, {"$set": booking2_doc}, upsert=True)
+    print(f"Seeded Booking 2: Passenger {PAX2} (Airport Road Toll -> Hebbal, distance: {pax2_dist} km)")
+
+    # Calculate and persist exact fuel-based segment contributions
+    recalc_result = await recompute_trip_fares(db, trip_id, reason="seed_init")
+    print("Recalculated Segment Cost Sharing:")
+    print(f"  Total Cost: Rs {recalc_result.get('total_cost')}")
+    print(f"  Driver Share: Rs {recalc_result.get('driver_share')}")
+    print(f"  Passenger Shares: {recalc_result.get('passengers')}")
+    print(f"  Seats Left: {recalc_result.get('seats_left')}")
 
     print("Database wiped, indexes ensured, and demo accounts/trips/bookings created.")
 
