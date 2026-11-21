@@ -202,7 +202,7 @@ async def _fallthrough(db, trip: ObjectId, driver: ObjectId,
 async def _wipe(db) -> None:
     """Remove ONLY the seed set. Never touches real accounts."""
     trips = [t["_id"] async for t in db.trips.find(
-        {"$or": [{"source.name": {"$regex": "^SeedTest "}}, {"source.name": "Devanahalli Central"}]}, {"_id": 1})]
+        {"$or": [{"source.name": {"$regex": "^SeedTest "}}, {"source.name": "Devanahalli Central"}, {"source.name": "Sir M Visvesvarayya Institute of Technology"}]}, {"_id": 1})]
     if trips:
         for coll in ("bookings", "segments", "ratings", "safety_alerts", "locations"):
             await db[coll].delete_many({"trip_id": {"$in": trips}})
@@ -486,16 +486,65 @@ async def main(keep: bool = False) -> None:
     trip = await db.trips.find_one({"_id": trip_id})
     await db.trips.update_one(
         {"_id": trip_id},
-        {"$set": {"status": "ongoing", "started_at": now, "updated_at": now}}
+        {"$set": {"status": "completed", "completed_at": now, "updated_at": now}}
     )
-    trip["status"] = "ongoing"
-    # Driver is en route at km 11.6, moving at 42 km/h towards pickup points
-    ping_res = await record_ping(
-        db, trip, str(drv1_id),
-        lng=77.6350, lat=13.1750,
-        speed_kmph=42.0, heading_deg=185.0, accuracy_m=12.0
+    trip["status"] = "completed"
+
+    # Seed Trip 2 (Matching UI Screenshot): Sir MVIT -> KSR Bengaluru Railway Station
+    mvit_s_pt = [77.6080, 13.1506]
+    ksr_d_pt = [77.5695, 12.9781]
+    # Detailed route passing through Yelahanka, Hebbal, Mekhri Circle to KSR Majestic
+    mvit_ksr_route = [
+        mvit_s_pt,
+        [77.6030, 13.1350],
+        [77.5969, 13.1007], # Yelahanka
+        [77.5950, 13.0650],
+        [77.5946, 13.0358], # Hebbal
+        [77.5855, 13.0078], # Mekhri Circle
+        [77.5750, 12.9900], # RT Nagar / Cantonment
+        ksr_d_pt,           # KSR Majestic
+    ]
+    mvit_trip_id = ObjectId("bc3f91000000000000000001")
+    mvit_depart = now.replace(hour=20, minute=25, second=0, microsecond=0)
+    mvit_trip_doc = {
+        "_id": mvit_trip_id,
+        "driver_id": drv1_id,
+        "vehicle_id": veh_id,
+        "source": {
+            "name": "Sir M Visvesvarayya Institute of Technology",
+            "point": {"type": "Point", "coordinates": mvit_s_pt},
+        },
+        "destination": {
+            "name": "A: KSR Bengaluru Railway Stn. Side",
+            "point": {"type": "Point", "coordinates": ksr_d_pt},
+        },
+        "route_geometry": {"type": "LineString", "coordinates": mvit_ksr_route},
+        "distance_km": 24.53,
+        "duration_min": 45.0,
+        "depart_at": mvit_depart,
+        "seats_offered": 3,
+        "seats_booked": 0,
+        "status": "ongoing",
+        "trip_type": "live",
+        "fuel_type": "petrol",
+        "fuel_price": 100.0,
+        "fuel_price_per_unit": 100.0,
+        "vehicle_mileage_kmpl": 15.0,
+        "cost_per_seat": 47.47,
+        "total_cost": 142.41,
+        "started_at": now,
+        "created_at": now,
+        "updated_at": now,
+    }
+    await db.trips.update_one({"_id": mvit_trip_id}, {"$set": mvit_ksr_doc if 'mvit_ksr_doc' in locals() else mvit_trip_doc}, upsert=True)
+    print(f"Seeded Trip {mvit_trip_id} (bc3f91): Sir MVIT -> KSR Bengaluru (3 seats left, ongoing)")
+
+    # Record active GPS ping for ongoing trip
+    await record_ping(
+        db, mvit_trip_doc, str(drv1_id),
+        lng=77.6010, lat=13.1250,
+        speed_kmph=38.0, heading_deg=190.0, accuracy_m=10.0
     )
-    print(f"Seeded live GPS fix for ongoing trip {trip_id}: speed=42.0 km/h, progress={ping_res.get('progress')}")
 
     print("Database wiped, indexes ensured, and demo accounts/trips/bookings created.")
 

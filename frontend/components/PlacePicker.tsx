@@ -93,19 +93,38 @@ export function PlacePicker({
   };
 
   const onKeyDown = (e: React.KeyboardEvent) => {
-    if (!open || hits.length === 0) return;
-    if (e.key === "ArrowDown") {
+    if (e.key === "ArrowDown" && open && hits.length > 0) {
       e.preventDefault();
       setCursor((c) => (c + 1) % hits.length);
-    } else if (e.key === "ArrowUp") {
+    } else if (e.key === "ArrowUp" && open && hits.length > 0) {
       e.preventDefault();
       setCursor((c) => (c <= 0 ? hits.length - 1 : c - 1));
-    } else if (e.key === "Enter" && cursor >= 0) {
+    } else if (e.key === "Enter") {
       e.preventDefault();
-      choose(hits[cursor]);
+      if (cursor >= 0 && hits[cursor]) {
+        choose(hits[cursor]);
+      } else if (hits.length > 0) {
+        choose(hits[0]);
+      } else if (q.trim().length >= 2) {
+        onPick({ name: q.trim(), address: null, lat: 0, lng: 0 });
+        setOpen(false);
+      }
     } else if (e.key === "Escape") {
       setOpen(false);
     }
+  };
+
+  const handleBlur = () => {
+    setTimeout(() => {
+      setOpen(false);
+      if (q.trim().length >= 2 && (!value || value.name !== q.trim())) {
+        if (hits.length > 0) {
+          choose(hits[0]);
+        } else {
+          onPick({ name: q.trim(), address: null, lat: 0, lng: 0 });
+        }
+      }
+    }, 200);
   };
 
   return (
@@ -126,7 +145,7 @@ export function PlacePicker({
         onChoose={choose}
         onKeyDown={onKeyDown}
         onFocus={() => hits.length > 0 && setOpen(true)}
-        onBlur={() => setTimeout(() => setOpen(false), 180)}
+        onBlur={handleBlur}
         onToggleMap={() => setShowMap((s) => !s)}
         onClear={() => onPick(null)}
       />

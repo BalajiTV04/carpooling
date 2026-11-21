@@ -49,7 +49,7 @@ async def search_rides(body: SearchIn, user: Dict = Depends(get_current_user)):
     # Stage 1 (Mongo): published + that day. Geo + seats filter in Python
     # (dataset is small for MVP; Module 9 pushes $geoNear into the query).
     cur = db.trips.find({
-        "status": "published",
+        "status": {"$in": ["published", "ongoing"]},
         "depart_at": {"$gte": day_start, "$lt": day_end},
     }).sort("depart_at", 1).limit(200)
     wanted_dt = _parse_time(body.date, body.time) if body.time else None
@@ -62,7 +62,7 @@ async def search_rides(body: SearchIn, user: Dict = Depends(get_current_user)):
         # Module 14: hide trips whose booking window has closed (min notice)
         # or that are not open yet (max advance) — with a reason for the UI.
         win = check_window(doc["depart_at"], doc.get("advance_policy"))
-        if not win["bookable"]:
+        if doc.get("status") != "ongoing" and not win["bookable"]:
             row0 = {"id": str(doc["_id"]),
                     "source_name": doc["source"]["name"],
                     "destination_name": doc["destination"]["name"],

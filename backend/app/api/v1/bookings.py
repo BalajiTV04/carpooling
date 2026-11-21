@@ -159,7 +159,7 @@ async def _owning_trip(db, doc: Dict, user: Dict) -> Dict:
 
 async def _release_seats(db, doc: Dict) -> None:
     await db.trips.update_one(
-        {"_id": doc["trip_id"], "status": "published"},
+        {"_id": doc["trip_id"], "status": {"$in": ["published", "ongoing"]}},
         {"$inc": {"seats_booked": -int(doc["seats"])}})
 
 @router.post("", response_model=BookingOut, status_code=201)
@@ -174,19 +174,20 @@ async def create_booking(body: BookingIn, user: Dict = Depends(get_current_user)
     if str(trip["driver_id"]) == user["id"]:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY,
                             "you cannot book your own trip")
-    if trip.get("status") != "published":
+    if trip.get("status") not in ("published", "ongoing"):
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY,
                             "trip is not open for bookings (" + str(trip.get("status")) + ")")
     depart = trip["depart_at"]
     if depart.tzinfo is None:
         depart = depart.replace(tzinfo=timezone.utc)
-    if depart <= _utcnow():
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY,
-                            "this trip has already departed")
-    # Module 14: advance-booking window (opens/closes are derived, never stored)
-    win = check_window(depart, trip.get("advance_policy"))
-    if not win["bookable"]:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, win["reason"])
+    if trip.get("status") != "ongoing":
+        if depart <= _utcnow():
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY,
+                                "this trip has already departed")
+        # Module 14: advance-booking window (opens/closes are derived, never stored)
+        win = check_window(depart, trip.get("advance_policy"))
+        if not win["bookable"]:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, win["reason"])
     dup = await db.bookings.find_one({
         "trip_id": trip["_id"], "passenger_id": ObjectId(user["id"]),
         "status": {"$in": list(ACTIVE_STATUSES)}})
@@ -230,7 +231,7 @@ async def create_booking(body: BookingIn, user: Dict = Depends(get_current_user)
 
     # --- atomic seat reservation (no oversell under concurrency) -----------
     reserved = await db.trips.update_one(
-        {"_id": trip["_id"], "status": "published",
+        {"_id": trip["_id"], "status": {"$in": ["published", "ongoing"]},
          "$expr": {"$lte": [{"$add": ["$seats_booked", body.seats]},
                             "$seats_offered"]}},
         {"$inc": {"seats_booked": body.seats}})
@@ -273,7 +274,7 @@ async def create_booking(body: BookingIn, user: Dict = Depends(get_current_user)
     if preview.get("can_book") is False and preview.get("available") is not False:
         # Release the reserved seats before rejecting.
         await db.trips.update_one(
-            {"_id": trip["_id"], "status": "published"},
+            {"_id": trip["_id"], "status": {"$in": ["published", "ongoing"]}},
             {"$inc": {"seats_booked": -int(body.seats)}})
         raise HTTPException(status.HTTP_409_CONFLICT,
                             "not enough seats left for this request")
@@ -421,7 +422,7 @@ async def cancel_booking(booking_id: str, user: Dict = Depends(get_current_user)
         {"_id": doc["_id"], "status": {"$in": list(ACTIVE_STATUSES)}},
         {"$set": {"status": "cancelled", "updated_at": _utcnow()}},
         return_document=True)
-    if trip is not None and trip.get("status") == "published":
+    if trip is not None and trip.get("status") in ("published", "ongoing"):
         await _release_seats(db, doc)
     await _recalculate(db, doc["trip_id"])
     await recompute_trip_fares(db, doc["trip_id"], reason="booking_cancelled")

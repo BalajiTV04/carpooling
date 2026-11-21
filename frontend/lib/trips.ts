@@ -16,8 +16,8 @@ export type Trip = {
   detour_km?: number | null;
   extra_time_min?: number | null;
   estimated_contribution?: number | null;
-  pickup?: { label?: string; coordinates?: [number, number]; walk_km?: number; detour_km?: number } | null;
-  drop?: { coordinates?: [number, number]; dist_km?: number } | null;
+  pickup?: { label?: string; coordinates?: [number, number]; lat?: number; lng?: number; walk_km?: number; detour_km?: number } | null;
+  drop?: { label?: string; coordinates?: [number, number]; lat?: number; lng?: number; dist_km?: number } | null;
   match_score?: number | null;
   route_geometry?: { type: string; coordinates: [number, number][] } | null;
 };

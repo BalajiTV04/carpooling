@@ -16,8 +16,15 @@ export type CatalogPlace = {
 };
 
 export const CATALOG: CatalogPlace[] = [
-  // ── Bengaluru core ──────────────────────────────────────────────────────
+  // ── Bengaluru core & Key Transit Hubs ─────────────────────────────────────
+  { name: "Sir M Visvesvarayya Institute of Technology", area: "Bengaluru", coordinates: [77.6080, 13.1506], aliases: ["sir mvit", "mvit", "visvesvarayya", "sir m visvesvaraya", "mvit bangalore", "hunasamaranahalli"] },
+  { name: "A: KSR Bengaluru Railway Stn. Side", area: "Bengaluru", coordinates: [77.5695, 12.9781], aliases: ["ksr", "ksr railway station", "majestic", "railway station", "bangalore city railway station", "ksr bengaluru", "kempegowda bus station"] },
+  { name: "KSR Bengaluru Railway Station", area: "Bengaluru", coordinates: [77.5695, 12.9781], aliases: ["majestic", "ksr station", "city railway station"] },
+  { name: "Hebbal Flyover", area: "Bengaluru", coordinates: [77.5946, 13.0358], aliases: ["hebbal", "hebball", "hebbal junction"] },
   { name: "Hebbal", area: "Bengaluru", coordinates: [77.5946, 13.0358], aliases: ["hebball", "hebbal junction"] },
+  { name: "Yelahanka Bypass", area: "Bengaluru", coordinates: [77.5969, 13.1007], aliases: ["yelahanka", "yelahanka new town", "yelahanka old town"] },
+  { name: "Yelahanka", area: "Bengaluru", coordinates: [77.5969, 13.1007], aliases: ["yelahanka old town", "yelahanka police station"] },
+  { name: "Mekhri Circle", area: "Bengaluru", coordinates: [77.5855, 13.0078], aliases: ["mekhri", "mekhri circle junction"] },
   { name: "MG Road", area: "Bengaluru", coordinates: [77.6095, 12.9757], aliases: ["mg road", "mahadevappa"] },
   { name: "Whitefield", area: "Bengaluru", coordinates: [77.7499, 12.9698], aliases: ["white feild", "whitefeild"] },
   { name: "Electronic City", area: "Bengaluru", coordinates: [77.67, 12.8452], aliases: ["ec phase 1", "electroniccity", "e city"] },

@@ -20,7 +20,7 @@ offline trips keep crow-flies + route_geometry=None (refresh later via
 POST /trips/{id}/route/refresh in geo.py).
 """
 from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -186,6 +186,56 @@ async def create_trip(body: TripIn, user: Dict = Depends(_driver)):
     return _out(created)
 
 
+# Known landmarks in Bengaluru corridor for fast name-to-coordinate resolution
+_KNOWN_PLACES: Dict[str, Tuple[float, float]] = {
+    "sir m visvesvarayya": (13.1506, 77.6080),
+    "visvesvarayya": (13.1506, 77.6080),
+    "mvit": (13.1506, 77.6080),
+    "ksr": (12.9781, 77.5695),
+    "railway stn": (12.9781, 77.5695),
+    "railway station": (12.9781, 77.5695),
+    "bengaluru railway": (12.9781, 77.5695),
+    "majestic": (12.9781, 77.5695),
+    "hebbal": (13.0358, 77.5946),
+    "yelahanka": (13.1007, 77.5963),
+    "electronic city": (12.8452, 77.6700),
+    "whitefield": (12.9698, 77.7500),
+    "koramangala": (12.9352, 77.6245),
+    "indiranagar": (12.9784, 77.6408),
+    "kempegowda airport": (13.1986, 77.7066),
+    "airport": (13.1986, 77.7066),
+    "devanahalli": (13.2437, 77.7120),
+    "mg road": (12.9757, 77.6095),
+    "hsr": (12.9116, 77.6474),
+    "btm": (12.9166, 77.6136),
+    "jayanagar": (12.9250, 77.5535),
+    "rajajinagar": (12.9915, 77.5518),
+    "yeshwanthpur": (13.0294, 77.5546),
+    "marathahalli": (12.9581, 77.7011),
+    "banashankari": (12.9250, 77.5665),
+    "malleswaram": (13.0035, 77.5700),
+    "vidhana soudha": (12.9794, 77.5599),
+    "sarjapur": (12.9081, 77.7832),
+    "hosur road": (12.8459, 77.7710),
+    "tumkur road": (13.0600, 77.4890),
+    "mekhri": (13.0078, 77.5855),
+    "silk board": (12.9177, 77.6226),
+    "bellandur": (12.9304, 77.6778),
+    "manyata": (13.0489, 77.6208),
+    "kalyan nagar": (13.0280, 77.6429),
+}
+
+
+def _resolve_place_coords(q: Optional[str]) -> Optional[Tuple[float, float]]:
+    if not q or not q.strip():
+        return None
+    ql = q.strip().lower()
+    for key, (lat, lng) in _KNOWN_PLACES.items():
+        if key in ql:
+            return (lat, lng)
+    return None
+
+
 @router.get("/available")
 async def list_available_trips(
     destination: Optional[str] = Query(default=None),
@@ -199,23 +249,39 @@ async def list_available_trips(
     user: Dict = Depends(get_current_user),
 ):
     """Available trips for passengers: see availability filtered by destination/type,
-    with corridor matching and proximity support for near points.
+    with corridor matching and proximity support for intermediate/on-route points.
+    Includes both 'published' and active 'ongoing' trips that have seats left.
     """
     _ = user
     db = get_db()
-    q: Dict = {"status": "published"}
+
+    destination = destination if isinstance(destination, str) else None
+    source = source if isinstance(source, str) else None
+    trip_type = trip_type if isinstance(trip_type, str) else None
+    src_lat = float(src_lat) if isinstance(src_lat, (int, float)) else None
+    src_lng = float(src_lng) if isinstance(src_lng, (int, float)) else None
+    dst_lat = float(dst_lat) if isinstance(dst_lat, (int, float)) else None
+    dst_lng = float(dst_lng) if isinstance(dst_lng, (int, float)) else None
+    radius_km = float(radius_km) if isinstance(radius_km, (int, float)) else 10.0
+
+    # Passengers can book published trips AND active ongoing trips with open seats
+    q: Dict = {"status": {"$in": ["published", "ongoing"]}}
     if trip_type and trip_type.lower() != "all":
         q["trip_type"] = trip_type.lower()
 
+    # Fast fallback resolution from place names to coordinates
+    if src_lat is None and source:
+        sc = _resolve_place_coords(source)
+        if sc:
+            src_lat, src_lng = sc
+
+    if dst_lat is None and destination:
+        dc = _resolve_place_coords(destination)
+        if dc:
+            dst_lat, dst_lng = dc
+
     has_src = src_lat is not None and src_lng is not None
     has_dst = dst_lat is not None and dst_lng is not None
-
-    # Text regex only applied when NO coordinates provided
-    if not has_src and not has_dst:
-        if destination and destination.strip():
-            q["destination.name"] = {"$regex": destination.strip(), "$options": "i"}
-        if source and source.strip():
-            q["source.name"] = {"$regex": source.strip(), "$options": "i"}
 
     cur = db.trips.find(q).sort("depart_at", 1).limit(100)
     results = []
@@ -231,6 +297,8 @@ async def list_available_trips(
             continue
 
         geom = (d.get("route_geometry") or {}).get("coordinates")
+        if not geom or len(geom) < 2:
+            geom = [driver_s, driver_d]
         has_geom = bool(geom and len(geom) >= 2)
 
         p_src = [src_lng, src_lat] if has_src else None
@@ -239,42 +307,47 @@ async def list_available_trips(
         match_info = None
 
         if has_src and has_dst:
-            # Full corridor matching
-            if has_geom:
-                m = match_trip(
-                    geom, p_src, p_dst,
-                    max_pickup_km=max(radius_km, 10.0),
-                    max_detour_km=8.0,
-                    dest_tolerance_km=max(radius_km, 5.0),
-                    max_drop_km=max(radius_km, 5.0),
-                    min_overlap_pct=5.0,
-                )
-                if m.get("feasible"):
-                    match_info = m
-                else:
-                    # Near endpoints fallback
-                    if _haversine_km(p_src, driver_s) <= max(radius_km, 10.0) and _haversine_km(p_dst, driver_d) <= max(radius_km, 10.0):
-                        match_info = m
+            # Full corridor matching: allows pickup and dropoff anywhere along driver's route
+            m = match_trip(
+                geom, p_src, p_dst,
+                max_pickup_km=max(radius_km, 15.0),
+                max_detour_km=max(radius_km, 15.0),
+                dest_tolerance_km=max(radius_km, 15.0),
+                max_drop_km=max(radius_km, 15.0),
+                min_overlap_pct=2.0,
+            )
+            if m.get("feasible"):
+                match_info = m
             else:
-                if _haversine_km(p_src, driver_s) <= radius_km and _haversine_km(p_dst, driver_d) <= radius_km:
-                    match_info = {"feasible": True}
+                # Proximity fallback along route polyline:
+                # If both passenger pickup & drop are within corridor margin of the route and moving forward
+                proj_s = project_onto_route(p_src, geom)
+                proj_d = project_onto_route(p_dst, geom)
+                if (proj_s["dist_km"] <= max(radius_km, 15.0) and
+                    proj_d["dist_km"] <= max(radius_km, 15.0) and
+                    proj_d["along_km"] >= proj_s["along_km"]):
+                    match_info = m
+                    match_info["feasible"] = True
+                elif (_haversine_km(p_src, driver_s) <= max(radius_km, 15.0) and
+                      _haversine_km(p_dst, driver_d) <= max(radius_km, 15.0)):
+                    match_info = m
+                    match_info["feasible"] = True
 
-            if not match_info:
+            if not match_info or not match_info.get("feasible"):
                 continue
 
         elif has_dst and not has_src:
             # Destination matching (near driver destination OR along driver corridor)
             dst_match = False
-            if has_geom:
-                proj_dst = project_onto_route(p_dst, geom)
-                if _haversine_km(p_dst, driver_d) <= max(radius_km, 12.0) or proj_dst["dist_km"] <= radius_km:
-                    dst_match = True
-            else:
-                if _haversine_km(p_dst, driver_d) <= max(radius_km, 12.0):
-                    dst_match = True
+            proj_dst = project_onto_route(p_dst, geom)
+            if _haversine_km(p_dst, driver_d) <= max(radius_km, 15.0) or proj_dst["dist_km"] <= max(radius_km, 15.0):
+                dst_match = True
 
             if not dst_match and destination and destination.strip():
-                if destination.strip().lower() in (d.get("destination", {}).get("name", "")).lower():
+                dest_q = destination.strip().lower()
+                trip_dest = (d.get("destination", {}).get("name", "")).lower()
+                trip_src = (d.get("source", {}).get("name", "")).lower()
+                if dest_q in trip_dest or dest_q in trip_src or trip_dest in dest_q:
                     dst_match = True
 
             if not dst_match:
@@ -283,20 +356,34 @@ async def list_available_trips(
         elif has_src and not has_dst:
             # Source matching (near driver source OR along driver corridor)
             src_match = False
-            if has_geom:
-                proj_src = project_onto_route(p_src, geom)
-                if _haversine_km(p_src, driver_s) <= max(radius_km, 12.0) or proj_src["dist_km"] <= radius_km:
-                    src_match = True
-            else:
-                if _haversine_km(p_src, driver_s) <= max(radius_km, 12.0):
-                    src_match = True
+            proj_src = project_onto_route(p_src, geom)
+            if _haversine_km(p_src, driver_s) <= max(radius_km, 15.0) or proj_src["dist_km"] <= max(radius_km, 15.0):
+                src_match = True
 
             if not src_match and source and source.strip():
-                if source.strip().lower() in (d.get("source", {}).get("name", "")).lower():
+                src_q = source.strip().lower()
+                trip_src = (d.get("source", {}).get("name", "")).lower()
+                trip_dest = (d.get("destination", {}).get("name", "")).lower()
+                if src_q in trip_src or src_q in trip_dest or trip_src in src_q:
                     src_match = True
 
             if not src_match:
                 continue
+
+        elif not has_src and not has_dst:
+            # Text-only query fallback when coordinates couldn't be resolved
+            if destination and destination.strip():
+                dest_q = destination.strip().lower()
+                trip_dest = (d.get("destination", {}).get("name", "")).lower()
+                trip_src = (d.get("source", {}).get("name", "")).lower()
+                if dest_q not in trip_dest and dest_q not in trip_src and trip_dest not in dest_q:
+                    continue
+            if source and source.strip():
+                src_q = source.strip().lower()
+                trip_src = (d.get("source", {}).get("name", "")).lower()
+                trip_dest = (d.get("destination", {}).get("name", "")).lower()
+                if src_q not in trip_src and src_q not in trip_dest and trip_src not in src_q:
+                    continue
 
         row = _out(d)
         driver = await db.users.find_one(
@@ -324,8 +411,22 @@ async def list_available_trips(
             row["passenger_distance_km"] = round(p_dist, 2) if p_dist > 0 else None
             row["detour_km"] = round(det_km, 2)
             row["extra_time_min"] = match_info.get("extra_time_min", 0.0)
-            row["pickup"] = match_info.get("pickup")
-            row["drop"] = match_info.get("drop")
+            pu = match_info.get("pickup")
+            if pu:
+                row["pickup"] = {
+                    "lat": pu.get("lat"),
+                    "lng": pu.get("lng"),
+                    "label": pu.get("label"),
+                    "coordinates": [pu.get("lng"), pu.get("lat")],
+                }
+            dr = match_info.get("drop")
+            if dr:
+                row["drop"] = {
+                    "lat": dr.get("lat"),
+                    "lng": dr.get("lng"),
+                    "label": dr.get("label"),
+                    "coordinates": [dr.get("lng"), dr.get("lat")],
+                }
             row["match_score"] = match_info.get("score")
 
             mileage = float((veh or {}).get("mileage_kmpl") or 15.0)

@@ -146,13 +146,17 @@ function PassengerConsoleInner() {
           ? [src.lng, src.lat]
           : trip.pickup?.coordinates
           ? trip.pickup.coordinates
-          : trip.source?.point?.coordinates || [77.5946, 13.0358];
+          : trip.pickup?.lng != null && trip.pickup?.lat != null
+          ? [trip.pickup.lng, trip.pickup.lat]
+          : (trip.source?.point?.coordinates as [number, number]) || [77.5946, 13.0358];
       const dropoffCoords: [number, number] =
         dst?.lng != null && dst?.lat != null
           ? [dst.lng, dst.lat]
           : trip.drop?.coordinates
           ? trip.drop.coordinates
-          : trip.destination?.point?.coordinates || [77.67, 12.8452];
+          : trip.drop?.lng != null && trip.drop?.lat != null
+          ? [trip.drop.lng, trip.drop.lat]
+          : (trip.destination?.point?.coordinates as [number, number]) || [77.67, 12.8452];
 
       const res = await bookingApi.create({
         trip_id: trip.id,
@@ -498,7 +502,8 @@ function PassengerConsoleInner() {
                         variant="ghost"
                         size="sm"
                         onClick={() => {
-                          setDst(POPULAR_DESTINATIONS[0]);
+                          setDst(null);
+                          setSrc(null);
                           setFilterType("all");
                         }}
                         className="mt-4"
@@ -521,29 +526,37 @@ function PassengerConsoleInner() {
                             <div>
                               {/* Header Badge */}
                               <div className="flex items-center justify-between mb-3">
-                                <span
-                                  className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full flex items-center gap-1 ${
-                                    isMonthly
-                                      ? "bg-brand-amber/15 text-brand-amber border border-brand-amber/30"
-                                      : isLong
-                                      ? "bg-indigo-500/15 text-indigo-400 border border-indigo-500/30"
-                                      : "bg-brand-teal/15 text-brand-teal border border-brand-teal/30"
-                                  }`}
-                                >
-                                  {isMonthly ? (
-                                    <>
-                                      <CalendarRange className="h-3 w-3" /> Monthly Plan
-                                    </>
-                                  ) : isLong ? (
-                                    <>
-                                      <Calendar className="h-3 w-3" /> 1 Wk Advance
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Zap className="h-3 w-3" /> Leaving Now
-                                    </>
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span
+                                    className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full flex items-center gap-1 ${
+                                      isMonthly
+                                        ? "bg-brand-amber/15 text-brand-amber border border-brand-amber/30"
+                                        : isLong
+                                        ? "bg-indigo-500/15 text-indigo-400 border border-indigo-500/30"
+                                        : "bg-brand-teal/15 text-brand-teal border border-brand-teal/30"
+                                    }`}
+                                  >
+                                    {isMonthly ? (
+                                      <>
+                                        <CalendarRange className="h-3 w-3" /> Monthly Plan
+                                      </>
+                                    ) : isLong ? (
+                                      <>
+                                        <Calendar className="h-3 w-3" /> 1 Wk Advance
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Zap className="h-3 w-3" /> Leaving Now
+                                      </>
+                                    )}
+                                  </span>
+
+                                  {trip.status === "ongoing" && (
+                                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping inline-block" /> Active
+                                    </span>
                                   )}
-                                </span>
+                                </div>
 
                                 <span className="text-xs font-semibold text-brand-teal bg-brand-teal/10 px-2 py-0.5 rounded-md">
                                   {trip.seats_left} seats left
