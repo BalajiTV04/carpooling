@@ -22,6 +22,8 @@ import {
   Menu,
   X,
   Check,
+  CheckCircle2,
+  Star,
   Sparkles,
   ArrowRight,
   Navigation,
@@ -31,6 +33,7 @@ import { useSession } from "@/components/SessionProvider";
 import { RequireAuth } from "@/components/RequireAuth";
 import { NotificationBell } from "@/components/NotificationBell";
 import { ProfileSection } from "@/components/ProfileSection";
+import { profileApi } from "@/lib/profile";
 import { tripApi, type Trip } from "@/lib/trips";
 import { vehicleApi, type Vehicle } from "@/lib/vehicles";
 import { bookingApi, type Booking } from "@/lib/bookings";
@@ -117,6 +120,9 @@ function DriverConsoleInner() {
   const [incomingRequests, setIncomingRequests] = React.useState<Booking[]>([]);
   const [requestBusyId, setRequestBusyId] = React.useState<string | null>(null);
   const [broadcastingTripId, setBroadcastingTripId] = React.useState<string | null>(null);
+  const [completingTripId, setCompletingTripId] = React.useState<string | null>(null);
+  const [driverRating, setDriverRating] = React.useState<number | null>(null);
+  const [ratingCount, setRatingCount] = React.useState<number>(0);
 
   // Sync mileage when user or vehicles load
   React.useEffect(() => {
@@ -125,17 +131,22 @@ function DriverConsoleInner() {
     }
   }, [user]);
 
-  // Load vehicles, trips, and incoming passenger booking requests
+  // Load vehicles, trips, incoming requests, and driver ratings
   const loadDriverData = React.useCallback(async () => {
     setLoading(true);
     try {
-      const [fetchedTrips, fetchedVehicles, fetchedRequests] = await Promise.all([
+      const [fetchedTrips, fetchedVehicles, fetchedRequests, myProfile] = await Promise.all([
         tripApi.mine().catch(() => []),
         vehicleApi.list().catch(() => []),
         bookingApi.incoming().catch(() => []),
+        profileApi.mine().catch(() => null),
       ]);
       setTrips(fetchedTrips);
       setIncomingRequests(Array.isArray(fetchedRequests) ? fetchedRequests : []);
+      if (myProfile) {
+        setDriverRating(myProfile.rating_avg ?? null);
+        setRatingCount(myProfile.rating_count ?? 0);
+      }
 
       let currentCars = fetchedVehicles;
       // Auto-provision verified car if none exists
@@ -238,6 +249,21 @@ function DriverConsoleInner() {
       setError(cause instanceof Error ? cause.message : "Failed to broadcast vehicle location");
     } finally {
       setBroadcastingTripId(null);
+    }
+  };
+
+  const handleCompleteTrip = async (tripId: string) => {
+    if (!confirm("Have you reached the destination? Mark this trip as completed?")) return;
+    setCompletingTripId(tripId);
+    setError(null);
+    try {
+      await tripApi.complete(tripId);
+      setNotice("🏁 Trip marked as complete! Destination reached. Passengers have been notified and can now rate the trip.");
+      await loadDriverData();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Failed to complete trip");
+    } finally {
+      setCompletingTripId(null);
     }
   };
 
@@ -399,6 +425,8 @@ function DriverConsoleInner() {
           <DriverSidebar
             active={section}
             userName={user?.full_name || user?.phone || "Driver"}
+            driverRating={driverRating}
+            ratingCount={ratingCount}
             onSelect={(s) => {
               setSection(s);
               setError(null);
@@ -432,6 +460,15 @@ function DriverConsoleInner() {
 
             <div className="flex items-center gap-3">
               <NotificationBell enabled={!!user} />
+              <div className="flex items-center gap-1.5 rounded-full border border-line bg-card px-3 py-1 text-xs">
+                <Star className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />
+                <span className="font-bold text-ink">
+                  {driverRating != null ? driverRating.toFixed(1) : "5.0"}
+                </span>
+                <span className="text-[11px] text-muted">
+                  ({ratingCount} {ratingCount === 1 ? "review" : "reviews"})
+                </span>
+              </div>
               <div className="hidden sm:flex items-center gap-2 rounded-full border border-line bg-card px-3 py-1 text-xs">
                 <span className="h-2 w-2 rounded-full bg-brand-teal animate-pulse" />
                 <span className="text-muted">Status:</span>
@@ -947,8 +984,8 @@ function DriverConsoleInner() {
                                 ? "🗓️ Long Trip"
                                 : "⚡ Live Trip"}
                             </span>
-                            <Badge variant={t.status === "published" ? "success" : t.status === "rejected" ? "danger" : "muted"}>
-                              {t.status}
+                            <Badge variant={t.status === "published" ? "success" : t.status === "ongoing" ? "brand" : t.status === "completed" ? "success" : t.status === "rejected" ? "danger" : "muted"}>
+                              {t.status === "ongoing" ? "Active / In Transit" : t.status === "completed" ? "Completed ✓" : t.status}
                             </Badge>
                           </div>
 
@@ -1027,15 +1064,35 @@ function DriverConsoleInner() {
 
                           <div className="flex items-center gap-2">
                             {(t.status === "published" || t.status === "ongoing") && (
-                              <Button
-                                variant={t.status === "ongoing" ? "primary" : "secondary"}
-                                size="sm"
-                                onClick={() => setSection("tracking")}
-                                className="text-xs flex items-center gap-1.5 font-semibold"
-                              >
-                                <Navigation className={`h-3 w-3 ${t.status === "ongoing" ? "animate-spin text-brand-teal" : ""}`} />
-                                {t.status === "ongoing" ? "Live Tracking Active →" : "Start Live Tracking →"}
-                              </Button>
+                              <>
+                                <Button
+                                  variant={t.status === "ongoing" ? "primary" : "secondary"}
+                                  size="sm"
+                                  onClick={() => setSection("tracking")}
+                                  className="text-xs flex items-center gap-1.5 font-semibold"
+                                >
+                                  <Navigation className={`h-3 w-3 ${t.status === "ongoing" ? "animate-spin text-brand-teal" : ""}`} />
+                                  {t.status === "ongoing" ? "Live Tracking Active →" : "Start Live Tracking →"}
+                                </Button>
+
+                                <Button
+                                  variant="primary"
+                                  size="sm"
+                                  disabled={completingTripId === t.id}
+                                  onClick={() => handleCompleteTrip(t.id)}
+                                  className="text-xs flex items-center gap-1.5 font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm"
+                                >
+                                  <CheckCircle2 className="h-3.5 w-3.5" />
+                                  {completingTripId === t.id ? "Completing…" : "Complete Trip ✓"}
+                                </Button>
+                              </>
+                            )}
+
+                            {t.status === "completed" && (
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                                Trip Completed ✓
+                              </span>
                             )}
 
                             {t.status === "published" && (
@@ -1271,6 +1328,8 @@ function DriverConsoleInner() {
             <DriverSidebar
               active={section}
               userName={user?.full_name || user?.phone || "Driver"}
+              driverRating={driverRating}
+              ratingCount={ratingCount}
               onSelect={(s) => {
                 setSection(s);
                 setMobileOpen(false);
@@ -1288,12 +1347,16 @@ function DriverConsoleInner() {
 function DriverSidebar({
   active,
   userName,
+  driverRating,
+  ratingCount,
   onSelect,
   onLogout,
   close,
 }: {
   active: Section;
   userName: string;
+  driverRating?: number | null;
+  ratingCount?: number;
   onSelect: (section: Section) => void;
   onLogout: () => void;
   close?: () => void;
@@ -1341,7 +1404,18 @@ function DriverSidebar({
       <div className="border-t border-line p-4">
         <div className="mb-3 rounded-xl bg-card px-4 py-3">
           <p className="truncate text-sm font-semibold text-ink">{userName}</p>
-          <p className="text-xs text-muted">Verified Driver</p>
+          <div className="flex items-center justify-between mt-1">
+            <p className="text-xs text-muted">Verified Driver</p>
+            {driverRating != null ? (
+              <div className="flex items-center gap-1 text-xs font-bold text-amber-400">
+                <Star className="h-3 w-3 fill-amber-400" />
+                <span>{driverRating.toFixed(1)}</span>
+                <span className="text-[10px] text-muted font-normal">({ratingCount})</span>
+              </div>
+            ) : (
+              <span className="text-[10px] text-muted">No ratings yet</span>
+            )}
+          </div>
         </div>
         <button
           onClick={onLogout}

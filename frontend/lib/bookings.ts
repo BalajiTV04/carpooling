@@ -9,9 +9,11 @@ export type Booking = {
   pickup: { name: string | null; point: { type: "Point"; coordinates: [number, number] } };
   dropoff: { name: string | null; point: { type: "Point"; coordinates: [number, number] } };
   pickup_distance_m: number | null; detour_km: number | null;
-  overlap_pct: number | null; cost_share: number | null;
+  overlap_pct: number | null;
   closed_at?: string | null; closure_note?: string | null;
   estimated_contribution?: number | null;
+  cost_share: number | null;
+  amount?: number | null;
   fare_changed?: boolean | null;
   previous_amount?: number | null;
   fare_history?: Array<{ amount: number; previous_amount: number; reason: string; occupants: number; at: string }>;

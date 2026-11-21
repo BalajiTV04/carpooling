@@ -2,7 +2,7 @@
 // Supports extra pins (meeting point / passenger door) and dashed connectors
 // (walk path, detour leg) — used by the Module 10 pickup chooser.
 "use client";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export type MapPin = {
   lng: number;
@@ -241,6 +241,7 @@ export function RouteMap({
 }) {
   const divRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
+  const [mapReady, setMapReady] = useState(false);
 
   // Create map once.
   useEffect(() => {
@@ -254,6 +255,10 @@ export function RouteMap({
           attribution: "© OpenStreetMap contributors"
         }).addTo(map);
         mapRef.current = map;
+        setMapReady(true);
+        setTimeout(() => {
+          try { map.invalidateSize(); } catch {}
+        }, 150);
       })
       .catch(() => {});
     return () => { dead = true; };
@@ -263,7 +268,7 @@ export function RouteMap({
   useEffect(() => {
     const map = mapRef.current;
     const L = typeof window !== "undefined" ? window.L : null;
-    if (!map || !L) return;
+    if (!map || !L || !mapReady) return;
     map.eachLayer((lyr: any) => {
       if (lyr.options?.pane === "markerPane" || lyr instanceof L.Polyline || lyr instanceof L.Marker)
         map.removeLayer(lyr);
@@ -336,6 +341,7 @@ export function RouteMap({
     // Dependencies are stringified: callers pass fresh arrays each render, and
     // raw array identity would redraw the layers on every parent re-render.
   }, [
+    mapReady,
     JSON.stringify(src), JSON.stringify(dst), JSON.stringify(geometry),
     JSON.stringify(pins), JSON.stringify(dashes),
     JSON.stringify(passengerSegment)

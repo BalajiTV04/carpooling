@@ -19,6 +19,7 @@ import {
   X,
   Check,
   CheckCircle2,
+  Star,
   Sparkles,
   ArrowRight,
   Users,
@@ -29,6 +30,7 @@ import { ProfileSection } from "@/components/ProfileSection";
 import { SafetyBanner } from "@/components/SafetyBanner";
 import { tripApi, type Trip } from "@/lib/trips";
 import { bookingApi, type Booking } from "@/lib/bookings";
+import { ratingApi } from "@/lib/ratings";
 import { safetyApi } from "@/lib/safety";
 import { authApi } from "@/lib/auth";
 import { type PlaceHit } from "@/lib/geo";
@@ -207,6 +209,10 @@ function PassengerConsoleInner() {
     (b) => b.status === "accepted" || b.status === "confirmed"
   );
 
+  const completedBookings = myBookings.filter(
+    (b) => b.status === "completed"
+  );
+
   return (
     <div className="min-h-screen bg-bg text-ink">
       <div className="flex min-h-screen">
@@ -301,6 +307,30 @@ function PassengerConsoleInner() {
                     booking={b}
                     title={`Vehicle Location: ${b.trip?.source_name ?? "Origin"} → ${b.trip?.destination_name ?? "Destination"}`}
                     defaultExpanded={true}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Completed Rides & Rating Banner */}
+            {completedBookings.length > 0 && (
+              <div className="mb-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-5 w-5 text-emerald-400" />
+                    <h2 className="font-display text-sm font-bold uppercase tracking-wider text-emerald-400">
+                      Completed Trips · Rate Your Driver
+                    </h2>
+                  </div>
+                  <Badge variant="success" className="text-xs">
+                    {completedBookings.length} Completed Ride{completedBookings.length > 1 ? "s" : ""}
+                  </Badge>
+                </div>
+                {completedBookings.map((b) => (
+                  <CompletedRideCard
+                    key={b.id}
+                    booking={b}
+                    onRatingSubmitted={() => void loadBookings()}
                   />
                 ))}
               </div>
@@ -815,6 +845,13 @@ function PassengerConsoleInner() {
                               />
                             )}
                           </div>
+                        ) : b.status === "completed" ? (
+                          <div className="mt-4 pt-3 border-t border-line">
+                            <CompletedRideCard
+                              booking={b}
+                              onRatingSubmitted={() => void loadBookings()}
+                            />
+                          </div>
                         ) : b.status === "requested" ? (
                           <div className="mt-3 rounded-xl bg-brand/5 border border-brand/20 p-3 text-xs text-muted flex items-center gap-2">
                             <Clock className="h-4 w-4 text-brand shrink-0" />
@@ -1000,5 +1037,192 @@ function PassengerSidebar({
         </button>
       </div>
     </>
+  );
+}
+
+interface CompletedRideCardProps {
+  booking: Booking;
+  onRatingSubmitted?: () => void;
+}
+
+function CompletedRideCard({ booking, onRatingSubmitted }: CompletedRideCardProps) {
+  const [stars, setStars] = React.useState<number>(5);
+  const [hoveredStars, setHoveredStars] = React.useState<number | null>(null);
+  const [comment, setComment] = React.useState<string>("");
+  const [submitting, setSubmitting] = React.useState<boolean>(false);
+  const [submittedRating, setSubmittedRating] = React.useState<{ stars: number; comment?: string } | null>(null);
+  const [err, setErr] = React.useState<string | null>(null);
+
+  // Check if this booking was already rated
+  React.useEffect(() => {
+    let active = true;
+    ratingApi
+      .forBooking(booking.id)
+      .then((res) => {
+        if (!active) return;
+        if (res && res.items && res.items.length > 0) {
+          const myReview = res.items.find((r) => r.booking_id === booking.id);
+          if (myReview) {
+            setSubmittedRating({ stars: myReview.stars, comment: myReview.comment || undefined });
+          }
+        }
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [booking.id]);
+
+  const handleSubmitRating = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    setErr(null);
+    try {
+      await ratingApi.rate({
+        booking_id: booking.id,
+        stars,
+        comment: comment.trim() || undefined,
+      });
+      setSubmittedRating({ stars, comment: comment.trim() || undefined });
+      onRatingSubmitted?.();
+    } catch (cause) {
+      setErr(cause instanceof Error ? cause.message : "Failed to submit rating");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const driverName = booking.driver_name || "Verified Driver";
+  const sourceName = booking.trip?.source_name ?? booking.pickup?.name ?? "Origin";
+  const destinationName = booking.trip?.destination_name ?? booking.dropoff?.name ?? "Destination";
+  const finalFare = booking.amount ?? booking.cost_share ?? booking.estimated_contribution;
+
+  return (
+    <div className="rounded-2xl border border-emerald-500/30 bg-surface shadow-sm overflow-hidden">
+      {/* Top Header Banner */}
+      <div className="bg-emerald-500/10 border-b border-emerald-500/20 p-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+            <CheckCircle2 className="h-5 w-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="font-display text-sm font-bold text-ink">
+                Trip Completed · Destination Reached
+              </h3>
+              <Badge variant="success" className="text-[10px]">
+                Completed ✓
+              </Badge>
+            </div>
+            <p className="text-xs text-muted mt-0.5">
+              <span>{sourceName} → {destinationName}</span>
+              {finalFare != null && (
+                <>
+                  <span className="mx-1.5">·</span>
+                  <span>Fare: <strong className="text-brand-teal">₹{Math.round(finalFare)}</strong></span>
+                </>
+              )}
+            </p>
+          </div>
+        </div>
+
+        <div className="text-right">
+          <p className="text-xs font-semibold text-ink">
+            Driver: <span className="text-brand-teal">{driverName}</span>
+          </p>
+          <p className="text-[11px] text-muted">Thanks for riding with VoltRide!</p>
+        </div>
+      </div>
+
+      {/* Rating & Feedback Body */}
+      <div className="p-4 bg-surface space-y-3">
+        {submittedRating ? (
+          <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 p-3 flex flex-wrap items-center justify-between gap-2">
+            <div className="space-y-1">
+              <p className="text-xs font-bold text-ink flex items-center gap-1.5">
+                <span className="text-emerald-400">✓ Thank you for rating {driverName}!</span>
+              </p>
+              <div className="flex items-center gap-1 text-amber-400 text-sm">
+                {[1, 2, 3, 4, 5].map((s) => (
+                  <Star
+                    key={s}
+                    className={`h-4 w-4 ${s <= submittedRating.stars ? "fill-amber-400 text-amber-400" : "text-muted/30"}`}
+                  />
+                ))}
+                <span className="text-xs font-semibold text-ink ml-1.5">{submittedRating.stars}.0 / 5.0</span>
+              </div>
+              {submittedRating.comment && (
+                <p className="text-xs text-muted italic">&ldquo;{submittedRating.comment}&rdquo;</p>
+              )}
+            </div>
+            <button
+              onClick={() => setSubmittedRating(null)}
+              className="text-xs text-muted hover:text-ink underline"
+            >
+              Edit Rating
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmitRating} className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="text-xs font-bold text-ink">How was your ride with {driverName}?</p>
+                <p className="text-[11px] text-muted">Rate your driver to help the community keep high standards.</p>
+              </div>
+
+              {/* Star selector */}
+              <div className="flex items-center gap-1">
+                {[1, 2, 3, 4, 5].map((s) => {
+                  const active = (hoveredStars ?? stars) >= s;
+                  return (
+                    <button
+                      key={s}
+                      type="button"
+                      onMouseEnter={() => setHoveredStars(s)}
+                      onMouseLeave={() => setHoveredStars(null)}
+                      onClick={() => setStars(s)}
+                      className="p-1 transition hover:scale-110 focus:outline-none"
+                      aria-label={`${s} star`}
+                    >
+                      <Star
+                        className={`h-6 w-6 transition ${
+                          active
+                            ? "fill-amber-400 text-amber-400 drop-shadow-sm"
+                            : "text-muted/30 hover:text-amber-300"
+                        }`}
+                      />
+                    </button>
+                  );
+                })}
+                <span className="text-xs font-bold text-amber-400 ml-1.5 w-7 text-center">
+                  {(hoveredStars ?? stars)}.0
+                </span>
+              </div>
+            </div>
+
+            {/* Comment input + submit */}
+            <div className="flex flex-wrap gap-2 items-center">
+              <input
+                type="text"
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                placeholder={`Share your experience with ${driverName} (optional)...`}
+                className="flex-1 rounded-xl border border-line bg-card px-3.5 py-2 text-xs text-ink placeholder:text-muted focus:border-brand-teal focus:outline-none"
+              />
+              <Button
+                type="submit"
+                variant="primary"
+                size="sm"
+                disabled={submitting}
+                className="text-xs font-semibold bg-brand-teal hover:bg-brand-teal/90 text-white shrink-0"
+              >
+                {submitting ? "Submitting…" : "Give Rating ★"}
+              </Button>
+            </div>
+            {err && <p className="text-xs text-danger">{err}</p>}
+          </form>
+        )}
+      </div>
+    </div>
   );
 }

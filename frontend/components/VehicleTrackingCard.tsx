@@ -219,16 +219,16 @@ export function VehicleTrackingCard({
                 className={`h-2.5 w-2.5 rounded-full ${
                   hasLiveFix && !liveFix?.stale
                     ? "bg-brand-teal animate-pulse"
-                    : liveFix?.stale
+                    : hasLiveFix && liveFix?.stale
                     ? "bg-amber-400"
-                    : "bg-muted"
+                    : "bg-brand-teal/40"
                 }`}
               />
               <span className="font-semibold text-ink">
                 {hasLiveFix && !liveFix?.stale
                   ? "Live Vehicle GPS Connected"
-                  : liveFix?.stale
-                  ? "Location Temporarily Unavailable (Stale)"
+                  : hasLiveFix && liveFix?.stale
+                  ? "Location Temporarily Stale (Last known fix)"
                   : "Vehicle Stationed at Starting Point"}
               </span>
               <span className="text-muted text-[11px]">
@@ -277,6 +277,10 @@ export function VehicleTrackingCard({
             <RouteMap
               geometry={routeGeometry}
               pins={pins}
+              passengerSegment={[
+                [pickupCoords[1], pickupCoords[0]],
+                [dropoffCoords[1], dropoffCoords[0]],
+              ]}
               height={280}
             />
           </div>

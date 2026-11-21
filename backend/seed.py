@@ -202,9 +202,9 @@ async def _fallthrough(db, trip: ObjectId, driver: ObjectId,
 async def _wipe(db) -> None:
     """Remove ONLY the seed set. Never touches real accounts."""
     trips = [t["_id"] async for t in db.trips.find(
-        {"source.name": {"$regex": "^SeedTest "}}, {"_id": 1})]
+        {"$or": [{"source.name": {"$regex": "^SeedTest "}}, {"source.name": "Devanahalli Central"}]}, {"_id": 1})]
     if trips:
-        for coll in ("bookings", "segments", "ratings", "safety_alerts"):
+        for coll in ("bookings", "segments", "ratings", "safety_alerts", "locations"):
             await db[coll].delete_many({"trip_id": {"$in": trips}})
     await db.trips.delete_many({"_id": {"$in": trips}})
     await db.notifications.delete_many({"user_id": {
@@ -213,7 +213,7 @@ async def _wipe(db) -> None:
     await db.ratings.delete_many({"rater_id": {
         "$in": [u["_id"] async for u in db.users.find(
             {"phone": {"$in": SEED_PHONES}}, {"_id": 1})]}})
-    await db.vehicles.delete_many({"plate_no": {"$regex": "^SEED"}})
+    await db.vehicles.delete_many({"plate_no": {"$in": ["KA04EV4411", "SEED-KA01-0001", "SEED-KA01-0002"]}})
     await db.users.delete_many({"phone": {"$in": SEED_PHONES}})
 
 
@@ -480,6 +480,22 @@ async def main(keep: bool = False) -> None:
     print(f"  Driver Share: Rs {recalc_result2.get('driver_share')}")
     print(f"  Passenger Shares: {recalc_result2.get('passengers')}")
     print(f"  Seats Left: {recalc_result2.get('seats_left')}")
+
+    # Seed live GPS fix and set trip to ongoing for real-time live vehicle tracking
+    from app.api.v1.tracking import record_ping
+    trip = await db.trips.find_one({"_id": trip_id})
+    await db.trips.update_one(
+        {"_id": trip_id},
+        {"$set": {"status": "ongoing", "started_at": now, "updated_at": now}}
+    )
+    trip["status"] = "ongoing"
+    # Driver is en route at km 11.6, moving at 42 km/h towards pickup points
+    ping_res = await record_ping(
+        db, trip, str(drv1_id),
+        lng=77.6350, lat=13.1750,
+        speed_kmph=42.0, heading_deg=185.0, accuracy_m=12.0
+    )
+    print(f"Seeded live GPS fix for ongoing trip {trip_id}: speed=42.0 km/h, progress={ping_res.get('progress')}")
 
     print("Database wiped, indexes ensured, and demo accounts/trips/bookings created.")
 

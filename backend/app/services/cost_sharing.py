@@ -544,6 +544,7 @@ async def recompute_trip_fares(
         update_set: Dict[str, Any] = {
             "estimated_contribution": new_amt,
             "cost_share": new_amt,
+            "amount": new_amt,
             "updated_at": now,
         }
         if trip.get("status") == "completed":
