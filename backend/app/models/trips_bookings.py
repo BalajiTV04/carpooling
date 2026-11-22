@@ -17,7 +17,8 @@ class TripDoc(BaseModel):
     vehicle_id: str
     source: PlaceRef
     destination: PlaceRef
-    route_geometry: Optional[RouteLine] = None  # Module 7 fills via OSRM
+    route_geometry: Optional[RouteLine] = None  # Module 7 fills via OSRM (primary/shortest)
+    route_alternatives: Optional[List[RouteLine]] = None  # Module 26: other OSRM route options
     distance_km: Optional[float] = Field(default=None, ge=0)
     duration_min: Optional[float] = Field(default=None, ge=0)
     depart_at: datetime  # UTC

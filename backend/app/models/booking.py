@@ -12,7 +12,7 @@ released on reject/cancel — no oversell between request and accept. At trip
 completion seats FROZEN (never released) and confirmed/accepted rides settle.
 """
 from datetime import datetime
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -23,6 +23,7 @@ class BookingIn(BaseModel):
     pickup_coordinates: List[float] = Field(min_length=2, max_length=2)
     dropoff_coordinates: List[float] = Field(min_length=2, max_length=2)
     use_optimised_pickup: bool = True  # Module 10 meeting point, else exact door
+    selected_route: Optional[Dict] = None  # Module 26: route option chosen by passenger
 
     @field_validator("pickup_coordinates", "dropoff_coordinates")
     @classmethod
@@ -51,6 +52,7 @@ class BookingOut(BaseModel):
     ai_score: Optional[float] = None
     ai_model: Optional[str] = None
     cost_share: Optional[float] = None  # Module 12 fills this
+    selected_route: Optional[dict] = None  # Module 26: route option chosen at booking
     final_contribution: Optional[float] = None
     fare_changed: Optional[bool] = False
     previous_amount: Optional[float] = None

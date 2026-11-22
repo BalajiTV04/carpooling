@@ -45,6 +45,11 @@ class TripIn(BaseModel):
     other_expenses: Optional[List[Dict[str, Any]]] = None  # Itemized expenses: [{"name": "Tolls", "amount": 300}]
     other_expenses_total: Optional[float] = None  # Total other expenses (e.g. 500)
     advance_policy: Optional[Dict] = None
+    # Module 26: driver-chosen route. If provided, this geometry is used as the
+    # trip's primary route_geometry (instead of OSRM's first route) and all
+    # OSRM alternatives are stored under route_alternatives.
+    route_geometry: Optional[Dict] = None  # GeoJSON LineString chosen by driver
+    route_index: Optional[int] = None  # index of chosen route in OSRM all_routes
 
     @field_validator("depart_at")
     @classmethod

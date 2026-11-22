@@ -60,6 +60,8 @@ def _out(doc: Dict) -> Dict:
         "destination_name": doc["destination"]["name"],
         "source": doc["source"],
         "destination": doc["destination"],
+        "route_geometry": doc.get("route_geometry"),
+        "route_alternatives": doc.get("route_alternatives"),
         "depart_at": doc["depart_at"],
         "seats_offered": doc["seats_offered"],
         "seats_booked": doc.get("seats_booked", 0),
@@ -124,9 +126,62 @@ async def create_trip(body: TripIn, user: Dict = Depends(_driver)):
     now = _utcnow()
     # Module 7: best-effort OSRM route. Failure keeps crow-flies + None
     # geometry — the save MUST NOT fail because routing is down.
+    # Module 26: if the driver chose a specific route (route_index / route_geometry),
+    # use that as the primary route_geometry. Otherwise fall back to OSRM's first route.
+    driver_chosen_geometry = None
+    if body.route_geometry and isinstance(body.route_geometry, dict):
+        cg = body.route_geometry.get("geometry") or body.route_geometry.get("coordinates")
+        if cg:
+            driver_chosen_geometry = cg
+
     routed = await osrm_route(body.source.coordinates, body.destination.coordinates)
-    distance = routed["distance_km"] if routed else round(dist, 2)
-    duration = routed["duration_min"] if routed else None
+    route_alternatives = None
+    primary_geometry = None
+    primary_distance = round(dist, 2)
+    primary_duration = None
+
+    if routed and routed.get("all_routes"):
+        all_routes = routed["all_routes"]
+        # If driver chose by index, use that route as primary.
+        chosen_idx = body.route_index if body.route_index is not None else None
+        if chosen_idx is not None and 0 <= chosen_idx < len(all_routes):
+            chosen = all_routes[chosen_idx]
+            primary_geometry = chosen.get("geometry")
+            primary_distance = chosen.get("distance_km", round(dist, 2))
+            primary_duration = chosen.get("duration_min")
+            # All other routes become alternatives.
+            alts = [r for i, r in enumerate(all_routes) if i != chosen_idx and r.get("geometry")]
+            if alts:
+                route_alternatives = [{"type": "LineString", "coordinates": r["geometry"]} for r in alts]
+        else:
+            # No explicit index: use driver-provided geometry if it matches any route,
+            # otherwise OSRM's first route.
+            primary_geometry = all_routes[0].get("geometry")
+            primary_distance = all_routes[0].get("distance_km", round(dist, 2))
+            primary_duration = all_routes[0].get("duration_min")
+            alts = all_routes[1:]
+            if alts:
+                route_alternatives = [{"type": "LineString", "coordinates": r["geometry"]} for r in alts if r.get("geometry")]
+    elif routed:
+        primary_geometry = routed.get("geometry")
+        primary_distance = routed.get("distance_km", round(dist, 2))
+        primary_duration = routed.get("duration_min")
+
+    # Driver-provided geometry takes precedence over OSRM primary.
+    # final_geometry may be a raw coordinate list OR a full GeoJSON LineString dict.
+    final_geometry = driver_chosen_geometry or primary_geometry
+    distance = primary_distance if final_geometry else round(dist, 2)
+    duration = primary_duration
+
+    # Normalise route_geometry into a GeoJSON LineString dict for MongoDB storage.
+    if isinstance(final_geometry, dict) and final_geometry.get("type") == "LineString":
+        route_geometry_doc = final_geometry
+    elif isinstance(final_geometry, list):
+        route_geometry_doc = {"type": "LineString", "coordinates": final_geometry}
+    elif final_geometry:
+        route_geometry_doc = {"type": "LineString", "coordinates": final_geometry}
+    else:
+        route_geometry_doc = None
 
     # Amount calculation based on fuel price, vehicle mileage, distance AND other expenses (tolls, parking, etc.)
     other_expenses = [dict(x) for x in (body.other_expenses or [])]
@@ -165,7 +220,8 @@ async def create_trip(body: TripIn, user: Dict = Depends(_driver)):
         "vehicle_id": veh["_id"],
         "source": body.source.to_place(),
         "destination": body.destination.to_place(),
-        "route_geometry": routed["geometry"] if routed else None,
+        "route_geometry": route_geometry_doc,
+        "route_alternatives": route_alternatives,
         "distance_km": distance,
         "duration_min": duration,
         "depart_at": body.depart_at,

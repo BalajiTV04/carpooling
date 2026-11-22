@@ -11,6 +11,7 @@ import { geoApi, type PlaceHit, type RoutePreview } from "@/lib/geo";
 import { Car } from "lucide-react";
 import { PlacePicker } from "@/components/PlacePicker";
 import { RouteMap } from "@/components/RouteMap";
+import { RouteSelector } from "@/components/RouteSelector";
 import { TripCard } from "@/components/TripCard";
 import { Field, inputCls } from "@/components/AuthShell";
 import { PageShell } from "@/components/PageShell";
@@ -38,6 +39,18 @@ function TripsInner() {
   const [seats, setSeats] = useState(2);
   const [fuelPrice, setFuelPrice] = useState("");
   const [preview, setPreview] = useState<RoutePreview | null>(null);
+  // Module 26: driver-chosen route at trip creation.
+  const [allRoutes, setAllRoutes] = useState<Array<{
+    geometry: { type: string; coordinates: [number, number][] };
+    distance_km?: number;
+    duration_min?: number;
+  }>>([]);
+  const [selectedRoute, setSelectedRoute] = useState<{
+    name: string;
+    geometry: { type: string; coordinates: [number, number][] };
+    distance_km?: number | null;
+    duration_min?: number | null;
+  } | null>(null);
   const [costSummary, setCostSummary] = useState<{ routeKm: number; mileage: number; litres: number; fuelPrice: number; totalCost: number; passengerSeats: number; paxPays: number; driverPays: number } | null>(null);
   const [routing, setRouting] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -55,15 +68,32 @@ function TripsInner() {
   useEffect(() => {
     if (!src || !dst) {
       setPreview(null);
+      setAllRoutes([]);
+      setSelectedRoute(null);
       return;
     }
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(async () => {
       setRouting(true);
       try {
-        setPreview(await geoApi.route([src.lng, src.lat], [dst.lng, dst.lat]));
+        const res = await geoApi.route([src.lng, src.lat], [dst.lng, dst.lat]);
+        setPreview(res);
+        // Module 26: capture all route options for driver selection.
+        if (res?.all_routes && res.all_routes.length > 0) {
+          setAllRoutes(res.all_routes);
+          if (!selectedRoute) {
+            setSelectedRoute({
+              name: "Fastest route",
+              geometry: res.all_routes[0].geometry,
+              distance_km: res.all_routes[0].distance_km ?? null,
+              duration_min: res.all_routes[0].duration_min ?? null,
+            });
+          }
+        }
       } catch {
         setPreview(null);
+        setAllRoutes([]);
+        setSelectedRoute(null);
       } finally {
         setRouting(false);
       }
@@ -113,7 +143,31 @@ function TripsInner() {
         throw new Error("Departure must be at least 5 minutes in the future — the server refuses past trips");
       }
       const depart_at = depart.toISOString();
-      const created = await tripApi.create({ vehicle_id: vehicleId, source_name: src!.name, destination_name: dst!.name, depart_at, seats_offered: seats, fuel_price_per_unit: fp });
+      // Module 26: include the driver-chosen route geometry and index.
+      const routeIndex = selectedRoute
+        ? allRoutes.findIndex(
+            (r) =>
+              JSON.stringify(r.geometry.coordinates) ===
+              JSON.stringify(selectedRoute.geometry.coordinates)
+          )
+        : -1;
+      const created = await tripApi.create({
+        vehicle_id: vehicleId,
+        source_name: src!.name,
+        destination_name: dst!.name,
+        depart_at,
+        seats_offered: seats,
+        fuel_price_per_unit: fp,
+        ...(selectedRoute
+          ? {
+              route_geometry: {
+                type: "LineString",
+                coordinates: selectedRoute.geometry.coordinates,
+              },
+              route_index: routeIndex >= 0 ? routeIndex : undefined,
+            }
+          : {}),
+      });
       setMsg("Trip staged as draft — publish it to go live.");
       setTrips([...trips, created]);
       setSrc(null); setDst(null); setVehicleId(""); setDate(""); setTime(""); setSeats(2); setPreview(null);
@@ -166,6 +220,45 @@ function TripsInner() {
           </Field>
           <PlacePicker label="From" value={src} onPick={setSrc} placeholder="Hebbal… try “Man miss”" />
           <PlacePicker label="To" value={dst} onPick={setDst} placeholder="Electronic City…" />
+          {/* Module 26: Route selection — driver chooses which route to travel */}
+          {allRoutes.length > 0 && (
+            <div className="mt-3">
+              <RouteSelector
+                trip={{
+                  id: "new",
+                  source_name: src?.name ?? "Source",
+                  destination_name: dst?.name ?? "Destination",
+                  source: {
+                    name: src?.name ?? "Source",
+                    address: null,
+                    point: { type: "Point", coordinates: [src?.lng ?? 0, src?.lat ?? 0] },
+                  },
+                  destination: {
+                    name: dst?.name ?? "Destination",
+                    address: null,
+                    point: { type: "Point", coordinates: [dst?.lng ?? 0, dst?.lat ?? 0] },
+                  },
+                  depart_at: date,
+                  seats_offered: seats,
+                  seats_booked: 0,
+                  seats_left: seats,
+                  vehicle_id: vehicleId,
+                  status: "draft",
+                  distance_km: selectedRoute?.distance_km ?? null,
+                  duration_min: selectedRoute?.duration_min ?? null,
+                  route_geometry: selectedRoute
+                    ? { type: "LineString", coordinates: selectedRoute.geometry.coordinates }
+                    : null,
+                  route_alternatives: allRoutes.map((r) => ({
+                    type: "LineString",
+                    coordinates: r.geometry.coordinates,
+                  })),
+                } as any}
+                value={selectedRoute ?? null}
+                onChange={setSelectedRoute}
+              />
+            </div>
+          )}
           <div className="grid gap-4 md:grid-cols-3">
             <Field label="Date">
               <input className={inputCls} type="date" value={date} onChange={(e) => setDate(e.target.value)} required />

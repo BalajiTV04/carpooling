@@ -1,13 +1,15 @@
 // Result card: match-score card + endpoint distances + detail drawer.
-// Drawer = route map + passenger-side pickup optimisation (Module 10).
+// Drawer = route selector + route map + passenger-side pickup optimisation (Module 10).
 "use client";
 import { useState } from "react";
 import { RouteMap } from "@/components/RouteMap";
+import { RouteSelector } from "@/components/RouteSelector";
 import { MatchCard } from "@/components/MatchCard";
 import { PickupChooser } from "@/components/PickupChooser";
 import { BookingPanel } from "@/components/BookingPanel";
 import type { RideHit } from "@/lib/search";
 import type { PlaceHit } from "@/lib/geo";
+import type { RouteOption } from "@/components/RouteSelector";
 
 export function RideCard({ t, pickupHint = null, dropHint = null }: {
   t: RideHit;
@@ -15,6 +17,7 @@ export function RideCard({ t, pickupHint = null, dropHint = null }: {
   dropHint?: PlaceHit | null;
 }) {
   const [open, setOpen] = useState(false);
+  const [selectedRoute, setSelectedRoute] = useState<RouteOption | null>(null);
   const when = new Date(t.depart_at).toLocaleString("en-IN", {
     day: "numeric", month: "short", hour: "2-digit", minute: "2-digit"
   });
@@ -51,14 +54,28 @@ export function RideCard({ t, pickupHint = null, dropHint = null }: {
       {t.match && <MatchCard m={t.match} hit={t} seatsLeft={t.seats_left} passengersCount={t.seats_offered - t.seats_left} />}
       {open && (
         <div className="mt-3">
+          <RouteSelector
+            trip={t}
+            value={selectedRoute}
+            onChange={setSelectedRoute}
+          />
           <RouteMap
             src={[t.source.point.coordinates[0], t.source.point.coordinates[1]]}
             dst={[t.destination.point.coordinates[0], t.destination.point.coordinates[1]]}
-            geometry={null}
+            geometry={selectedRoute
+              ? { type: "LineString", coordinates: selectedRoute.geometry.coordinates }
+              : t.route_geometry ?? null}
             height={220}
+            routeColor={selectedRoute ? "#14b8a6" : t.route_geometry ? "#14b8a6" : undefined}
           />
           <PickupChooser tripId={t.id} pickupHint={pickupHint} dropHint={dropHint} />
-          <BookingPanel tripId={t.id} seatsLeft={t.seats_left} pickupHint={pickupHint} dropHint={dropHint} />
+          <BookingPanel
+            tripId={t.id}
+            seatsLeft={t.seats_left}
+            pickupHint={pickupHint}
+            dropHint={dropHint}
+            selectedRoute={selectedRoute}
+          />
           <p className="mt-2 text-center text-[10px] text-muted">
             trip id <span className="font-mono">{t.id.slice(-6)}</span>
           </p>

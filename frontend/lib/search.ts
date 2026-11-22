@@ -53,6 +53,13 @@ export type RideHit = Trip & {
   estimated?: boolean;
   pickup?: MatchPoint | null;
   drop?: MatchPoint | null;
+  // Module 26: route option chosen by the passenger for this ride.
+  selected_route?: {
+    name: string;
+    geometry: { type: string; coordinates: [number, number][] };
+    distance_km?: number;
+    duration_min?: number;
+  } | null;
 };
 export type SearchBody = {
   src_coordinates: [number, number];
@@ -95,6 +102,13 @@ export type DetourRideResult = {
   route_overlap_percent: number;
   driver_route_polyline: [number, number][];   // [lat, lng]
   passenger_segment_polyline: [number, number][]; // [lat, lng]
+  // Module 26: route option chosen by the passenger for this ride.
+  selected_route?: {
+    name: string;
+    geometry: { type: string; coordinates: [number, number][] };
+    distance_km?: number;
+    duration_min?: number;
+  } | null;
 };
 export type DetourSearchBody = {
   source: { lat: number; lng: number; address?: string };

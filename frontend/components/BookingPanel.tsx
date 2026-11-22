@@ -13,6 +13,7 @@ import { SafetyBanner } from "@/components/SafetyBanner";
 import { RateRideCard } from "@/components/RateRideCard";
 import { ratingApi, type PendingRating } from "@/lib/ratings";
 import type { PlaceHit } from "@/lib/geo";
+import type { RouteOption } from "./RouteSelector";
 
 /** Module 22: looks this booking up in my pending list and renders the prompt.
  *  The API already resolves the OTHER party, so no target is passed in. */
@@ -103,12 +104,13 @@ function CostPreview({ tripId }: { tripId: string }) {
 }
 
 export function BookingPanel({
-  tripId, seatsLeft, pickupHint, dropHint
+  tripId, seatsLeft, pickupHint, dropHint, selectedRoute
 }: {
   tripId: string;
   seatsLeft: number;
   pickupHint: PlaceHit | null;
   dropHint: PlaceHit | null;
+  selectedRoute: RouteOption | null;
 }) {
   const [booking, setBooking] = useState<Booking | null>(null);
   const [seats, setSeats] = useState(1);
@@ -152,12 +154,19 @@ export function BookingPanel({
       setErr("Search From and To first — those are your pickup/drop points.");
       return;
     }
+    const routePayload = selectedRoute ? {
+      name: selectedRoute.name,
+      geometry: selectedRoute.geometry,
+      distance_km: selectedRoute.distance_km ?? null,
+      duration_min: selectedRoute.duration_min ?? null,
+    } : null;
     await act(
       () => bookingApi.create({
         trip_id: tripId, seats,
         pickup_coordinates: [pickupHint.lng, pickupHint.lat],
         dropoff_coordinates: [dropHint.lng, dropHint.lat],
-        use_optimised_pickup: true
+        use_optimised_pickup: true,
+        selected_route: routePayload,
       }),
       "Request sent — the driver will accept or reject it."
     );
@@ -230,6 +239,7 @@ export function BookingPanel({
             Booked ✓ · {booking.seats} seat{booking.seats > 1 ? "s" : ""}
             {booking.detour_km !== null ? ` · driver detour ${booking.detour_km} km` : ""}
             {booking.pickup_distance_m !== null ? ` · walk ${Math.round(booking.pickup_distance_m)} m` : ""}
+            {booking.selected_route ? ` · route: ${booking.selected_route.name}` : ""}
             <button onClick={() => act(() => bookingApi.cancel(booking.id), "Cancelled — seats released.")}
               className="ml-2 text-rose-300 underline" disabled={busy}>cancel</button>
           </p>

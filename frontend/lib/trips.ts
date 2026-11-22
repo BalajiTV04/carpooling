@@ -23,6 +23,7 @@ export type Trip = {
   drop?: { label?: string; coordinates?: [number, number]; lat?: number; lng?: number; dist_km?: number } | null;
   match_score?: number | null;
   route_geometry?: { type: string; coordinates: [number, number][] } | null;
+  route_alternatives?: Array<{ type: string; coordinates: [number, number][] }> | null;
 };
 
 // Module 19: post-trip receipt (read-only, money frozen at completion).

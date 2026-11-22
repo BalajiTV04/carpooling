@@ -228,7 +228,7 @@ function createPointIcon(symbol: string, color: string, L: any) {
 
 export function RouteMap({
   src, dst, geometry, height = 320, pins = [], dashes = [],
-  passengerSegment
+  passengerSegment, routeColor = "#7B77FF"
 }: {
   src?: [number, number] | null;     // [lng, lat]
   dst?: [number, number] | null;     // [lng, lat]
@@ -236,6 +236,8 @@ export function RouteMap({
   height?: number;
   pins?: MapPin[];
   dashes?: MapDash[];
+  // Colour of the main route polyline.
+  routeColor?: string;
   // Passenger's shared segment (pickup -> drop) in [lat, lng], drawn highlighted.
   passengerSegment?: [number, number][] | null;
 }) {
@@ -284,7 +286,7 @@ export function RouteMap({
       L.divIcon({ className: "", html: `<div style="width:14px;height:14px;border-radius:99px;background:${color};border:3px solid #070A1A;box-shadow:0 0 12px ${color}"></div>` });
     if (geometry && geometry.coordinates.length >= 2) {
       const latlngs = geometry.coordinates.map(([lng, lat]) => [lat, lng] as [number, number]);
-      L.polyline(latlngs, { color: "#7B77FF", weight: 5, opacity: 0.9 }).addTo(map);
+      L.polyline(latlngs, { color: routeColor, weight: 5, opacity: 0.9 }).addTo(map);
       L.polyline(latlngs, { color: "#C6FF4A", weight: 2, dashArray: "8 8", opacity: 0.9 }).addTo(map);
       bounds.push(...latlngs);
     }
@@ -342,6 +344,7 @@ export function RouteMap({
     // raw array identity would redraw the layers on every parent re-render.
   }, [
     mapReady,
+    routeColor,
     JSON.stringify(src), JSON.stringify(dst), JSON.stringify(geometry),
     JSON.stringify(pins), JSON.stringify(dashes),
     JSON.stringify(passengerSegment)

@@ -29,6 +29,15 @@ export function DetourRideCard({ t }: { t: DetourRideResult }) {
     <div className="panel panel-hover p-4">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
+          {t.selected_route && (
+            <div className="mt-1 mb-1 rounded-2xl border border-brand-teal/30 bg-surface p-2 text-[11px]">
+              <span className="font-semibold text-ink">Route chosen:</span>{" "}
+              <span className="text-brand-teal">{t.selected_route.name}</span>
+              {t.selected_route.distance_km != null && (
+                <span className="text-muted"> · {t.selected_route.distance_km.toFixed(1)} km</span>
+              )}
+            </div>
+          )}
           <div className="route-strip">
             <span className="dot dot-from" aria-hidden />
             <span className="truncate font-display text-sm font-bold">
@@ -89,11 +98,15 @@ export function DetourRideCard({ t }: { t: DetourRideResult }) {
           <RouteMap
             src={null}
             dst={null}
-            geometry={{
+            geometry={t.selected_route ? {
+              type: "LineString",
+              coordinates: t.selected_route.geometry.coordinates,
+            } : {
               type: "LineString",
               coordinates: t.driver_route_polyline.map(([lat, lng]) => [lng, lat]),
             }}
             height={240}
+            routeColor={t.selected_route ? "#14b8a6" : undefined}
             passengerSegment={
               t.passenger_segment_polyline.length >= 2
                 ? t.passenger_segment_polyline

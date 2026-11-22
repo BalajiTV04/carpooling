@@ -5,6 +5,12 @@ export type RoutePreview = {
   geometry: { type: "LineString"; coordinates: [number, number][] };
   distance_km: number;
   duration_min: number | null;
+  // Module 26: all OSRM route options for driver route selection.
+  all_routes?: Array<{
+    geometry: { type: string; coordinates: [number, number][] };
+    distance_km?: number;
+    duration_min?: number;
+  }>;
 };
 
 import { req } from "@/lib/http";

@@ -44,6 +44,7 @@ import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
 import { DriverTrackingConsole } from "@/components/DriverTrackingConsole";
+import { RouteSelector } from "@/components/RouteSelector";
 
 type Section = "host" | "my-trips" | "tracking" | "requests" | "garage" | "profile";
 type TripType = "live" | "monthly" | "long";
@@ -111,6 +112,20 @@ function DriverConsoleInner() {
   const [fuelPrice, setFuelPrice] = React.useState<number>(102.8);
   const [estimatedDistance, setEstimatedDistance] = React.useState<number>(25.0);
   const [busyHosting, setBusyHosting] = React.useState(false);
+
+  // Module 26: driver-chosen route at trip creation.
+  const [allRoutes, setAllRoutes] = React.useState<Array<{
+    geometry: { type: string; coordinates: [number, number][] };
+    distance_km?: number;
+    duration_min?: number;
+  }>>([]);
+  const [selectedRoute, setSelectedRoute] = React.useState<{
+    name: string;
+    geometry: { type: string; coordinates: [number, number][] };
+    distance_km?: number | null;
+    duration_min?: number | null;
+  } | null>(null);
+  const [routeBusy, setRouteBusy] = React.useState(false);
 
   // Selected vehicle (for capacity hints in the host form)
   const selectedVehicle = cars.find((c) => c.id === vehicleId);
@@ -335,20 +350,36 @@ function DriverConsoleInner() {
     }
   }, [tripType]);
 
-  // Recalculate distance when source or destination changes
+  // Recalculate distance and fetch route options when source or destination changes
   React.useEffect(() => {
     if (!src || !dst) return;
+    setRouteBusy(true);
     void geoApi
       .route([src.lng, src.lat], [dst.lng, dst.lat])
       .then((res) => {
         if (res?.distance_km) {
           setEstimatedDistance(Math.round(res.distance_km * 10) / 10);
         }
+        // Module 26: capture all route options for driver selection.
+        if (res?.all_routes && res.all_routes.length > 0) {
+          setAllRoutes(res.all_routes);
+          // Default to the first (fastest) route if none selected yet.
+          if (!selectedRoute) {
+            setSelectedRoute({
+              name: "Fastest route",
+              geometry: res.all_routes[0].geometry,
+              distance_km: res.all_routes[0].distance_km ?? null,
+              duration_min: res.all_routes[0].duration_min ?? null,
+            });
+          }
+        }
       })
       .catch(() => {
         // Fallback approximate Bangalore calculation
         setEstimatedDistance(26.5);
-      });
+        setAllRoutes([]);
+      })
+      .finally(() => setRouteBusy(false));
   }, [src, dst]);
 
   // Fuel price defaults when fuel type changes
@@ -417,6 +448,14 @@ function DriverConsoleInner() {
       }
 
       // 1. Create trip with full calculations
+      // Module 26: include the driver-chosen route geometry and index.
+      const routeIndex = selectedRoute
+        ? allRoutes.findIndex(
+            (r) =>
+              JSON.stringify(r.geometry.coordinates) ===
+              JSON.stringify(selectedRoute.geometry.coordinates)
+          )
+        : -1;
       const payload = {
         vehicle_id: activeVehicleId,
         source: {
@@ -437,6 +476,15 @@ function DriverConsoleInner() {
         fuel_price_per_unit: fuelPrice,
         other_expenses: otherExpenses.filter((e) => (Number(e.amount) || 0) > 0),
         other_expenses_total: otherExpensesTotal,
+        ...(selectedRoute
+          ? {
+              route_geometry: {
+                type: "LineString",
+                coordinates: selectedRoute.geometry.coordinates,
+              },
+              route_index: routeIndex >= 0 ? routeIndex : undefined,
+            }
+          : {}),
       };
 
       const savedTrip = await tripApi.create(payload);
@@ -724,6 +772,46 @@ function DriverConsoleInner() {
                       <PlacePicker label="From (Source)" value={src} onPick={setSrc} placeholder="Pickup point…" />
                       <PlacePicker label="To (Destination)" value={dst} onPick={setDst} placeholder="Drop point…" />
                     </div>
+
+                    {/* Module 26: Route selection — driver chooses which route to travel */}
+                    {allRoutes.length > 0 && (
+                      <div className="mt-3">
+                        <RouteSelector
+                          trip={{
+                            id: "new",
+                            source_name: src?.name ?? "Source",
+                            destination_name: dst?.name ?? "Destination",
+                            source: {
+                              name: src?.name ?? "Source",
+                              address: null,
+                              point: { type: "Point", coordinates: [src?.lng ?? 0, src?.lat ?? 0] },
+                            },
+                            destination: {
+                              name: dst?.name ?? "Destination",
+                              address: null,
+                              point: { type: "Point", coordinates: [dst?.lng ?? 0, dst?.lat ?? 0] },
+                            },
+                            depart_at: departDate,
+                            seats_offered: availableSeats,
+                            seats_booked: 0,
+                            seats_left: availableSeats,
+                            vehicle_id: vehicleId || "",
+                            status: "draft",
+                            distance_km: selectedRoute?.distance_km ?? null,
+                            duration_min: selectedRoute?.duration_min ?? null,
+                            route_geometry: selectedRoute
+                              ? { type: "LineString", coordinates: selectedRoute.geometry.coordinates }
+                              : null,
+                            route_alternatives: allRoutes.map((r) => ({
+                              type: "LineString",
+                              coordinates: r.geometry.coordinates,
+                            })),
+                          } as any}
+                          value={selectedRoute ?? null}
+                          onChange={setSelectedRoute}
+                        />
+                      </div>
+                    )}
 
                     {/* Date, Time & Seats */}
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

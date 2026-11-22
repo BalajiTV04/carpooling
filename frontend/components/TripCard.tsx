@@ -3,6 +3,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { statusCls, tripApi, type Trip, type TripSummary } from "@/lib/trips";
+import { RouteMap } from "@/components/RouteMap";
 import { TripCostCard } from "@/components/TripCostCard";
 import { LiveTrack } from "@/components/LiveTrack";
 import { SafetyBanner } from "@/components/SafetyBanner";
@@ -115,6 +116,18 @@ export function TripCard({
       <div className="mt-3 h-2 overflow-hidden rounded-full bg-surface">
         <div className="h-full bg-gradient-to-r from-brand to-brand-teal" style={{ width: `${pct}%` }} />
       </div>
+      {/* Module 26: show driver's chosen route on the trip card map */}
+      {t.route_geometry && t.route_geometry.coordinates && t.route_geometry.coordinates.length >= 2 && (
+        <div className="mt-3 h-[120px] rounded-xl border border-brand-teal/20 overflow-hidden">
+          <RouteMap
+            src={t.source.point.coordinates}
+            dst={t.destination.point.coordinates}
+            geometry={t.route_geometry}
+            height={120}
+            routeColor="#14b8a6"
+          />
+        </div>
+      )}
       <p className="mt-1 text-xs text-muted">{t.seats_booked}/{t.seats_offered} seats filled · {t.seats_left} left</p>
       <div className="mt-3 flex flex-wrap gap-1.5 text-xs">
         {t.status === "draft" && (

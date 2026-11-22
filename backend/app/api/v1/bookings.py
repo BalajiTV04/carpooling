@@ -96,6 +96,7 @@ async def _out(db, doc: Dict, expand: bool = True) -> Dict:
         "detour_km": doc.get("detour_km"),
         "passenger_distance_km": doc.get("passenger_distance_km"),
         "estimated_contribution": doc.get("estimated_contribution"),
+        "selected_route": doc.get("selected_route"),
         "amount": doc.get("amount") or doc.get("estimated_contribution") or doc.get("cost_share"),
         "fare_changed": doc.get("fare_changed", False),
         "previous_amount": doc.get("previous_amount"),
@@ -203,7 +204,16 @@ async def create_booking(body: BookingIn, user: Dict = Depends(get_current_user)
     dropoff_point = {"type": "Point", "coordinates": list(body.dropoff_coordinates)}
     pickup_distance_m = round(haversine_km(body.pickup_coordinates, src) * 1000, 0)
     detour_km = None
-    geom = (trip.get("route_geometry") or {}).get("coordinates")
+    # Module 26: if the passenger chose a specific route, use its geometry
+    # for pickup optimisation and matching instead of the trip's primary route.
+    selected_geom = None
+    if body.selected_route and isinstance(body.selected_route, dict):
+        sg = body.selected_route.get("geometry")
+        if sg and isinstance(sg, dict):
+            sg_coords = sg.get("coordinates")
+            if sg_coords and len(sg_coords) >= 2:
+                selected_geom = sg_coords
+    geom = selected_geom or (trip.get("route_geometry") or {}).get("coordinates")
     if geom and len(geom) >= 2 and body.use_optimised_pickup:
         opt = optimise_pickup_point(geom, body.pickup_coordinates,
                                     body.dropoff_coordinates)
@@ -246,21 +256,22 @@ async def create_booking(body: BookingIn, user: Dict = Depends(get_current_user)
     # --- project pickup/drop onto the route for segment costing -----------
     pickup_along_km = None
     drop_along_km = None
-    geom = (trip.get("route_geometry") or {}).get("coordinates")
-    if geom and len(geom) >= 2:
+    # Module 26: use the same selected-route geometry as above for costing.
+    costing_geom = selected_geom or (trip.get("route_geometry") or {}).get("coordinates")
+    if costing_geom and len(costing_geom) >= 2:
         # Prefer Module 10 snapshot values from match_explain if present.
         me_pickup = (match.get("match_explain") or {}).get("pickup", {})
         me_drop = (match.get("match_explain") or {}).get("drop", {})
         if me_pickup.get("along_km") is not None:
             pickup_along_km = float(me_pickup["along_km"])
         else:
-            proj = project_onto_route(body.pickup_coordinates, geom)
-            pickup_along_km = float(proj["frac"]) * float(trip.get("distance_km") or route_length_km(geom))
+            proj = project_onto_route(body.pickup_coordinates, costing_geom)
+            pickup_along_km = float(proj["frac"]) * float(trip.get("distance_km") or route_length_km(costing_geom))
         if me_drop.get("along_km") is not None:
             drop_along_km = float(me_drop["along_km"])
         else:
-            proj = project_onto_route(body.dropoff_coordinates, geom)
-            drop_along_km = float(proj["frac"]) * float(trip.get("distance_km") or route_length_km(geom))
+            proj = project_onto_route(body.dropoff_coordinates, costing_geom)
+            drop_along_km = float(proj["frac"]) * float(trip.get("distance_km") or route_length_km(costing_geom))
     pickup_along_km = max(0.0, min(float(trip.get("distance_km") or 0), pickup_along_km or 0.0))
     drop_along_km = max(0.0, min(float(trip.get("distance_km") or 0), drop_along_km or float(trip.get("distance_km") or 0)))
     if drop_along_km <= pickup_along_km:
@@ -292,6 +303,7 @@ async def create_booking(body: BookingIn, user: Dict = Depends(get_current_user)
         "pickup_along_km": pickup_along_km,
         "drop_along_km": drop_along_km,
         "estimated_contribution": est_contrib,
+        "selected_route": body.selected_route,
         "overlap_pct": match.get("overlap_pct"),
         "match_score": match.get("score"),
         "match_explain": match,

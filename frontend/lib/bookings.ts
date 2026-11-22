@@ -9,6 +9,12 @@ export type Booking = {
   pickup: { name: string | null; point: { type: "Point"; coordinates: [number, number] } };
   dropoff: { name: string | null; point: { type: "Point"; coordinates: [number, number] } };
   pickup_distance_m: number | null; detour_km: number | null;
+  selected_route: {
+    name: string;
+    geometry: { type: string; coordinates: [number, number][] };
+    distance_km?: number | null;
+    duration_min?: number | null;
+  } | null;
   overlap_pct: number | null;
   closed_at?: string | null; closure_note?: string | null;
   estimated_contribution?: number | null;
@@ -56,6 +62,12 @@ export const bookingApi = {
     pickup_coordinates: [number, number];
     dropoff_coordinates: [number, number];
     use_optimised_pickup?: boolean;
+    selected_route?: {
+      name: string;
+      geometry: { type: string; coordinates: [number, number][] };
+      distance_km?: number | null;
+      duration_min?: number | null;
+    } | null;
   }): Promise<Booking> =>
     req("/bookings", { method: "POST", body: JSON.stringify(b) }),
   mine: (): Promise<Booking[]> => req("/bookings/mine"),

@@ -74,10 +74,11 @@ def _round6(coords: List[float]) -> str:
 
 
 async def osrm_route(src: List[float], dst: List[float]) -> Optional[Dict]:
-    """OSRM driving route. Returns {geometry, distance_km, duration_min} or None.
+    """OSRM driving route. Returns {geometry, distance_km, duration_min, all_routes} or None.
 
     src/dst = [lng, lat]. Geometry = GeoJSON LineString (full resolution —
     stored on trips for Module 9 matching; simplified client-side for maps).
+    `all_routes` holds every route OSRM returned (for route-alternative selection).
     """
     settings = get_settings()
     key = "r:" + _round6(src) + ">" + _round6(dst)
@@ -100,6 +101,15 @@ async def osrm_route(src: List[float], dst: List[float]) -> Optional[Dict]:
             "geometry": best.get("geometry"),  # GeoJSON LineString
             "distance_km": round(float(best.get("distance", 0)) / 1000.0, 2),
             "duration_min": round(float(best.get("duration", 0)) / 60.0, 1),
+            "all_routes": [
+                {
+                    "geometry": r.get("geometry"),
+                    "distance_km": round(float(r.get("distance", 0)) / 1000.0, 2),
+                    "duration_min": round(float(r.get("duration", 0)) / 60.0, 1),
+                    "weight": r.get("weight"),
+                }
+                for r in routes
+            ],
         }
         if not out["geometry"]:
             return None
