@@ -30,7 +30,8 @@ export function RouteSelector({
   value: RouteOption | null;
   onChange: (opt: RouteOption | null) => void;
 }) {
-  const [mapSize, setMapSize] = useState<MapSize>("medium");
+  const [mapSize, setMapSize] = useState<MapSize>("small");
+  const [mapsMinimized, setMapsMinimized] = useState(false);
 
   const routes: RouteOption[] = [];
 
@@ -82,6 +83,15 @@ export function RouteSelector({
               {sz === "small" ? "S" : sz === "medium" ? "M" : "L"}
             </button>
           ))}
+          <button
+            onClick={() => setMapsMinimized((p) => !p)}
+            className={`rounded-lg px-2 py-1 text-xs transition border ${
+              mapsMinimized
+                ? "border-brand-teal bg-brand-teal/10 text-brand-teal font-bold"
+                : "border-brand-teal/26 text-muted hover:border-brand-teal/50"
+            }`}>
+            {mapsMinimized ? "Show maps" : "Hide maps"}
+          </button>
         </div>
       </div>
 
@@ -145,18 +155,20 @@ export function RouteSelector({
                   </div>
                 </div>
               </div>
-              <div className="mt-2 rounded-xl border border-brand-teal/20 overflow-hidden">
-                <RouteMap
-                  src={first ? [first[0], first[1]] : null}
-                  dst={last ? [last[0], last[1]] : null}
-                  geometry={{
-                    type: "LineString",
-                    coordinates: coords.map(([lng, lat]) => [lng, lat]),
-                  }}
-                  height={mapHeight}
-                  routeColor={isActive ? "#14b8a6" : "#9ca3af"}
-                />
-              </div>
+              {!mapsMinimized && (
+                <div className="mt-2 rounded-xl border border-brand-teal/20 overflow-hidden">
+                  <RouteMap
+                    src={first ? [first[0], first[1]] : null}
+                    dst={last ? [last[0], last[1]] : null}
+                    geometry={{
+                      type: "LineString",
+                      coordinates: coords.map(([lng, lat]) => [lng, lat]),
+                    }}
+                    height={mapHeight}
+                    routeColor={isActive ? "#14b8a6" : "#9ca3af"}
+                  />
+                </div>
+              )}
             </button>
           );
         })}
