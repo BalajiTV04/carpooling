@@ -85,7 +85,7 @@ async def osrm_route(src: List[float], dst: List[float]) -> Optional[Dict]:
     hit = _cache_get(_route_cache, key)
     if hit is not None:
         return hit
-    url = "{}/route/v1/driving/{},{};{},{}?overview=full&geometries=geojson".format(
+    url = "{}/route/v1/driving/{},{};{},{}?overview=full&geometries=geojson&alternatives=3".format(
         settings.OSRM_URL.rstrip("/"), src[0], src[1], dst[0], dst[1])
     try:
         client = _client()
@@ -96,6 +96,27 @@ async def osrm_route(src: List[float], dst: List[float]) -> Optional[Dict]:
         routes = body.get("routes") or []
         if not routes:
             return None
+
+        # If OSRM returned only 1 route, generate a real alternative route via an offset waypoint
+        if len(routes) == 1:
+            try:
+                mid_lng = (src[0] + dst[0]) / 2.0
+                mid_lat = (src[1] + dst[1]) / 2.0
+                d_lng = dst[0] - src[0]
+                d_lat = dst[1] - src[1]
+                # Perpendicular offset ~15% of distance
+                wp_lng = mid_lng - d_lat * 0.15
+                wp_lat = mid_lat + d_lng * 0.15
+                alt_url = "{}/route/v1/driving/{},{};{:.6f},{:.6f};{},{}?overview=full&geometries=geojson".format(
+                    settings.OSRM_URL.rstrip("/"), src[0], src[1], wp_lng, wp_lat, dst[0], dst[1])
+                alt_res = await client.get(alt_url)
+                if alt_res.status_code == 200:
+                    alt_routes = alt_res.json().get("routes") or []
+                    if alt_routes:
+                        routes.append(alt_routes[0])
+            except Exception:
+                pass
+
         best = routes[0]
         out = {
             "geometry": best.get("geometry"),  # GeoJSON LineString

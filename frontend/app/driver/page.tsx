@@ -360,21 +360,23 @@ function DriverConsoleInner() {
     void geoApi
       .route([src.lng, src.lat], [dst.lng, dst.lat])
       .then((res) => {
-        if (res?.distance_km) {
-          setEstimatedDistance(Math.round(res.distance_km * 10) / 10);
-        }
         // Module 26: capture all route options for driver selection.
         if (res?.all_routes && res.all_routes.length > 0) {
           setAllRoutes(res.all_routes);
-          // Default to the first (fastest) route if none selected yet.
-          if (!selectedRoute) {
-            setSelectedRoute({
-              name: "Fastest route",
-              geometry: res.all_routes[0].geometry,
-              distance_km: res.all_routes[0].distance_km ?? null,
-              duration_min: res.all_routes[0].duration_min ?? null,
-            });
+          // Set to the first (fastest) route initially with full details
+          const first = res.all_routes[0];
+          setSelectedRoute({
+            name: "Fastest route (Primary)",
+            geometry: first.geometry,
+            distance_km: first.distance_km ?? res.distance_km ?? null,
+            duration_min: first.duration_min ?? res.duration_min ?? null,
+          });
+          const dist = first.distance_km ?? res.distance_km;
+          if (dist) {
+            setEstimatedDistance(Math.round(dist * 10) / 10);
           }
+        } else if (res?.distance_km) {
+          setEstimatedDistance(Math.round(res.distance_km * 10) / 10);
         }
       })
       .catch(() => {
@@ -787,38 +789,19 @@ function DriverConsoleInner() {
                           </span>
                         </div>
                         <RouteSelector
-                          trip={{
-                            id: "new",
-                            source_name: src?.name ?? "Source",
-                            destination_name: dst?.name ?? "Destination",
-                            source: {
-                              name: src?.name ?? "Source",
-                              address: null,
-                              point: { type: "Point", coordinates: [src?.lng ?? 0, src?.lat ?? 0] },
-                            },
-                            destination: {
-                              name: dst?.name ?? "Destination",
-                              address: null,
-                              point: { type: "Point", coordinates: [dst?.lng ?? 0, dst?.lat ?? 0] },
-                            },
-                            depart_at: departDate,
-                            seats_offered: availableSeats,
-                            seats_booked: 0,
-                            seats_left: availableSeats,
-                            vehicle_id: vehicleId || "",
-                            status: "draft",
-                            distance_km: selectedRoute?.distance_km ?? null,
-                            duration_min: selectedRoute?.duration_min ?? null,
-                            route_geometry: selectedRoute
-                              ? { type: "LineString", coordinates: selectedRoute.geometry.coordinates }
-                              : null,
-                            route_alternatives: allRoutes.map((r) => ({
-                              type: "LineString",
-                              coordinates: r.geometry.coordinates,
-                            })),
-                          } as any}
+                          routes={allRoutes.map((r, i) => ({
+                            name: i === 0 ? "Fastest route (Primary)" : `Alternative Route ${i + 1}`,
+                            geometry: r.geometry,
+                            distance_km: r.distance_km ?? null,
+                            duration_min: r.duration_min ?? null,
+                          }))}
                           value={selectedRoute ?? null}
-                          onChange={setSelectedRoute}
+                          onChange={(chosen) => {
+                            setSelectedRoute(chosen);
+                            if (chosen?.distance_km != null && chosen.distance_km > 0) {
+                              setEstimatedDistance(Math.round(chosen.distance_km * 10) / 10);
+                            }
+                          }}
                         />
                         {/* Clear instruction after selection */}
                         {!selectedRoute && (
@@ -1195,6 +1178,7 @@ function DriverConsoleInner() {
                     )}
                     <div className="mt-5">
                       <Button
+                        type="submit"
                         variant="primary"
                         size="lg"
                         disabled={busyHosting || !src || !dst || !selectedRoute}

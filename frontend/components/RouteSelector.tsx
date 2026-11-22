@@ -23,47 +23,58 @@ export type RouteOption = {
 
 export function RouteSelector({
   trip,
+  routes: propRoutes,
   value,
   onChange,
 }: {
-  trip: Trip;
+  trip?: Trip;
+  routes?: RouteOption[];
   value: RouteOption | null;
   onChange: (opt: RouteOption | null) => void;
 }) {
   const [mapSize, setMapSize] = useState<MapSize>("small");
   const [mapsMinimized, setMapsMinimized] = useState(false);
 
-  const routes: RouteOption[] = [];
+  let routes: RouteOption[] = propRoutes ? [...propRoutes] : [];
 
-  // Build the option list: primary route first, then alternatives.
-  if (trip.route_geometry) {
-    routes.push({
-      name: "Fastest route",
-      geometry: trip.route_geometry,
-      distance_km: trip.distance_km ?? null,
-      duration_min: trip.duration_min ?? null,
+  if (!propRoutes && trip) {
+    if (trip.route_geometry) {
+      routes.push({
+        name: "Fastest route (Primary)",
+        geometry: trip.route_geometry,
+        distance_km: trip.distance_km ?? null,
+        duration_min: trip.duration_min ?? null,
+      });
+    }
+    (trip.route_alternatives ?? []).forEach((g: any, i) => {
+      const geom = g?.geometry || (g?.type === "LineString" ? g : null);
+      if (geom) {
+        routes.push({
+          name: g?.name || `Alternative Route ${i + 2}`,
+          geometry: geom,
+          distance_km: g?.distance_km ?? null,
+          duration_min: g?.duration_min ?? null,
+        });
+      }
     });
   }
-  (trip.route_alternatives ?? []).forEach((g, i) => {
-    routes.push({
-      name: `Route ${i + 2}`,
-      geometry: g,
-    });
-  });
 
   if (routes.length === 0) return null;
 
   const active = routes.findIndex(
-    (r) => value && JSON.stringify(r.geometry) === JSON.stringify(value.geometry)
+    (r) =>
+      value &&
+      JSON.stringify(r.geometry?.coordinates) ===
+        JSON.stringify(value.geometry?.coordinates)
   );
   const mapHeight = SIZE_HEIGHT[mapSize];
 
   return (
-    <div className="mt-3 rounded-2xl border border-brand-teal/30 bg-surface p-3">
+    <div className="mt-3 rounded-2xl border border-brand-teal/30 bg-surface p-3.5 shadow-sm">
       {/* Header: route count + size toggle */}
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-2.5">
         <div className="flex items-center gap-2">
-          <p className="text-xs font-bold text-ink">Choose route</p>
+          <p className="text-xs font-bold text-ink">Choose Route Option</p>
           <span className="rounded-full border border-brand-teal/50 bg-brand-teal/10 px-2 py-0.5 text-[10px] font-bold text-brand-teal">
             {routes.length} option{routes.length > 1 ? "s" : ""}
           </span>
@@ -72,23 +83,31 @@ export function RouteSelector({
           <span className="font-semibold">Map size:</span>
           {(["small", "medium", "large"] as MapSize[]).map((sz) => (
             <button
+              type="button"
               key={sz}
-              onClick={() => setMapSize(sz)}
+              onClick={(e) => {
+                e.preventDefault();
+                setMapSize(sz);
+              }}
               className={`rounded-lg px-2 py-1 text-xs transition border ${
                 mapSize === sz
                   ? "border-brand-teal bg-brand-teal/10 text-brand-teal font-bold"
-                  : "border-brand-teal/26 text-muted hover:border-brand-teal/50"
+                  : "border-line text-muted hover:border-brand-teal/50 hover:text-ink"
               }`}
             >
               {sz === "small" ? "S" : sz === "medium" ? "M" : "L"}
             </button>
           ))}
           <button
-            onClick={() => setMapsMinimized((p) => !p)}
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              setMapsMinimized((p) => !p);
+            }}
             className={`rounded-lg px-2 py-1 text-xs transition border ${
               mapsMinimized
                 ? "border-brand-teal bg-brand-teal/10 text-brand-teal font-bold"
-                : "border-brand-teal/26 text-muted hover:border-brand-teal/50"
+                : "border-line text-muted hover:border-brand-teal/50 hover:text-ink"
             }`}>
             {mapsMinimized ? "Show maps" : "Hide maps"}
           </button>
@@ -102,8 +121,8 @@ export function RouteSelector({
             key={i}
             className={`rounded-full border px-3 py-1 text-[10px] font-medium transition ${
               i === active
-                ? "border-brand-teal bg-brand-teal/10 text-brand-teal"
-                : "border-brand-teal/30 bg-surface/50 text-ink"
+                ? "border-brand-teal bg-brand-teal/15 text-brand-teal font-bold ring-1 ring-brand-teal"
+                : "border-line bg-card/60 text-ink"
             }`}
           >
             {r.name}{" "}
@@ -112,51 +131,66 @@ export function RouteSelector({
           </span>
         ))}
       </div>
-      <div className="grid gap-2">
+      <div className="grid gap-2.5">
         {routes.map((r, i) => {
           const isActive = i === active;
-          const coords = r.geometry.coordinates;
+          const coords = r.geometry?.coordinates || [];
           const first = coords[0];
           const last = coords[coords.length - 1];
           return (
             <button
+              type="button"
               key={i}
-              onClick={() => onChange(isActive ? null : r)}
-              className={`w-full rounded-2xl border p-2.5 text-left transition ${
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onChange(isActive ? null : r);
+              }}
+              className={`w-full rounded-2xl border p-3 text-left transition cursor-pointer ${
                 isActive
-                  ? "border-brand-teal bg-brand-teal/10 shadow-[0_0_0_1px_#14b8a6]"
-                  : "border-brand-teal/26 hover:border-brand-teal/50"
+                  ? "border-brand-teal bg-brand-teal/15 ring-2 ring-brand-teal/40 shadow-sm"
+                  : "border-line bg-card/40 hover:border-brand-teal/50 hover:bg-card/80"
               }`}
             >
-              <div className="flex items-start gap-2">
+              <div className="flex items-start gap-2.5">
                 <div className="flex-shrink-0 mt-0.5">
-                  <span className={`rounded-full border px-1.5 py-0 text-[10px] font-bold ${
-                    isActive ? "bg-brand-teal text-on-brand-teal border-brand-teal" : "border-brand-teal/30 text-muted"
+                  <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${
+                    isActive ? "bg-brand-teal text-white border-brand-teal" : "border-line text-muted bg-surface"
                   }`}>
                     {i + 1}
                   </span>
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-semibold text-ink">{r.name}</span>
-                    {isActive && (
-                      <span className="rounded-full border border-brand-teal/50 bg-brand-teal/10 px-1.5 py-0 text-[10px] font-bold text-brand-teal">
-                        SELECTED
+                  <div className="flex items-center justify-between gap-1.5">
+                    <span className={`font-bold text-xs ${isActive ? "text-brand-teal" : "text-ink"}`}>
+                      {r.name}
+                    </span>
+                    {isActive ? (
+                      <span className="rounded-full border border-brand-teal/50 bg-brand-teal/20 px-2 py-0.5 text-[10px] font-bold text-brand-teal flex items-center gap-1">
+                        ✓ SELECTED
                       </span>
+                    ) : (
+                      <span className="text-[10px] text-muted hover:text-ink">Tap to select</span>
                     )}
                   </div>
-                  <div className="mt-0.5 flex gap-2 text-[10px] text-muted">
-                    <span>{fmtKm(r.distance_km)}</span>
+                  <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-muted">
+                    <span className="font-semibold text-ink">{fmtKm(r.distance_km)}</span>
                     <span className="text-muted/60">·</span>
-                    <span>{fmtMin(r.duration_min)}</span>
-                    {i > 0 && (
-                      <span className="text-muted/60">· alt</span>
+                    <span className="font-medium text-ink">{fmtMin(r.duration_min)}</span>
+                    {i === 0 ? (
+                      <span className="text-brand-teal font-semibold text-[10px] px-1.5 py-0.2 rounded bg-brand-teal/10">
+                        Primary / Shortest
+                      </span>
+                    ) : (
+                      <span className="text-brand-amber font-semibold text-[10px] px-1.5 py-0.2 rounded bg-brand-amber/10">
+                        Alternative
+                      </span>
                     )}
                   </div>
                 </div>
               </div>
-              {!mapsMinimized && (
-                <div className="mt-2 rounded-xl border border-brand-teal/20 overflow-hidden">
+              {!mapsMinimized && coords.length > 0 && (
+                <div className="mt-2.5 rounded-xl border border-brand-teal/20 overflow-hidden">
                   <RouteMap
                     src={first ? [first[0], first[1]] : null}
                     dst={last ? [last[0], last[1]] : null}
@@ -179,9 +213,9 @@ export function RouteSelector({
         <div className="flex items-start gap-2">
           <span className="text-brand-teal font-bold">📋</span>
           <span className="text-ink">
-            <span className="font-semibold">Select a route above</span>, then click{" "}
-            <span className="font-semibold text-brand-teal">Host & Save Draft</span> below to save this trip as a draft.{" "}
-            Clicking a route card only chooses it — it does not book or host yet.
+            <span className="font-semibold">Select your preferred route option above</span>, then click the{" "}
+            <span className="font-bold text-brand-teal">Host & Save Draft</span> button on the right side to save this trip.{" "}
+            Selecting a route only chooses your path — it does not auto-host.
           </span>
         </div>
       </div>

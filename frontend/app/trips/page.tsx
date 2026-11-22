@@ -234,38 +234,27 @@ function TripsInner() {
                 </span>
               </div>
               <RouteSelector
-                trip={{
-                  id: "new",
-                  source_name: src?.name ?? "Source",
-                  destination_name: dst?.name ?? "Destination",
-                  source: {
-                    name: src?.name ?? "Source",
-                    address: null,
-                    point: { type: "Point", coordinates: [src?.lng ?? 0, src?.lat ?? 0] },
-                  },
-                  destination: {
-                    name: dst?.name ?? "Destination",
-                    address: null,
-                    point: { type: "Point", coordinates: [dst?.lng ?? 0, dst?.lat ?? 0] },
-                  },
-                  depart_at: date,
-                  seats_offered: seats,
-                  seats_booked: 0,
-                  seats_left: seats,
-                  vehicle_id: vehicleId,
-                  status: "draft",
-                  distance_km: selectedRoute?.distance_km ?? null,
-                  duration_min: selectedRoute?.duration_min ?? null,
-                  route_geometry: selectedRoute
-                    ? { type: "LineString", coordinates: selectedRoute.geometry.coordinates }
-                    : null,
-                  route_alternatives: allRoutes.map((r) => ({
-                    type: "LineString",
-                    coordinates: r.geometry.coordinates,
-                  })),
-                } as any}
+                routes={allRoutes.map((r, i) => ({
+                  name: i === 0 ? "Fastest route (Primary)" : `Alternative Route ${i + 1}`,
+                  geometry: r.geometry,
+                  distance_km: r.distance_km ?? null,
+                  duration_min: r.duration_min ?? null,
+                }))}
                 value={selectedRoute ?? null}
-                onChange={setSelectedRoute}
+                onChange={(chosen) => {
+                  setSelectedRoute(chosen);
+                  if (chosen?.distance_km != null && chosen.distance_km > 0 && preview) {
+                    setPreview({
+                      ...preview,
+                      distance_km: Math.round(chosen.distance_km * 10) / 10,
+                      duration_min: chosen.duration_min ?? preview.duration_min,
+                      geometry: {
+                        type: "LineString",
+                        coordinates: chosen.geometry.coordinates,
+                      },
+                    });
+                  }
+                }}
               />
               {/* Clear instruction after selection */}
               {!selectedRoute && (
@@ -338,8 +327,8 @@ function TripsInner() {
               </p>
             </div>
           )}
-          <Button variant="primary" size="md" disabled={busy || !src || !dst || !selectedRoute} className="w-full">
-            {busy ? "Staging…" : "Stage as draft →"}
+          <Button type="submit" variant="primary" size="md" disabled={busy || !src || !dst || !selectedRoute} className="w-full">
+            {busy ? "Saving draft…" : "Host & Save Draft →"}
           </Button>
           <p className="text-[10px] text-muted mt-1">
             Trip is created as a draft. Publish it to go live.
