@@ -221,8 +221,9 @@ def compute_shares(
     bookings: List[Dict],
     round_mode: str = "CEIL",
     route_coords: Optional[List[List[float]]] = None,
+    other_expenses_total: float = 0.0,
 ) -> Dict:
-    """Compute fuel-based cost shares across all route segments.
+    """Compute fuel-based cost shares across all route segments, including other expenses.
 
     Returns:
       {
@@ -251,8 +252,9 @@ def compute_shares(
     d_route_km = Decimal(str(r_km))
     d_mileage = Decimal(str(mileage))
     d_fuel_price = Decimal(str(fuel_price))
+    d_other_expenses = Decimal(str(round(float(other_expenses_total or 0.0), 2)))
     d_total_fuel = d_route_km / d_mileage
-    d_total_cost = d_total_fuel * d_fuel_price
+    d_total_cost = (d_total_fuel * d_fuel_price) + d_other_expenses
 
     pts = breakpoints(r_km, bookings, route_coords)
 
@@ -291,7 +293,9 @@ def compute_shares(
 
         d_seg_km = Decimal(str(round(seg_km, 6)))
         d_fuel_used = d_seg_km / d_mileage
-        d_seg_cost = d_fuel_used * d_fuel_price
+        d_seg_fuel_cost = d_fuel_used * d_fuel_price
+        d_seg_other = (d_seg_km / d_route_km) * d_other_expenses if d_route_km > 0 else Decimal('0')
+        d_seg_cost = d_seg_fuel_cost + d_seg_other
         d_per_person = d_seg_cost / Decimal(str(total_occupants))
 
         seg_shares: Dict[str, float] = {}
@@ -457,6 +461,7 @@ async def cost_preview(
         "drop_along_km": float(drop_along_km),
         "status": "accepted",
     }
+    other_expenses_total = float(trip.get("other_expenses_total") or 0.0)
     shares = compute_shares(
         route_km=route_km,
         mileage=mileage,
@@ -464,6 +469,7 @@ async def cost_preview(
         bookings=confirmed_docs + [candidate],
         round_mode=settings.ROUND_MODE,
         route_coords=route_coords,
+        other_expenses_total=other_expenses_total,
     )
 
     candidate_amount = shares["passengers"].get("preview_candidate", 0)
@@ -520,6 +526,7 @@ async def recompute_trip_fares(
     }).sort("created_at", 1)
     bookings = await cursor.to_list(100)
 
+    other_expenses_total = float(trip.get("other_expenses_total") or 0.0)
     # Compute shares
     result = compute_shares(
         route_km=route_km,
@@ -528,6 +535,7 @@ async def recompute_trip_fares(
         bookings=bookings,
         round_mode=settings.ROUND_MODE,
         route_coords=route_coords,
+        other_expenses_total=other_expenses_total,
     )
 
     now = datetime.now(timezone.utc)

@@ -29,12 +29,47 @@ export function PlacePicker({
   const [showMap, setShowMap] = useState(false);
   const [pin, setPin] = useState<[number, number] | null>(null);
   const [geoBusy, setGeoBusy] = useState(false);
+  const [locating, setLocating] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setQ(value?.name ?? "");
     if (value) setPin([value.lng, value.lat]);
   }, [value]);
+
+  // Live GPS geolocation
+  const useLiveLocation = () => {
+    if (typeof window === "undefined" || !navigator.geolocation) {
+      alert("Geolocation is not supported by your browser");
+      return;
+    }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        setPin([lng, lat]);
+        try {
+          const r = await geoApi.reverse(lat, lng);
+          const fullName = r.name || `Live Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+          onPick({ name: fullName, address: r.address || "Current live GPS coordinates", lat, lng });
+          setQ(fullName);
+        } catch {
+          const fallback = `Live Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+          onPick({ name: fallback, address: "Live GPS coordinates", lat, lng });
+          setQ(fallback);
+        } finally {
+          setLocating(false);
+          setOpen(false);
+        }
+      },
+      () => {
+        setLocating(false);
+        alert("Could not access live GPS location. Please check browser location permissions or choose on map.");
+      },
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 10000 }
+    );
+  };
 
   // Local fuzzy hits are immediate; the remote call only tops up the list.
   const type = (v: string) => {
@@ -140,6 +175,7 @@ export function PlacePicker({
         showMap={showMap}
         placeholder={placeholder}
         hasValue={!!value}
+        locating={locating}
         onType={type}
         onHover={setCursor}
         onChoose={choose}
@@ -147,6 +183,7 @@ export function PlacePicker({
         onFocus={() => hits.length > 0 && setOpen(true)}
         onBlur={handleBlur}
         onToggleMap={() => setShowMap((s) => !s)}
+        onUseLiveLocation={useLiveLocation}
         onClear={() => onPick(null)}
       />
       {showMap && (
@@ -170,8 +207,8 @@ export function PlacePicker({
 }
 /* Split out purely to keep this file readable; it holds no state of its own. */
 function PlaceRow({
-  q, hits, open, cursor, showMap, placeholder, hasValue,
-  onType, onHover, onChoose, onKeyDown, onFocus, onBlur, onToggleMap, onClear
+  q, hits, open, cursor, showMap, placeholder, hasValue, locating,
+  onType, onHover, onChoose, onKeyDown, onFocus, onBlur, onToggleMap, onUseLiveLocation, onClear
 }: {
   q: string;
   hits: Suggestion[];
@@ -180,6 +217,7 @@ function PlaceRow({
   showMap: boolean;
   placeholder: string;
   hasValue: boolean;
+  locating: boolean;
   onType: (v: string) => void;
   onHover: (i: number) => void;
   onChoose: (s: Suggestion) => void;
@@ -187,6 +225,7 @@ function PlaceRow({
   onFocus: () => void;
   onBlur: () => void;
   onToggleMap: () => void;
+  onUseLiveLocation: () => void;
   onClear: () => void;
 }) {
   return (
@@ -208,8 +247,19 @@ function PlaceRow({
           role="combobox"
           aria-expanded={open}
         />
-        {open && hits.length > 0 && (
+        {open && (
           <div className="absolute z-30 mt-1 max-h-64 w-full overflow-auto rounded-2xl border border-brand-teal/30 bg-surface shadow-card">
+            <button
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                onUseLiveLocation();
+              }}
+              className="flex items-center gap-2 w-full px-4 py-2.5 text-left text-xs font-semibold text-brand-teal bg-brand-teal/5 hover:bg-brand-teal/10 border-b border-line/40 transition"
+            >
+              <span className={locating ? "animate-spin" : ""}>🎯</span>
+              <span>{locating ? "Locating via live GPS…" : "📍 Use Current / Live GPS Location"}</span>
+            </button>
             {hits.map((h, i) => (
               <button
                 key={`${h.lat},${h.lng},${i}`}
@@ -238,6 +288,22 @@ function PlaceRow({
           </div>
         )}
       </div>
+
+      <button
+        type="button"
+        onClick={onUseLiveLocation}
+        title={locating ? "Acquiring live GPS..." : "Use current live GPS location"}
+        disabled={locating}
+        aria-label="Use live GPS location"
+        className={`shrink-0 rounded-2xl border px-2.5 py-1 text-xs font-semibold flex items-center gap-1 transition ${
+          locating
+            ? "border-brand-teal bg-brand-teal/20 text-brand-teal animate-pulse"
+            : "border-brand-teal/30 bg-card text-muted hover:border-brand-teal/60 hover:text-brand-teal"
+        }`}
+      >
+        <span className={locating ? "animate-spin text-sm" : "text-sm"}>🎯</span>
+        <span className="hidden sm:inline">{locating ? "Locating…" : "Live"}</span>
+      </button>
 
       <button
         type="button"

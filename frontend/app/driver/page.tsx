@@ -123,6 +123,53 @@ function DriverConsoleInner() {
   const [completingTripId, setCompletingTripId] = React.useState<string | null>(null);
   const [driverRating, setDriverRating] = React.useState<number | null>(null);
   const [ratingCount, setRatingCount] = React.useState<number>(0);
+  const [gpsLoading, setGpsLoading] = React.useState<"src" | "dst" | null>(null);
+
+  const handleUseLiveLocation = async (target: "src" | "dst") => {
+    if (typeof window === "undefined" || !navigator.geolocation) {
+      setError("Geolocation is not supported by your browser");
+      return;
+    }
+    setGpsLoading(target);
+    setError(null);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        try {
+          const rev = await geoApi.reverse(latitude, longitude);
+          const hit: PlaceHit = {
+            name: rev.name || `Live GPS (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`,
+            address: rev.address || `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`,
+            lat: latitude,
+            lng: longitude,
+          };
+          if (target === "src") {
+            setSrc(hit);
+            setNotice(`📍 Source set to your live GPS location: ${hit.name}`);
+          } else {
+            setDst(hit);
+            setNotice(`📍 Destination set to live GPS: ${hit.name}`);
+          }
+        } catch {
+          const hit: PlaceHit = {
+            name: `Live Location (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`,
+            address: `GPS Coordinates`,
+            lat: latitude,
+            lng: longitude,
+          };
+          if (target === "src") setSrc(hit);
+          else setDst(hit);
+        } finally {
+          setGpsLoading(null);
+        }
+      },
+      (err) => {
+        setGpsLoading(null);
+        setError(`Unable to retrieve GPS location: ${err.message}`);
+      },
+      { timeout: 8000, enableHighAccuracy: true }
+    );
+  };
 
   // Sync mileage when user or vehicles load
   React.useEffect(() => {
@@ -319,12 +366,22 @@ function DriverConsoleInner() {
   const singleTripCost = Math.round(singleTripLitres * fuelPrice * 100) / 100;
   const singleTripPerSeat = availableSeats > 0 ? Math.round((singleTripCost / availableSeats) * 100) / 100 : singleTripCost;
 
+  // Other Expenses state (Tolls, Parking, Interstate Permits, etc.)
+  const [otherExpenses, setOtherExpenses] = React.useState<{ name: string; amount: number }[]>([
+    { name: "Toll Charges", amount: 0 },
+  ]);
+  const otherExpensesTotal = otherExpenses.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+  const totalRequiredTripCost = Math.round((singleTripCost + otherExpensesTotal) * 100) / 100;
+  const costPerSeatWithExpenses = availableSeats > 0 ? Math.round((totalRequiredTripCost / availableSeats) * 100) / 100 : totalRequiredTripCost;
+
   // Monthly Calculation: Full Month (30 days daily commute)
   const monthDays = 30;
   const monthlyTotalDistance = estimatedDistance * monthDays;
   const monthlyLitres = mileage > 0 ? monthlyTotalDistance / mileage : 0;
   const monthlyTotalCost = Math.round(monthlyLitres * fuelPrice * 100) / 100;
-  const monthlyPerSeat = availableSeats > 0 ? Math.round((monthlyTotalCost / availableSeats) * 100) / 100 : monthlyTotalCost;
+  const monthlyOtherExpenses = otherExpensesTotal * 30;
+  const monthlyTotalWithExpenses = monthlyTotalCost + monthlyOtherExpenses;
+  const monthlyPerSeatWithExpenses = availableSeats > 0 ? Math.round((monthlyTotalWithExpenses / availableSeats) * 100) / 100 : monthlyTotalWithExpenses;
 
   // Host Trip Submission
   const handleHostTrip = async (e: React.FormEvent) => {
@@ -377,6 +434,9 @@ function DriverConsoleInner() {
         trip_type: tripType,
         fuel_type: fuelType,
         fuel_price: fuelPrice,
+        fuel_price_per_unit: fuelPrice,
+        other_expenses: otherExpenses.filter((e) => (Number(e.amount) || 0) > 0),
+        other_expenses_total: otherExpensesTotal,
       };
 
       const savedTrip = await tripApi.create(payload);
@@ -600,9 +660,31 @@ function DriverConsoleInner() {
 
                     {/* Quick Preset Corridors */}
                     <div>
-                      <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-2">
-                        Quick Pick Route
-                      </label>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="text-xs font-semibold text-muted uppercase tracking-wider block">
+                          Quick Pick Route or Live Location
+                        </label>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleUseLiveLocation("src")}
+                            disabled={gpsLoading === "src"}
+                            className="inline-flex items-center gap-1 rounded-lg border border-brand-teal/40 bg-brand-teal/10 px-2 py-0.5 text-[11px] font-semibold text-brand-teal hover:bg-brand-teal/20 transition disabled:opacity-60"
+                          >
+                            <Navigation className={`h-3 w-3 ${gpsLoading === "src" ? "animate-spin" : ""}`} />
+                            {gpsLoading === "src" ? "Locating…" : "📍 Live GPS Source"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleUseLiveLocation("dst")}
+                            disabled={gpsLoading === "dst"}
+                            className="inline-flex items-center gap-1 rounded-lg border border-line bg-card px-2 py-0.5 text-[11px] font-semibold text-muted hover:text-ink hover:border-brand-teal/40 transition disabled:opacity-60"
+                          >
+                            <Navigation className={`h-3 w-3 ${gpsLoading === "dst" ? "animate-spin" : ""}`} />
+                            {gpsLoading === "dst" ? "Locating…" : "📍 Live GPS Drop"}
+                          </button>
+                        </div>
+                      </div>
                       <div className="flex flex-wrap gap-2">
                         <button
                           type="button"
@@ -806,6 +888,67 @@ function DriverConsoleInner() {
                         </span>
                       </div>
 
+                      {/* Other Expenses: Tolls, Parking, Interstate Permits (Requirement for Long Trips & Hosted Rides) */}
+                      <div className="mt-4 rounded-xl border border-line bg-card/60 p-3.5 space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <label className="text-[11px] font-bold uppercase tracking-wider text-ink flex items-center gap-1.5">
+                            <span>🎟️ Other Expenses (Tolls, Parking, Permits)</span>
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => setOtherExpenses([...otherExpenses, { name: "", amount: 0 }])}
+                            className="text-[11px] font-semibold text-brand-teal hover:underline flex items-center gap-1"
+                          >
+                            + Add Expense
+                          </button>
+                        </div>
+                        <p className="text-[10px] text-muted">
+                          Enter toll fees, highway charges or parking to be divided among all passengers and driver.
+                        </p>
+                        <div className="space-y-2">
+                          {otherExpenses.map((exp, idx) => (
+                            <div key={idx} className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                placeholder="Expense type (e.g. Highway Toll, Parking)"
+                                value={exp.name}
+                                onChange={(e) => {
+                                  const updated = [...otherExpenses];
+                                  updated[idx].name = e.target.value;
+                                  setOtherExpenses(updated);
+                                }}
+                                className="flex-1 rounded-xl border border-line bg-bg px-2.5 py-1.5 text-xs text-ink outline-none focus:border-brand-teal"
+                              />
+                              <div className="relative w-28">
+                                <span className="absolute left-2.5 top-1.5 text-xs text-muted">₹</span>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="10"
+                                  placeholder="0"
+                                  value={exp.amount === 0 ? "" : exp.amount}
+                                  onChange={(e) => {
+                                    const updated = [...otherExpenses];
+                                    updated[idx].amount = Number(e.target.value) || 0;
+                                    setOtherExpenses(updated);
+                                  }}
+                                  className="w-full rounded-xl border border-line bg-bg pl-6 pr-2 py-1.5 text-xs text-ink outline-none focus:border-brand-teal"
+                                />
+                              </div>
+                              {otherExpenses.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => setOtherExpenses(otherExpenses.filter((_, i) => i !== idx))}
+                                  className="text-muted hover:text-danger px-1 text-xs"
+                                >
+                                  ✕
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
                       {/* Live Calculation Output Breakdown */}
                       <div className="mt-4 rounded-xl bg-card/80 border border-line p-3.5 space-y-2 text-xs">
                         <div className="flex justify-between text-muted">
@@ -819,9 +962,21 @@ function DriverConsoleInner() {
                           </span>
                         </div>
                         <div className="flex justify-between text-muted">
+                          <span>Base Fuel Cost:</span>
+                          <span className="font-semibold text-ink">
+                            ₹{singleTripCost.toFixed(2)}
+                          </span>
+                        </div>
+                        {otherExpensesTotal > 0 && (
+                          <div className="flex justify-between text-brand-amber font-semibold">
+                            <span>Other Expenses (Tolls etc.):</span>
+                            <span>+ ₹{otherExpensesTotal.toFixed(2)}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between text-muted">
                           <span>Formula:</span>
                           <span className="font-mono text-[11px] text-brand-teal">
-                            (Distance / {mileage} km/L) × ₹{fuelPrice}
+                            (Fuel: {singleTripLitres.toFixed(1)}L × ₹{fuelPrice}) + Other: ₹{otherExpensesTotal}
                           </span>
                         </div>
 
@@ -830,31 +985,36 @@ function DriverConsoleInner() {
                             <div className="border-t border-line/60 pt-2 flex justify-between items-baseline">
                               <span className="font-semibold text-muted">Full Month Total (30d):</span>
                               <span className="font-display text-base font-bold text-ink">
-                                ₹{monthlyTotalCost.toLocaleString()}
+                                ₹{monthlyTotalWithExpenses.toLocaleString()}
                               </span>
                             </div>
                             <div className="rounded-lg bg-brand-teal/15 p-2.5 flex justify-between items-center text-brand-teal">
                               <div>
                                 <p className="font-bold text-sm">Monthly Pass / Rider:</p>
-                                <p className="text-[10px] text-brand-teal/80">≈ ₹{(monthlyPerSeat / 30).toFixed(1)}/day</p>
+                                <p className="text-[10px] text-brand-teal/80">≈ ₹{(monthlyPerSeatWithExpenses / 30).toFixed(1)}/day</p>
                               </div>
                               <span className="font-display text-xl font-black">
-                                ₹{monthlyPerSeat.toLocaleString()}
+                                ₹{monthlyPerSeatWithExpenses.toLocaleString()}
                               </span>
                             </div>
                           </>
                         ) : (
                           <>
                             <div className="border-t border-line/60 pt-2 flex justify-between items-baseline">
-                              <span className="font-semibold text-muted">Total Trip Fuel Cost:</span>
+                              <span className="font-semibold text-muted">Total Required Amount:</span>
                               <span className="font-display text-base font-bold text-ink">
-                                ₹{singleTripCost.toFixed(2)}
+                                ₹{totalRequiredTripCost.toFixed(2)}
                               </span>
                             </div>
                             <div className="rounded-lg bg-brand-teal/15 p-2.5 flex justify-between items-center text-brand-teal">
-                              <span className="font-bold text-sm">Price per Passenger Seat:</span>
+                              <div>
+                                <span className="font-bold text-sm block">Price per Passenger Seat:</span>
+                                <span className="text-[10px] text-brand-teal/80 font-normal">
+                                  ₹{totalRequiredTripCost.toFixed(2)} ÷ {availableSeats} seats
+                                </span>
+                              </div>
                               <span className="font-display text-xl font-black">
-                                ₹{singleTripPerSeat.toFixed(2)}
+                                ₹{costPerSeatWithExpenses.toFixed(2)}
                               </span>
                             </div>
                           </>
@@ -869,22 +1029,22 @@ function DriverConsoleInner() {
                           <div className="text-xs space-y-1">
                             <div className="flex justify-between">
                               <span className="text-muted">Per Rider / Month:</span>
-                              <span className="font-semibold text-ink">₹{monthlyPerSeat.toFixed(2)}</span>
+                              <span className="font-semibold text-ink">₹{monthlyPerSeatWithExpenses.toFixed(2)}</span>
                             </div>
                             <div className="flex justify-between">
                               <span className="text-muted">Your Share (Driver):</span>
-                              <span className="font-semibold text-ink">₹{monthlyPerSeat.toFixed(2)} (not collected)</span>
+                              <span className="font-semibold text-ink">₹{monthlyPerSeatWithExpenses.toFixed(2)} (not collected)</span>
                             </div>
                           </div>
                         ) : (
                           <div className="text-xs space-y-1">
                             <div className="flex justify-between">
                               <span className="text-muted">Per Passenger Seat:</span>
-                              <span className="font-semibold text-ink">₹{singleTripPerSeat.toFixed(2)}</span>
+                              <span className="font-semibold text-ink">₹{costPerSeatWithExpenses.toFixed(2)}</span>
                             </div>
                             <div className="flex justify-between">
                               <span className="text-muted">Your Share (Driver):</span>
-                              <span className="font-semibold text-ink">₹{singleTripPerSeat.toFixed(2)} (not collected)</span>
+                              <span className="font-semibold text-ink">₹{costPerSeatWithExpenses.toFixed(2)} (not collected)</span>
                             </div>
                           </div>
                         )}

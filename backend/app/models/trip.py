@@ -6,7 +6,7 @@
 - TripOut: API shape with seats_left computed.
 """
 from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -42,6 +42,8 @@ class TripIn(BaseModel):
     fuel_type: Optional[str] = "petrol"
     fuel_price: Optional[float] = None  # legacy; kept for backward compat
     fuel_price_per_unit: Optional[float] = Field(default=None, gt=0)  # driver-entered fuel price per unit
+    other_expenses: Optional[List[Dict[str, Any]]] = None  # Itemized expenses: [{"name": "Tolls", "amount": 300}]
+    other_expenses_total: Optional[float] = None  # Total other expenses (e.g. 500)
     advance_policy: Optional[Dict] = None
 
     @field_validator("depart_at")
@@ -62,6 +64,8 @@ class TripUpdateIn(BaseModel):
     seats_offered: Optional[int] = Field(default=None, ge=1, le=7)
     fuel_price: Optional[float] = None
     fuel_price_per_unit: Optional[float] = None
+    other_expenses: Optional[List[Dict[str, Any]]] = None
+    other_expenses_total: Optional[float] = None
 
     @field_validator("depart_at")
     @classmethod
@@ -102,6 +106,9 @@ class TripOut(BaseModel):
     fuel_type: Optional[str] = None
     cost_per_seat: Optional[float] = None
     total_cost: Optional[float] = None
+    other_expenses: Optional[List[Dict[str, Any]]] = None
+    other_expenses_total: Optional[float] = None
+    is_sold_out: Optional[bool] = False
     cost_summary: Optional[dict] = None
     cost_message: Optional[str] = None
     monthly_cost: Optional[float] = None

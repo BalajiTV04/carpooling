@@ -85,6 +85,9 @@ def _out(doc: Dict) -> Dict:
         "approved_by": (str(doc["approved_by"])
                         if doc.get("approved_by") else None),
         "created_at": doc.get("created_at"),
+        "other_expenses": doc.get("other_expenses"),
+        "other_expenses_total": doc.get("other_expenses_total", 0.0),
+        "is_sold_out": (doc["seats_offered"] - doc.get("seats_booked", 0)) <= 0,
     }
 
 
@@ -125,11 +128,15 @@ async def create_trip(body: TripIn, user: Dict = Depends(_driver)):
     distance = routed["distance_km"] if routed else round(dist, 2)
     duration = routed["duration_min"] if routed else None
 
-    # Amount calculation based on fuel price, vehicle mileage, and distance
+    # Amount calculation based on fuel price, vehicle mileage, distance AND other expenses (tolls, parking, etc.)
+    other_expenses = [dict(x) for x in (body.other_expenses or [])]
+    other_expenses_total = float(body.other_expenses_total) if (body.other_expenses_total is not None and body.other_expenses_total >= 0) else sum(float(x.get("amount", 0)) for x in other_expenses)
+
     mileage = float(veh.get("mileage_kmpl") or 15.0)
     fuel_price = float(body.fuel_price_per_unit) if (body.fuel_price_per_unit and body.fuel_price_per_unit > 0) else resolve_fuel_price(body.fuel_type or veh.get("fuel_type", "petrol"), None)
     litres = (distance / mileage) if mileage > 0 else 0.0
-    total_cost = round(litres * fuel_price, 2)
+    fuel_cost = round(litres * fuel_price, 2)
+    total_cost = round(fuel_cost + other_expenses_total, 2)
     cost_per_seat = round(total_cost / body.seats_offered, 2) if body.seats_offered > 0 else total_cost
     monthly_cost = round(total_cost * 30, 2)  # Full month calculation (30 days commute)
 
@@ -145,6 +152,8 @@ async def create_trip(body: TripIn, user: Dict = Depends(_driver)):
         "fuel_price": fuel_price,
         "fuel_type": body.fuel_type or veh.get("fuel_type", "petrol"),
         "mileage_kmpl": mileage,
+        "fuel_cost": fuel_cost,
+        "other_expenses_total": other_expenses_total,
         "total_cost": total_cost,
         "cost_per_seat": cost_per_seat,
         "monthly_cost": monthly_cost,
@@ -170,6 +179,9 @@ async def create_trip(body: TripIn, user: Dict = Depends(_driver)):
         "fuel_unit": fuel_unit,
         "vehicle_mileage_kmpl": mileage,
         "passenger_seats": int(veh.get("seat_capacity", 4)) - 1,
+        "fuel_cost": fuel_cost,
+        "other_expenses": other_expenses,
+        "other_expenses_total": other_expenses_total,
         "cost_per_seat": cost_per_seat,
         "total_cost": total_cost,
         "monthly_cost": monthly_cost,
@@ -287,8 +299,7 @@ async def list_available_trips(
     results = []
     async for d in cur:
         left = int(d.get("seats_offered", 1)) - int(d.get("seats_booked", 0))
-        if left <= 0:
-            continue
+        is_sold_out = left <= 0
 
         try:
             driver_s = d["source"]["point"]["coordinates"]
@@ -386,6 +397,9 @@ async def list_available_trips(
                     continue
 
         row = _out(d)
+        row["seats_left"] = max(0, left)
+        row["is_sold_out"] = is_sold_out
+        row["status_badge"] = "Seat Over" if is_sold_out else d.get("status")
         driver = await db.users.find_one(
             {"_id": d["driver_id"]},
             {"full_name": 1, "phone": 1, "rating_avg": 1, "rating_count": 1}

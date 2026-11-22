@@ -9,6 +9,9 @@ export type Trip = {
   distance_km: number | null; duration_min?: number | null;
   trip_type?: string; fuel_price?: number; fuel_type?: string;
   cost_per_seat?: number; total_cost?: number; monthly_cost?: number;
+  other_expenses?: Array<{ name: string; amount: number }> | null;
+  other_expenses_total?: number | null;
+  is_sold_out?: boolean;
   approval_note?: string | null;
   driver?: { name?: string; rating_avg?: number | null; rating_count?: number };
   vehicle?: { make?: string; model?: string; plate_no?: string; fuel_type?: string; mileage_kmpl?: number };

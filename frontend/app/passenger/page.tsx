@@ -23,6 +23,7 @@ import {
   Sparkles,
   ArrowRight,
   Users,
+  Navigation,
 } from "lucide-react";
 import { useSession } from "@/components/SessionProvider";
 import { RequireAuth } from "@/components/RequireAuth";
@@ -33,7 +34,7 @@ import { bookingApi, type Booking } from "@/lib/bookings";
 import { ratingApi } from "@/lib/ratings";
 import { safetyApi } from "@/lib/safety";
 import { authApi } from "@/lib/auth";
-import { type PlaceHit } from "@/lib/geo";
+import { geoApi, type PlaceHit } from "@/lib/geo";
 import { PlacePicker } from "@/components/PlacePicker";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
@@ -88,11 +89,57 @@ function PassengerConsoleInner() {
   const [bookingBusy, setBookingBusy] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [notice, setNotice] = React.useState<string | null>(null);
+  const [gpsLoading, setGpsLoading] = React.useState<"src" | "dst" | null>(null);
 
-  // Requirement: if seat available show to other passenger, otherwise show in passenger dashboard
-  const visibleAvailableTrips = availableTrips.filter(
-    (t) => (t.seats_left ?? 1) > 0
-  );
+  // Requirement: show all matching trips; if all seats booked, show as "Seat Over" badge
+  const visibleAvailableTrips = availableTrips;
+
+  // Live GPS locator for Destination and Source
+  const handleUseLiveLocation = async (target: "src" | "dst") => {
+    if (typeof window === "undefined" || !navigator.geolocation) {
+      setError("Geolocation is not supported by your browser");
+      return;
+    }
+    setGpsLoading(target);
+    setError(null);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        try {
+          const rev = await geoApi.reverse(latitude, longitude);
+          const hit: PlaceHit = {
+            name: rev.name || `Live GPS (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`,
+            address: rev.address || `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`,
+            lat: latitude,
+            lng: longitude,
+          };
+          if (target === "dst") {
+            setDst(hit);
+            setNotice(`📍 Destination set to live GPS: ${hit.name}`);
+          } else {
+            setSrc(hit);
+            setNotice(`📍 Pickup source set to live GPS: ${hit.name}`);
+          }
+        } catch {
+          const hit: PlaceHit = {
+            name: `Live Location (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`,
+            address: `GPS Coordinates`,
+            lat: latitude,
+            lng: longitude,
+          };
+          if (target === "dst") setDst(hit);
+          else setSrc(hit);
+        } finally {
+          setGpsLoading(null);
+        }
+      },
+      (err) => {
+        setGpsLoading(null);
+        setError(`Unable to retrieve GPS location: ${err.message}`);
+      },
+      { timeout: 8000, enableHighAccuracy: true }
+    );
+  };
 
   // Load available trips based on destination and filter
   const checkAvailability = React.useCallback(async () => {
@@ -379,19 +426,45 @@ function PassengerConsoleInner() {
                   </div>
 
                   {/* Pickers: Destination (Primary) + Source (Optional) */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <PlacePicker
-                      label="Enter / Select Destination (Where you want to go)"
-                      value={dst}
-                      onPick={setDst}
-                      placeholder="Type destination, e.g. Electronic City, Whitefield…"
-                    />
-                    <PlacePicker
-                      label="Pickup Source (Optional: specify starting point)"
-                      value={src}
-                      onPick={setSrc}
-                      placeholder="Type pickup, e.g. Hebbal, Koramangala…"
-                    />
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-xs text-muted">
+                      <span>Choose Location or Use Live GPS</span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleUseLiveLocation("dst")}
+                          disabled={gpsLoading === "dst"}
+                          className="inline-flex items-center gap-1 rounded-lg border border-brand-teal/40 bg-brand-teal/10 px-2 py-1 text-[11px] font-semibold text-brand-teal hover:bg-brand-teal/20 transition disabled:opacity-60"
+                        >
+                          <Navigation className={`h-3 w-3 ${gpsLoading === "dst" ? "animate-spin" : ""}`} />
+                          {gpsLoading === "dst" ? "Locating…" : "📍 Live GPS Destination"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleUseLiveLocation("src")}
+                          disabled={gpsLoading === "src"}
+                          className="inline-flex items-center gap-1 rounded-lg border border-line bg-card px-2 py-1 text-[11px] font-semibold text-muted hover:text-ink hover:border-brand-teal/40 transition disabled:opacity-60"
+                        >
+                          <Navigation className={`h-3 w-3 ${gpsLoading === "src" ? "animate-spin" : ""}`} />
+                          {gpsLoading === "src" ? "Locating…" : "📍 Live GPS Pickup"}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <PlacePicker
+                        label="Enter / Select Destination (Where you want to go)"
+                        value={dst}
+                        onPick={setDst}
+                        placeholder="Type destination, e.g. Electronic City, Whitefield…"
+                      />
+                      <PlacePicker
+                        label="Pickup Source (Optional: specify starting point)"
+                        value={src}
+                        onPick={setSrc}
+                        placeholder="Type pickup, e.g. Hebbal, Koramangala…"
+                      />
+                    </div>
                   </div>
 
                   {/* Filter Tabs: All, Live Trips (Now), Monthly Plans, Long Trips */}
@@ -517,11 +590,14 @@ function PassengerConsoleInner() {
                         const isMonthly = trip.trip_type === "monthly";
                         const isLong = trip.trip_type === "long";
                         const isLive = !isMonthly && !isLong;
+                        const isSoldOut = trip.is_sold_out || (trip.seats_left ?? 0) <= 0;
 
                         return (
                           <div
                             key={trip.id}
-                            className="rounded-2xl border border-line bg-surface p-5 shadow-sm hover:border-brand-teal/40 transition flex flex-col justify-between"
+                            className={`rounded-2xl border bg-surface p-5 shadow-sm transition flex flex-col justify-between ${
+                              isSoldOut ? "border-rose-500/30 opacity-90" : "border-line hover:border-brand-teal/40"
+                            }`}
                           >
                             <div>
                               {/* Header Badge */}
@@ -558,9 +634,15 @@ function PassengerConsoleInner() {
                                   )}
                                 </div>
 
-                                <span className="text-xs font-semibold text-brand-teal bg-brand-teal/10 px-2 py-0.5 rounded-md">
-                                  {trip.seats_left} seats left
-                                </span>
+                                {isSoldOut ? (
+                                  <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/40 flex items-center gap-1">
+                                    Seat Over (Sold Out)
+                                  </span>
+                                ) : (
+                                  <span className="text-xs font-semibold text-brand-teal bg-brand-teal/10 px-2 py-0.5 rounded-md">
+                                    {trip.seats_left} seats left
+                                  </span>
+                                )}
                               </div>
 
                               {/* Route */}
@@ -662,6 +744,12 @@ function PassengerConsoleInner() {
                                   </span>
                                 </div>
                               )}
+                              {trip.other_expenses_total != null && trip.other_expenses_total > 0 && (
+                                <div className="flex items-center justify-between text-xs text-brand-amber mt-1 px-1 font-medium">
+                                  <span>Includes Other Expenses (Tolls, etc.):</span>
+                                  <span>+₹{trip.other_expenses_total}</span>
+                                </div>
+                              )}
                               {trip.distance_km && trip.cost_per_seat && trip.seats_offered && (
                                 <div className="flex items-center justify-between text-xs text-muted mt-1 px-1">
                                   <span>
@@ -705,21 +793,32 @@ function PassengerConsoleInner() {
                                 )}
                               </div>
 
-                              <Button
-                                variant="primary"
-                                size="md"
-                                disabled={bookingBusy === trip.id || trip.seats_left <= 0}
-                                onClick={() => handleBookSeat(trip)}
-                                className="w-full flex items-center justify-center gap-1.5 shadow-sm"
-                              >
-                                {bookingBusy === trip.id ? (
-                                  "Confirming…"
-                                ) : (
-                                  <>
-                                    <Check className="h-4 w-4" /> Book Seat Now
-                                  </>
-                                )}
-                              </Button>
+                              {isSoldOut ? (
+                                <Button
+                                  variant="secondary"
+                                  size="md"
+                                  disabled={true}
+                                  className="w-full flex items-center justify-center gap-1.5 opacity-70 cursor-not-allowed border-rose-500/30 text-rose-400 bg-rose-500/10 font-bold"
+                                >
+                                  Seat Over (0 Seats Left)
+                                </Button>
+                              ) : (
+                                <Button
+                                  variant="primary"
+                                  size="md"
+                                  disabled={bookingBusy === trip.id || (trip.seats_left ?? 0) <= 0}
+                                  onClick={() => handleBookSeat(trip)}
+                                  className="w-full flex items-center justify-center gap-1.5 shadow-sm"
+                                >
+                                  {bookingBusy === trip.id ? (
+                                    "Confirming…"
+                                  ) : (
+                                    <>
+                                      <Check className="h-4 w-4" /> Book Seat Now
+                                    </>
+                                  )}
+                                </Button>
+                              )}
                             </div>
                           </div>
                         );
@@ -874,10 +973,10 @@ function PassengerConsoleInner() {
 
                         <div className="mt-4 pt-3 border-t border-line flex items-center justify-between text-xs">
                           <span className="text-muted">Driver: {b.driver_name || "Assigned Driver"}</span>
-                          {(b.status === "requested" || b.status === "confirmed") && (
+                          {(b.status === "requested" || b.status === "accepted" || b.status === "confirmed") && (
                             <button
                               onClick={() => handleCancelBooking(b.id)}
-                              className="text-danger hover:underline font-medium"
+                              className="text-danger hover:underline font-medium text-xs flex items-center gap-1 transition"
                             >
                               Cancel Booking
                             </button>
