@@ -114,7 +114,7 @@ export function RouteSelector({
       </div>
       <div className="grid gap-2">
         {routes.map((r, i) => {
-          const isActive = i === active || (i === 0 && value === null);
+          const isActive = i === active;
           const coords = r.geometry.coordinates;
           const first = coords[0];
           const last = coords[coords.length - 1];
