@@ -225,7 +225,14 @@ function TripsInner() {
           <PlacePicker label="To" value={dst} onPick={setDst} placeholder="Electronic City…" />
           {/* Module 26: Route selection — driver chooses which route to travel */}
           {allRoutes.length > 0 && (
-            <div className="mt-3">
+            <div className="mt-3 space-y-4">
+              {/* Step-by-step instruction */}
+              <div className="flex items-start gap-2 text-xs text-muted">
+                <span className="text-brand-teal font-bold rounded-full border border-brand-teal/50 bg-brand-teal/10 px-1.5 py-0">1</span>
+                <span>
+                  Choose one of the route options below (click a route card to select it).
+                </span>
+              </div>
               <RouteSelector
                 trip={{
                   id: "new",
@@ -260,6 +267,17 @@ function TripsInner() {
                 value={selectedRoute ?? null}
                 onChange={setSelectedRoute}
               />
+              {/* Clear instruction after selection */}
+              {!selectedRoute && (
+                <div className="mt-2 rounded-xl border border-brand-teal/30 bg-brand-teal/5 p-2.5 text-xs">
+                  <div className="flex items-start gap-2">
+                    <span className="text-brand-teal font-bold">ℹ</span>
+                    <span className="text-ink">
+                      Select a route above to enable the <span className="font-semibold text-brand-teal">Stage as draft</span> button.
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
           )}
           <div className="grid gap-4 md:grid-cols-3">
@@ -320,7 +338,7 @@ function TripsInner() {
               </p>
             </div>
           )}
-          <Button variant="primary" size="md" disabled={busy || !src || !dst} className="w-full">
+          <Button variant="primary" size="md" disabled={busy || !src || !dst || !selectedRoute} className="w-full">
             {busy ? "Staging…" : "Stage as draft →"}
           </Button>
           <p className="text-[10px] text-muted mt-1">

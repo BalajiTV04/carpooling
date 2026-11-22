@@ -173,6 +173,18 @@ export function RouteSelector({
           );
         })}
       </div>
+
+      {/* Clear instruction: route selection is separate from hosting */}
+      <div className="mt-3 rounded-xl border border-brand-teal/30 bg-brand-teal/5 p-2.5 text-xs">
+        <div className="flex items-start gap-2">
+          <span className="text-brand-teal font-bold">📋</span>
+          <span className="text-ink">
+            <span className="font-semibold">Select a route above</span>, then click{" "}
+            <span className="font-semibold text-brand-teal">Host & Save Draft</span> below to save this trip as a draft.{" "}
+            Clicking a route card only chooses it — it does not book or host yet.
+          </span>
+        </div>
+      </div>
     </div>
   );
 }

@@ -778,7 +778,14 @@ function DriverConsoleInner() {
 
                     {/* Module 26: Route selection — driver chooses which route to travel */}
                     {allRoutes.length > 0 && (
-                      <div className="mt-3">
+                      <div className="mt-3 space-y-4">
+                        {/* Step-by-step instruction */}
+                        <div className="flex items-start gap-2 text-xs text-muted">
+                          <span className="text-brand-teal font-bold rounded-full border border-brand-teal/50 bg-brand-teal/10 px-1.5 py-0">1</span>
+                          <span>
+                            Choose one of the route options below (click a route card to select it).
+                          </span>
+                        </div>
                         <RouteSelector
                           trip={{
                             id: "new",
@@ -813,6 +820,17 @@ function DriverConsoleInner() {
                           value={selectedRoute ?? null}
                           onChange={setSelectedRoute}
                         />
+                        {/* Clear instruction after selection */}
+                        {!selectedRoute && (
+                          <div className="mt-2 rounded-xl border border-brand-teal/30 bg-brand-teal/5 p-2.5 text-xs">
+                            <div className="flex items-start gap-2">
+                              <span className="text-brand-teal font-bold">ℹ</span>
+                              <span className="text-ink">
+                                Select a route above to enable the <span className="font-semibold text-brand-teal">Host & Save Draft</span> button.
+                              </span>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -1179,7 +1197,7 @@ function DriverConsoleInner() {
                       <Button
                         variant="primary"
                         size="lg"
-                        disabled={busyHosting || !src || !dst}
+                        disabled={busyHosting || !src || !dst || !selectedRoute}
                         className="w-full flex items-center justify-center gap-2 shadow-md"
                       >
                         {busyHosting ? (
