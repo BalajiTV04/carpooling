@@ -127,6 +127,9 @@ function DriverConsoleInner() {
   } | null>(null);
   const [routeBusy, setRouteBusy] = React.useState(false);
 
+  function fmtKm(v: number | null | undefined) { return v == null ? "—" : v.toFixed(1) + " km"; }
+  function fmtMin(v: number | null | undefined) { return v == null ? "—" : v.toFixed(0) + " min"; }
+
   // Selected vehicle (for capacity hints in the host form)
   const selectedVehicle = cars.find((c) => c.id === vehicleId);
 
@@ -1143,6 +1146,35 @@ function DriverConsoleInner() {
                       </div>
                     </div>
 
+                    {selectedRoute && (
+                      <div className="mt-4 rounded-xl border border-brand-teal/30 bg-brand-teal/5 p-3.5 space-y-2 text-xs">
+                        <div className="flex items-center justify-between">
+                          <p className="font-bold text-brand-teal text-[10px] uppercase tracking-wider">
+                            Route to save on Host
+                          </p>
+                          <span className="rounded-full border border-brand-teal/50 bg-brand-teal/10 px-2 py-0.5 text-[10px] font-bold text-brand-teal">
+                            SELECTED
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted">Route:</span>
+                          <span className="font-semibold text-ink">{selectedRoute.name}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted">Distance:</span>
+                          <span className="font-mono text-ink">{fmtKm(selectedRoute.distance_km)}</span>
+                        </div>
+                        {selectedRoute.duration_min != null && (
+                          <div className="flex justify-between">
+                            <span className="text-muted">Duration:</span>
+                            <span className="font-mono text-ink">{fmtMin(selectedRoute.duration_min)}</span>
+                          </div>
+                        )}
+                        <p className="text-[10px] text-muted">
+                          Click below to save this route as a draft trip.
+                        </p>
+                      </div>
+                    )}
                     <div className="mt-5">
                       <Button
                         variant="primary"
@@ -1151,18 +1183,21 @@ function DriverConsoleInner() {
                         className="w-full flex items-center justify-center gap-2 shadow-md"
                       >
                         {busyHosting ? (
-                          "Publishing trip…"
+                          "Saving draft…"
                         ) : (
                           <>
                             <Sparkles className="h-4 w-4" />
                             {tripType === "live"
-                              ? "Host & Broadcast Live Trip Now →"
+                              ? "Host & Save Draft (Live Trip) →"
                               : tripType === "monthly"
-                              ? "Publish Monthly Commute Plan →"
-                              : "Host Scheduled Long Trip →"}
+                              ? "Save Draft (Monthly Plan) →"
+                              : "Save Draft (Long Trip) →"}
                           </>
                         )}
                       </Button>
+                      <p className="text-[10px] text-muted mt-1">
+                        Trip is created as a draft. Submit it for admin approval from your trips list.
+                      </p>
                     </div>
                   </div>
                 </form>

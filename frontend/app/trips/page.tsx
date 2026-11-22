@@ -58,6 +58,9 @@ function TripsInner() {
   const [busy, setBusy] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  function fmtKm(v: number | null | undefined) { return v == null ? "—" : v.toFixed(1) + " km"; }
+  function fmtMin(v: number | null | undefined) { return v == null ? "—" : v.toFixed(0) + " min"; }
+
   const load = async () => {
     setTrips(await tripApi.mine());
     setCars(await vehicleApi.list());
@@ -288,9 +291,41 @@ function TripsInner() {
               </p>
             </div>
           )}
+          {selectedRoute && (
+            <div className="mt-4 rounded-xl border border-brand-teal/30 bg-brand-teal/5 p-3.5 space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <p className="font-bold text-brand-teal text-[10px] uppercase tracking-wider">
+                  Route to save on Host
+                </p>
+                <span className="rounded-full border border-brand-teal/50 bg-brand-teal/10 px-2 py-0.5 text-[10px] font-bold text-brand-teal">
+                  SELECTED
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted">Route:</span>
+                <span className="font-semibold text-ink">{selectedRoute.name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted">Distance:</span>
+                <span className="font-mono text-ink">{fmtKm(selectedRoute.distance_km)}</span>
+              </div>
+              {selectedRoute.duration_min != null && (
+                <div className="flex justify-between">
+                  <span className="text-muted">Duration:</span>
+                  <span className="font-mono text-ink">{fmtMin(selectedRoute.duration_min)}</span>
+                </div>
+              )}
+              <p className="text-[10px] text-muted">
+                Click below to save this route as a draft trip.
+              </p>
+            </div>
+          )}
           <Button variant="primary" size="md" disabled={busy || !src || !dst} className="w-full">
             {busy ? "Staging…" : "Stage as draft →"}
           </Button>
+          <p className="text-[10px] text-muted mt-1">
+            Trip is created as a draft. Publish it to go live.
+          </p>
         </div>
         <div className="glass-card p-4">
           <RouteMap
