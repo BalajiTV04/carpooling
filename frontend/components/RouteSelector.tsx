@@ -7,6 +7,10 @@ import { useState } from "react";
 import { RouteMap } from "@/components/RouteMap";
 import type { Trip } from "@/lib/trips";
 
+type MapSize = "small" | "medium" | "large";
+
+const SIZE_HEIGHT: Record<MapSize, number> = { small: 80, medium: 140, large: 200 };
+
 function fmtKm(v: number | null | undefined) { return v == null ? "—" : v.toFixed(1) + " km"; }
 function fmtMin(v: number | null | undefined) { return v == null ? "—" : v.toFixed(0) + " min"; }
 
@@ -26,6 +30,8 @@ export function RouteSelector({
   value: RouteOption | null;
   onChange: (opt: RouteOption | null) => void;
 }) {
+  const [mapSize, setMapSize] = useState<MapSize>("medium");
+
   const routes: RouteOption[] = [];
 
   // Build the option list: primary route first, then alternatives.
@@ -49,14 +55,52 @@ export function RouteSelector({
   const active = routes.findIndex(
     (r) => value && JSON.stringify(r.geometry) === JSON.stringify(value.geometry)
   );
+  const mapHeight = SIZE_HEIGHT[mapSize];
 
   return (
     <div className="mt-3 rounded-2xl border border-brand-teal/30 bg-surface p-3">
-      <div className="flex items-center justify-between mb-2">
-        <p className="text-xs font-bold text-ink">Choose route</p>
-        <span className="text-[10px] text-muted">
-          {routes.length} option{routes.length > 1 ? "s" : ""} available
-        </span>
+      {/* Header: route count + size toggle */}
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
+        <div className="flex items-center gap-2">
+          <p className="text-xs font-bold text-ink">Choose route</p>
+          <span className="rounded-full border border-brand-teal/50 bg-brand-teal/10 px-2 py-0.5 text-[10px] font-bold text-brand-teal">
+            {routes.length} option{routes.length > 1 ? "s" : ""}
+          </span>
+        </div>
+        <div className="flex items-center gap-1 text-[10px] text-muted">
+          <span className="font-semibold">Map size:</span>
+          {(["small", "medium", "large"] as MapSize[]).map((sz) => (
+            <button
+              key={sz}
+              onClick={() => setMapSize(sz)}
+              className={`rounded-lg px-2 py-1 text-xs transition border ${
+                mapSize === sz
+                  ? "border-brand-teal bg-brand-teal/10 text-brand-teal font-bold"
+                  : "border-brand-teal/26 text-muted hover:border-brand-teal/50"
+              }`}
+            >
+              {sz === "small" ? "S" : sz === "medium" ? "M" : "L"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Quick comparison strip: all route distances at a glance */}
+      <div className="flex flex-wrap gap-2 mb-3">
+        {routes.map((r, i) => (
+          <span
+            key={i}
+            className={`rounded-full border px-3 py-1 text-[10px] font-medium transition ${
+              i === active
+                ? "border-brand-teal bg-brand-teal/10 text-brand-teal"
+                : "border-brand-teal/30 bg-surface/50 text-ink"
+            }`}
+          >
+            {r.name}{" "}
+            <span className="text-muted/80">· {fmtKm(r.distance_km)}</span>
+            {r.duration_min != null && <span className="text-muted/80">· {fmtMin(r.duration_min)}</span>}
+          </span>
+        ))}
       </div>
       <div className="grid gap-2">
         {routes.map((r, i) => {
@@ -68,7 +112,7 @@ export function RouteSelector({
             <button
               key={i}
               onClick={() => onChange(isActive ? null : r)}
-              className={`w-full rounded-2xl border px-3 py-2.5 text-left text-xs transition ${
+              className={`w-full rounded-2xl border p-2.5 text-left transition ${
                 isActive
                   ? "border-brand-teal bg-brand-teal/10 shadow-[0_0_0_1px_#14b8a6]"
                   : "border-brand-teal/26 hover:border-brand-teal/50"
@@ -101,7 +145,7 @@ export function RouteSelector({
                   </div>
                 </div>
               </div>
-              <div className="mt-2 h-[80px] rounded-xl border border-brand-teal/20 overflow-hidden">
+              <div className="mt-2 rounded-xl border border-brand-teal/20 overflow-hidden">
                 <RouteMap
                   src={first ? [first[0], first[1]] : null}
                   dst={last ? [last[0], last[1]] : null}
@@ -109,7 +153,7 @@ export function RouteSelector({
                     type: "LineString",
                     coordinates: coords.map(([lng, lat]) => [lng, lat]),
                   }}
-                  height={80}
+                  height={mapHeight}
                   routeColor={isActive ? "#14b8a6" : "#9ca3af"}
                 />
               </div>
