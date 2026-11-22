@@ -1361,24 +1361,40 @@ function DriverConsoleInner() {
                               </button>
                             )}
                             {t.status === "draft" && (
-                              <button
-                                onClick={async () => {
-                                  if (confirm("Submit this trip for admin approval?")) {
-                                    const submitted = await tripApi.submitForApproval(t.id);
-                                    setTrips((prev) =>
-                                      prev.map((item) =>
-                                        item.id === t.id
-                                          ? { ...item, status: submitted.status }
-                                          : item
-                                      )
-                                    );
-                                    setNotice("Trip submitted for admin approval.");
-                                  }
-                                }}
-                                className="text-brand-teal hover:underline font-medium"
-                              >
-                                Submit for Approval
-                              </button>
+                              <>
+                                <button
+                                  onClick={async () => {
+                                    if (confirm("Submit this trip for admin approval?")) {
+                                      const submitted = await tripApi.submitForApproval(t.id);
+                                      setTrips((prev) =>
+                                        prev.map((item) =>
+                                          item.id === t.id
+                                            ? { ...item, status: submitted.status }
+                                            : item
+                                        )
+                                      );
+                                      setNotice("Trip submitted for admin approval.");
+                                    }
+                                  }}
+                                  className="text-brand-teal hover:underline font-medium mr-2"
+                                >
+                                  Submit for Approval
+                                </button>
+                                <button
+                                  onClick={async () => {
+                                    if (confirm("Delete this draft trip?")) {
+                                      await tripApi.remove(t.id);
+                                      setTrips((prev) =>
+                                        prev.filter((item) => item.id !== t.id)
+                                      );
+                                      setNotice("Draft trip deleted.");
+                                    }
+                                  }}
+                                  className="text-rose-400 hover:underline font-medium"
+                                >
+                                  Delete Draft
+                                </button>
+                              </>
                             )}
                           </div>
                         </div>
