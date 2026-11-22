@@ -41,12 +41,20 @@ VoltRide matches riders to drivers heading the same way, optimizing for corridor
 
 ### Core product logic
 
-- **Route-aware matching** — pair riders/drivers on shared corridors, not just nearby points. Uses OSRM routing geometry and projects pickup/dropoff onto the driver's route to compute overlap, rather than simple radius matching.
-- **Minimum-detour pickup** — choose the pickup point that adds the least extra distance for the driver. The matching engine evaluates candidate pickup points along the driver's routed path and selects the one minimizing total detour. Exposed via `POST /api/v1/rides/search-with-detour` (Module 10), which runs an 8-step route-snapping / corridor-matching optimiser over every published trip for the day and returns feasible matches with pickup/drop points, detour km, extra time, route overlap %, and estimated passenger contribution.
-- **Fair cost splitting** — price each share by fuel/mileage and a configurable cost policy. Cost is calculated based on route distance, time, and seat utilization, with weights that can be learned by the AI re-ranker (Module 16).
-- **Live tracking** — follow the ride in real time with ETA. GPS locations are stored with a 30-day TTL for privacy, scoped to active trips only.
-- **Safety monitoring** — watch for safety events while the ride is in progress (speeding, deviations, SOS alerts). Telemetry data is collected via the `telemetry_safety` collection.
-- **Driver/passenger roles** — separate consoles for publishing trips, booking, rating, and vehicle management. Drivers have vehicle registration and publishing capabilities; passengers have booking and rating capabilities.
+- **Route-aware matching & multi-route selection (Module 26)** — pair riders/drivers on shared corridors, not just nearby points. Drivers choose from multiple OSRM driving paths (Fastest Primary Route vs. Alternatives via bypass/arterial corridors) with accurate distance, duration, and geometry preview before staging/hosting as a draft.
+- **Minimum-detour pickup** — choose the pickup point that adds the least extra distance for the driver. The matching engine evaluates candidate pickup points along the driver's routed path and selects the one minimizing total detour via `POST /api/v1/rides/search-with-detour` (Module 10).
+- **Transparent fuel & other expenses calculator** — computes fair fuel costs dynamically:
+  $$\text{Fuel Cost} = \left(\frac{\text{Distance}}{\text{Mileage}}\right) \times \text{Fuel Price}$$
+  $$\text{Total Required Amount} = \text{Fuel Cost} + \text{Other Expenses (Tolls, Parking, Permits)}$$
+  $$\text{Per Seat Price} = \frac{\text{Total Required Amount}}{\text{Available Seats}}$$
+  Itemized expenses (`+ Add Expense`) allow adding toll charges, parking fees, or interstate permits directly into the shared trip pool.
+- **Dynamic split-equal cost sharing & fare reduction history** — as passengers join or leave a shared corridor, the cost-sharing engine re-splits segments equally across all occupants (driver + passengers). Passengers view their previous fare crossed out (`~~₹1,250~~`), present reduced fare (`₹834`), and a celebration savings badge (`Saved ₹416!`).
+- **Live GPS location picking** — 1-tap quick buttons (`📍 Live GPS Source`, `📍 Live GPS Destination`) with reverse geocoding via OpenStreetMap/Nominatim to instantly set current device coordinates.
+- **"Seat Over (Sold Out)" trip status** — when all seats are booked (`seats_left <= 0`), the trip remains visible in passenger search results with a distinct badge and disabled booking action rather than disappearing.
+- **Flexible cancellation policy** — passengers can cancel bookings (`requested`, `accepted`, or `confirmed`) up until trip departure/completion. Cancellations immediately restore seat availability and re-split remaining occupant fares.
+- **Trip completion & driver ratings** — drivers mark destination reached with `Complete Trip ✓`, which notifies passengers and surfaces a 1–5 star rating & feedback card. Ratings instantly synchronize to the driver's public profile and admin console.
+- **Live tracking & safety monitoring** — real-time vehicle GPS ping broadcasting, active route polyline tracking, and instant SOS alerts.
+- **Driver, passenger & admin workspaces** — purpose-built consoles for drivers (hosting live, monthly, or long trips with mileage/fuel calculators), passengers (search, book, track, cancel, rate), and admins (system-wide moderation, trip approvals, user management).
 
 ---
 
@@ -149,13 +157,14 @@ Open `http://localhost:3000` in your browser. Register as a driver or passenger,
 | 16 | AI ride ranking (learned re-rank) | ✅ Verified |
 | 17 | Tracking | ✅ Verified |
 | 18 | Safety | — |
-| 19 | Completion | — |
+| 19 | Completion | ✅ Verified |
 | 20 | Streaming | — |
-| 21 | Admin | — |
-| 22 | Ratings | — |
+| 21 | Admin | ✅ Verified |
+| 22 | Ratings | ✅ Verified |
 | 23 | Notifications | — |
 | 24 | Analytics | — |
 | 25 | Deploy & harden | ✅ Verified |
+| 26 | Driver-chosen route & multi-alternative selection | ✅ Verified |
 
 ## Architecture
 
@@ -625,9 +634,14 @@ curl http://localhost:8000/api/v1/version
 | Method | Endpoint | Description | Request | Response |
 |---|---|---|---|---|
 | `GET` | `/trips` | List trips with optional filters | `from`, `to` query params | Paginated list of trip summaries |
-| `POST` | `/trips` | Create new trip | `origin` place ID, `destination` place ID, `depart_at` (ISO datetime) | Created trip with `id`, `route_geometry`, `distance_km`, `duration_min`, `status` |
+| `POST` | `/trips` | Create new trip with fuel & other expenses calculations and driver-selected route | `source`, `destination`, `depart_at`, `seats_offered`, `trip_type` (`live` \| `monthly` \| `long`), `fuel_type`, `fuel_price_per_unit`, `other_expenses` (list of `{name, amount}`), `other_expenses_total`, `route_geometry`, `route_index` | Created draft trip with `id`, `total_cost`, `cost_per_seat`, `monthly_cost`, `route_geometry`, `route_alternatives`, `status: "draft"` |
+| `GET` | `/trips/available` | Search active trips matching destination/source corridor (shows "Seat Over" badge for sold-out trips) | `destination`, `source`, `trip_type`, `dst_lat`, `dst_lng`, `src_lat`, `src_lng` | List of available and sold-out trips with `seats_left`, `is_sold_out`, `status_badge`, `cost_per_seat`, `other_expenses_total` |
 | `GET` | `/trips/{trip_id}` | Get trip by ID | — | Full trip object with all fields |
 | `GET` | `/trips/mine` | Get current user's trips | `Authorization: Bearer <token>` | List of user's trips |
+| `POST` | `/trips/{trip_id}/complete` | Mark destination reached & complete trip | Trip owner auth | Updated trip with `status: "completed"`, triggers rating requests for all riders |
+| `POST` | `/trips/{trip_id}/submit` | Driver submits draft trip for admin approval | Trip owner auth | Trip with `status: "pending_approval"` |
+| `POST` | `/trips/{trip_id}/publish` | Publish approved trip to make it bookable | Trip owner or admin auth | Trip with `status: "published"` |
+| `POST` | `/trips/{trip_id}/cancel` | Driver cancels trip | Trip owner auth | Cancelled trip + all passenger bookings refunded/cancelled |
 
 ### Search / matching endpoints (`/search/`)
 
@@ -645,8 +659,13 @@ curl http://localhost:8000/api/v1/version
 
 | Method | Endpoint | Description | Request | Response |
 |---|---|---|---|---|
-| `POST` | `/bookings` | Create a booking | Match snapshot with `ai_score`, `ai_model`, `match_explain` | `201` + `booking` object with `id`, `status`, `match_score`, `ai_score` |
+| `POST` | `/bookings` | Create a booking on an open trip | `trip_id`, `seats`, `pickup_coordinates`, `dropoff_coordinates`, `use_optimised_pickup` | `201` + `booking` object with `id`, `status: "requested"`, `cost_share`, `estimated_contribution` |
 | `GET` | `/bookings` | List bookings | `Authorization: Bearer <token>` | Paginated list of bookings |
+| `GET` | `/bookings/mine` | Get current passenger's bookings with live fare change history | `Authorization: Bearer <token>` | List of bookings with `previous_amount`, `cost_share`, `fare_changed`, `fare_history`, `status` |
+| `GET` | `/bookings/incoming` | Driver views incoming ride requests waiting for approval | `Authorization: Bearer <token>` | List of booking requests with passenger details |
+| `POST` | `/bookings/{booking_id}/accept` | Driver approves passenger booking | Driver auth | Updated booking `status: "accepted"`, triggers dynamic fare recalculation for all riders |
+| `POST` | `/bookings/{booking_id}/reject` | Driver declines passenger booking | Driver auth | Updated booking `status: "rejected"` |
+| `POST` | `/bookings/{booking_id}/cancel` | Passenger cancels ride (allowed for `requested`, `accepted`, `confirmed` up to departure/completion) | Passenger auth | Booking `status: "cancelled"`, restores seat capacity, dynamically recalculates remaining fares |
 | `GET` | `/bookings/{booking_id}` | Get booking details | — | Full booking object |
 
 ### Tracking endpoints (`/tracking/`)
@@ -1761,3 +1780,4 @@ The root README documents the Next.js monorepo. The static port is documented in
 |---|---|---|
 | `v1.0.0` | 2026-01-15 | 25/25 modules complete · 121 tests passing · 92 API routes · 11 MongoDB collections · minimum-detour pickup optimisation · AI ride ranking · live WebSocket tracking · production hardening guard |
 | `v1.1.0` | 2026-11-19 | Detailed README pass — GitHub badges, Quick Start (no-Docker) section, complete Database schema table, frontend env vars, expanded API reference (Admin, Ratings, Notifications, Segments, Safety, Fuel, Cost, Recurring, Advance, Completion, Streaming, Health probes), Module docs index table, expanded Contributing PR checklist & branch naming, consolidated FAQ |
+| `v1.2.0` | 2026-11-22 | **Driver & Passenger Workspace Expansion · Route Selection & Fair Cost Sharing**: <br>• **Driver Workspace**: 3 hosting modes (Live Trips leaving now, 30-day Monthly Pass, Long Trips 1-week advance) · Module 26 multi-route selection with OSRM alternatives + bypass fallback · real-time fuel & itemized other expenses (Tolls, Parking, Permits) calculator with per-seat breakdown · decoupled route selection (no auto-host on click) and dedicated "Host & Save Draft" action. <br>• **Passenger Workspace**: 1-tap Live GPS Source & Destination picking with reverse geocoding · corridor-aware availability search · "Seat Over (Sold Out)" search badge for fully booked rides · dynamic split-equal cost sharing with previous vs. present fare reduction history (`~~₹1,250~~ → ₹834`) and savings badge · flexible cancellation (requested, accepted, confirmed) with automatic seat and fare re-splitting · destination reached completion and 1–5 star driver rating workflow. |
